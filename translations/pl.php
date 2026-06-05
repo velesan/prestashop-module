@@ -145,6 +145,7 @@ $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_3d0ed3e9145be53d081d10fe
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_20fbaa7c1bf32aa91ed46514737a0687'] = 'Wysokość (cm)';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_91721604210524b7051d99c4c8478715'] = 'Waga (kg)';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_694e8d1f2ee056f98ee488bdc4982d73'] = 'Ilość';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_186eadf46189190622e915153e8a630e'] = 'Niektóre wartości przekraczają maksymalne limity przewoźnika.';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_75dd3f0912d6a6744c2acce2e6fc19c8'] = 'Pobierz usługi';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_e128ece85361c066ea30a503fb868121'] = 'Dodatkowe opcje';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_ea9cf7e47ff33b2be14e6dd07cbcefc6'] = 'Wysyłka';

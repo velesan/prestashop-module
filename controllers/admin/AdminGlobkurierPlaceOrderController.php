@@ -89,12 +89,35 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
             // Carrier chosen in the PrestaShop order
             $prestaCarrierId = !empty($order->id_carrier) ? (int) $order->id_carrier : null;
             $prestaCarrierName = null;
+            $carrierLimits = ['max_weight' => 0, 'max_width' => 0, 'max_height' => 0, 'max_depth' => 0];
             if ($prestaCarrierId) {
                 try {
                     if (class_exists('Carrier')) {
                         $carrier = new Carrier($prestaCarrierId);
-                        if (Validate::isLoadedObject($carrier) && $carrier->name !== '') {
-                            $prestaCarrierName = $carrier->name;
+                        if (Validate::isLoadedObject($carrier)) {
+                            // PS tworzy nowy rekord przy każdej edycji przewoźnika — szukamy
+                            // aktualnej (nieskasowanej) wersji przez id_reference
+                            $currentId = (int) Db::getInstance()->getValue(
+                                'SELECT id_carrier FROM ' . _DB_PREFIX_ . 'carrier
+                                 WHERE id_reference = ' . (int) $carrier->id_reference . '
+                                 AND deleted = 0
+                                 ORDER BY id_carrier DESC'
+                            );
+                            if ($currentId && $currentId !== $prestaCarrierId) {
+                                $current = new Carrier($currentId);
+                                if (Validate::isLoadedObject($current)) {
+                                    $carrier = $current;
+                                }
+                            }
+                            if ($carrier->name !== '') {
+                                $prestaCarrierName = $carrier->name;
+                            }
+                            $carrierLimits = [
+                                'max_weight' => (float) $carrier->max_weight,
+                                'max_width'  => (float) $carrier->max_width,
+                                'max_height' => (float) $carrier->max_height,
+                                'max_depth'  => (float) $carrier->max_depth,
+                            ];
                         }
                     }
                 } catch (\Throwable $e) {
@@ -133,6 +156,7 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
                 'receiver_country_iso' => $receiver_country_iso,
                 'presta_carrier_id' => $prestaCarrierId,
                 'presta_carrier_name' => $prestaCarrierName,
+                'carrier_limits' => $carrierLimits,
             ]);
         } else {
             $this->context->smarty->assign([
@@ -145,6 +169,7 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
                 'receiver_country_iso' => 'PL',
                 'presta_carrier_id' => null,
                 'presta_carrier_name' => null,
+                'carrier_limits' => ['max_weight' => 0, 'max_width' => 0, 'max_height' => 0, 'max_depth' => 0],
             ]);
         }
 

@@ -34,6 +34,10 @@
     [ng\:cloak], [ng-cloak], .ng-cloak {
         display: none !important;
     }
+    .gk-field-error {
+        border-color: #e74c3c !important;
+        box-shadow: 0 0 4px rgba(231, 76, 60, 0.4) !important;
+    }
 </style>
 
 <div class="panel" id="gk-parcel-app">
@@ -173,6 +177,9 @@
                                 <div class="form-group"><label>{l s='Weight (kg)' mod='globkuriermodule'}</label><input id="pkg-weight" type="number" step="0.01" class="form-control"></div>
                                 <div class="form-group"><label>{l s='Quantity' mod='globkuriermodule'}</label><input id="pkg-count" type="number" step="1" class="form-control" value="1"></div>
                             </div>
+                        </div>
+                        <div id="carrierLimitsWarning" class="alert alert-warning" style="display:none; margin-bottom: 10px;">
+                            {l s='Some values exceed the maximum limits of the carrier.' mod='globkuriermodule'}
                         </div>
                         <button type="button" id="getServicesBtn" class="btn btn-primary btn-gk-primary">{l s='Get services' mod='globkuriermodule'}</button>
                     </div>
@@ -521,7 +528,13 @@
             {/if}
             prestaCarrier : {
                 id: {if $presta_carrier_id}{$presta_carrier_id|escape:'javascript':'UTF-8'}{else}null{/if},
-                name: '{if $presta_carrier_name}{$presta_carrier_name|escape:'javascript':'UTF-8'}{/if}'
+                name: '{if $presta_carrier_name}{$presta_carrier_name|escape:'javascript':'UTF-8'}{/if}',
+                limits: {
+                    maxWeight: {$carrier_limits.max_weight|floatval},
+                    maxWidth:  {$carrier_limits.max_width|floatval},
+                    maxHeight: {$carrier_limits.max_height|floatval},
+                    maxDepth:  {$carrier_limits.max_depth|floatval}
+                }
             },
             defaultPackageInfo : {
                 content: '{$config->defaultContent|escape:'javascript':'UTF-8'  }',

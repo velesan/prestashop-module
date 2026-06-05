@@ -95,6 +95,7 @@ $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_0a2ace3940b68de9222da6ab
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_cbc91043c7d4545744bfc4d356f4fedd'] = 'Based on order';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_d12779809a4e23e975c656c0e546ba51'] = 'We\'ve try to send you request but there was an error';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_21708f389805e88d6fd12809fddc0647'] = 'There is some validation errors. Please fix them before you can continue';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_186eadf46189190622e915153e8a630e'] = 'Some values exceed the maximum limits of the carrier.';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_0491e88a49d0fecd79bcc61b4dc27681'] = 'Please provide sender phone number';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_6cde2d9e94eeaf8c2c05fd5e76675bc4'] = 'Please provide receiver phone number';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_46020bf8bdda3ab728d46963a6e88ffe'] = 'Carrier was succesfully ordered';

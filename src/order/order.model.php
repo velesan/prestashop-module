@@ -44,4 +44,7 @@ class OrderModel
 
     /** @var string nazwa płatności zrozumiała dla człowieka */
     public $paymentName;
+
+    /** @var string|null numer śledzenia od przewoźnika (np. numer DPD) */
+    public $trackingNumber;
 }

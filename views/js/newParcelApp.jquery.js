@@ -156,12 +156,33 @@ function showOrderPlaced(order) {
 		$('#validationErrorBox').hide();
 		$('#valErrSenderPhone').hide();
 		$('#valErrReceiverPhone').hide();
+		$('#carrierLimitsWarning').hide();
+		$('#pkg-weight, #pkg-width, #pkg-height, #pkg-length').removeClass('gk-field-error');
 	}
 
 	function showValidationErrors(err) {
 		if (err.noSenderPhone) $('#valErrSenderPhone').show();
 		if (err.noReceiverPhone) $('#valErrReceiverPhone').show();
-		$('#validationErrorBox').show();
+		if (err.dimensionFields && err.dimensionFields.length) {
+			err.dimensionFields.forEach(function(f) { $('#' + f).addClass('gk-field-error'); });
+			$('#carrierLimitsWarning').show();
+		}
+		if (err.noSenderPhone || err.noReceiverPhone) $('#validationErrorBox').show();
+	}
+
+	function validateDimensions() {
+		var limits = window.InitialValues
+			&& window.InitialValues.prestaCarrier
+			&& window.InitialValues.prestaCarrier.limits;
+		if (!limits) return null;
+		var pi = GK.state.packageInfo;
+		if (!pi) return null;
+		var fields = [];
+		if (limits.maxWeight > 0 && pi.weight > limits.maxWeight) fields.push('pkg-weight');
+		if (limits.maxWidth  > 0 && pi.width  > limits.maxWidth)  fields.push('pkg-width');
+		if (limits.maxHeight > 0 && pi.height > limits.maxHeight) fields.push('pkg-height');
+		if (limits.maxDepth  > 0 && pi.length > limits.maxDepth)  fields.push('pkg-length');
+		return fields.length ? fields : null;
 	}
 
 function showOrderErrors(obj) {
@@ -176,6 +197,8 @@ function showOrderErrors(obj) {
 		const r = {};
 		if (!GK.state.sender.phone) r.noSenderPhone = true;
 		if (!GK.state.receiver.phone) r.noReceiverPhone = true;
+		const dimFields = validateDimensions();
+		if (dimFields) r.dimensionFields = dimFields;
 		return Object.keys(r).length ? r : null;
 	}
 
@@ -1757,6 +1780,10 @@ function renderServicesAndBind() {
     populatePackageInputs();
     populateReceiverPoints(); // Display receiver points in UI
     $('#getServicesBtn').off('click').on('click', function(){
+            clearErrors();
+            setPackageInfoFromInputs();
+            var dimFields = validateDimensions();
+            if (dimFields) { showValidationErrors({ dimensionFields: dimFields }); return; }
             const $btn = $(this);
             $btn.prop('disabled', true);
             $btn.find('i.icon-cog').show();

@@ -123,6 +123,39 @@ class OrderManager
         return true;
     }
 
+    /**
+     * Zwraca zamówienia z ostatnich 48h bez przypisanego tracking number
+     * @return OrderModel[]
+     */
+    public function getWithoutTracking48h()
+    {
+        $sql = 'SELECT * FROM ' . _DB_PREFIX_ . 'gk_orders
+                WHERE (tracking_number IS NULL OR tracking_number = "")
+                AND crate_date >= DATE_SUB(NOW(), INTERVAL 48 HOUR)
+                ORDER BY crate_date DESC';
+        $results = \Db::getInstance()->executeS($sql);
+        $orders = [];
+        foreach ($results as $row) {
+            $order = new OrderModel();
+            $this->assignMySqlDataToOrder($row, $order);
+            $orders[] = $order;
+        }
+        return $orders;
+    }
+
+    /**
+     * Aktualizuje tracking number dla danego zamówienia GK
+     * @param string $gkId
+     * @param string $trackingNumber
+     * @return bool
+     */
+    public function updateTrackingNumber($gkId, $trackingNumber)
+    {
+        return \Db::getInstance()->update('gk_orders', [
+            'tracking_number' => pSQL($trackingNumber),
+        ], 'gk_id = "' . pSQL($gkId) . '"');
+    }
+
     private function assignMySqlDataToOrder($mysqlData, $order)
     {
         $order->gkId = $mysqlData['gk_id'];
@@ -137,6 +170,7 @@ class OrderManager
         $order->cod = $mysqlData['cod'];
         $order->payment = $mysqlData['payment'];
         $order->paymentName = $this->translatePaymentName($mysqlData['payment']);
+        $order->trackingNumber = isset($mysqlData['tracking_number']) ? $mysqlData['tracking_number'] : null;
     }
 
     private function translatePaymentName($paymentCode)
