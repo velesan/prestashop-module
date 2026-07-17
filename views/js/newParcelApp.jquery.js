@@ -142,11 +142,13 @@ function showOrderPlaced(order) {
 		$('#mainFormBox').hide();
 		$('#orderPlacedBox').show();
 
-		// Display the shipment number
-		if (order && order.gkId) {
-			$('#orderPlacedNumber').text(order.gkId);
+		$('#orderPlacedNumber').text(order && order.gkId ? order.gkId : 'Brak numeru');
+
+		if (order && order.trackingNumber) {
+			$('#orderPlacedTracking').text(order.trackingNumber);
+			$('#orderPlacedTrackingRow').show();
 		} else {
-			$('#orderPlacedNumber').text('Brak numeru');
+			$('#orderPlacedTrackingRow').hide();
 		}
 	}
 
@@ -156,6 +158,7 @@ function showOrderPlaced(order) {
 		$('#validationErrorBox').hide();
 		$('#valErrSenderPhone').hide();
 		$('#valErrReceiverPhone').hide();
+		$('#valErrNoPickupMethod').hide();
 		$('#carrierLimitsWarning').hide();
 		$('#pkg-weight, #pkg-width, #pkg-height, #pkg-length').removeClass('gk-field-error');
 	}
@@ -163,21 +166,22 @@ function showOrderPlaced(order) {
 	function showValidationErrors(err) {
 		if (err.noSenderPhone) $('#valErrSenderPhone').show();
 		if (err.noReceiverPhone) $('#valErrReceiverPhone').show();
+		if (err.noPickupMethod) $('#valErrNoPickupMethod').show();
 		if (err.dimensionFields && err.dimensionFields.length) {
 			err.dimensionFields.forEach(function(f) { $('#' + f).addClass('gk-field-error'); });
 			$('#carrierLimitsWarning').show();
 		}
-		if (err.noSenderPhone || err.noReceiverPhone) $('#validationErrorBox').show();
+		if (err.noSenderPhone || err.noReceiverPhone || err.noPickupMethod) $('#validationErrorBox').show();
 	}
 
 	function validateDimensions() {
-		var limits = window.InitialValues
+		const limits = window.InitialValues
 			&& window.InitialValues.prestaCarrier
 			&& window.InitialValues.prestaCarrier.limits;
 		if (!limits) return null;
-		var pi = GK.state.packageInfo;
+		const pi = GK.state.packageInfo;
 		if (!pi) return null;
-		var fields = [];
+		const fields = [];
 		if (limits.maxWeight > 0 && pi.weight > limits.maxWeight) fields.push('pkg-weight');
 		if (limits.maxWidth  > 0 && pi.width  > limits.maxWidth)  fields.push('pkg-width');
 		if (limits.maxHeight > 0 && pi.height > limits.maxHeight) fields.push('pkg-height');
@@ -199,6 +203,14 @@ function showOrderErrors(obj) {
 		if (!GK.state.receiver.phone) r.noReceiverPhone = true;
 		const dimFields = validateDimensions();
 		if (dimFields) r.dimensionFields = dimFields;
+		const sendingType = $('input[name=pickup_type]:checked').val();
+		if (sendingType === 'PICKUP') {
+			const $orderedAddon = $('.addon-checkbox[data-category="ORDERED_COURIER"]');
+			const $paidAddon = $('.addon-checkbox[data-category="PAID_PICKUP"]');
+			if (($orderedAddon.length > 0 || $paidAddon.length > 0) && !$orderedAddon.is(':checked') && !$paidAddon.is(':checked')) {
+				r.noPickupMethod = true;
+			}
+		}
 		return Object.keys(r).length ? r : null;
 	}
 
@@ -259,9 +271,13 @@ function showOrderErrors(obj) {
 			originId: "PRESTASHOP_API"
 		};
 
-		// Add pickup data for PICKUP collection type
+		// Add pickup data for PICKUP collection type, but skip when ORDERED_COURIER is selected
+		// (courier is already booked — API does not require time range in that case)
 		if (collectionType === 'PICKUP') {
-			data.pickup = generatePickup(s.additionalInfo || {});
+			const $orderedCb = $('.addon-checkbox[data-category="ORDERED_COURIER"]');
+			if (!($orderedCb.length > 0 && $orderedCb.is(':checked'))) {
+				data.pickup = generatePickup(s.additionalInfo || {});
+			}
 		}
 
 
@@ -352,6 +368,12 @@ function showOrderErrors(obj) {
 				dst.stateId = s.additionalInfo.senderStateType;
 			} else if (role === 'receiver' && s.additionalInfo && s.additionalInfo.stateType && s.additionalInfo.stateType > 0) {
 				dst.stateId = s.additionalInfo.stateType;
+			}
+
+			// Gdy dostawa do punktu (pointId ustawiony w receiverAddress), API akceptuje tylko pointId —
+			// wszystkie inne pola adresowe są w tym przypadku nadmiarowe
+			if (role === 'receiver' && dst.pointId) {
+				data.receiverAddress = { pointId: dst.pointId };
 			}
 		});
 
@@ -453,7 +475,9 @@ function showOrderErrors(obj) {
 
 		// Validate pickup date and time
 		const collectionType = getSelectedCollectionTypeForApi();
-		if (collectionType === 'PICKUP') {
+		const $orderedCbValidate = $('.addon-checkbox[data-category="ORDERED_COURIER"]');
+		const orderedCourierSelected = $orderedCbValidate.length > 0 && $orderedCbValidate.is(':checked');
+		if (collectionType === 'PICKUP' && !orderedCourierSelected) {
 			const sendDate = $('#sendDateInput').val();
 			const timeRange = $('#pickupTimeSelect').val();
 			if (!sendDate) {
@@ -515,35 +539,49 @@ function showOrderErrors(obj) {
 		setProcessing(true);
 		const orderData = buildOrderData();
 		const token = window.InitialValues && window.InitialValues.token;
-		fetch('https://api.globkurier.pl/v1/order', {
+		const reqHeaders = {
+			'Content-Type': 'application/json',
+			'accept-language': (window.InitialValues && window.InitialValues.isoCode === 'pl') ? 'pl' : 'en',
+			'x-auth-token': token || ''
+		};
+
+		fetch('https://api.globkurier.pl/v1/order/validate', {
 			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				'accept-language': (window.InitialValues && window.InitialValues.isoCode === 'pl') ? 'pl' : 'en',
-				'x-auth-token': token || ''
-			},
+			headers: reqHeaders,
 			body: JSON.stringify(orderData)
-		}).then(function(r){ return r.json(); })
-		.then(function(resp){
-			if (!resp || !resp.number) throw resp || {};
-			// Save in shop
-			const moduleApiUrl = (window.InitialValues && window.InitialValues.moduleApiUrl) || '';
-			const dataToSend = {
-				gkId: resp.number,
-				hash: resp.hash || '',
-				orderId: (window.InitialValues && window.InitialValues.prestaOrderId) || null,
-				crateDate: null,
-				receiver: GK.state.receiver && GK.state.receiver.name,
-				content: orderData.content,
-				weight: orderData.shipment.weight,
-				carrier: GK.state.pickedService ? (GK.state.pickedService.carrierName + ' - ' + GK.state.pickedService.name) : '',
-				comments: '',
-				cod: GK.state.additionalInfo && GK.state.additionalInfo.codAmount ? GK.state.additionalInfo.codAmount : 0,
-				payment: GK.state.additionalInfo && GK.state.additionalInfo.paymentType
-			};
-			const url = moduleApiUrl + '&ajax=1&action=addNewGlobOrder&data=' + encodeURIComponent(JSON.stringify(dataToSend));
-			return fetch(url).then(function(r){ return r.json(); }).then(function(){
-				showOrderPlaced({ gkId: resp.number });
+		}).then(function(validateResp) {
+			if (validateResp.status !== 204) {
+				return validateResp.json().then(function(body) { throw body || {}; });
+			}
+			return fetch('https://api.globkurier.pl/v1/order', {
+				method: 'POST',
+				headers: reqHeaders,
+				body: JSON.stringify(orderData)
+			}).then(function(r){ return r.json(); })
+			.then(function(resp){
+				if (!resp || !resp.number) throw resp || {};
+				// Save in shop
+				const moduleApiUrl = (window.InitialValues && window.InitialValues.moduleApiUrl) || '';
+				const dataToSend = {
+					gkId: resp.number,
+					hash: resp.hash || '',
+					orderId: (window.InitialValues && window.InitialValues.prestaOrderId) || null,
+					crateDate: null,
+					receiver: GK.state.receiver && GK.state.receiver.name,
+					content: orderData.content,
+					weight: orderData.shipment.weight,
+					carrier: GK.state.pickedService ? (GK.state.pickedService.carrierName + ' - ' + GK.state.pickedService.name) : '',
+					comments: '',
+					cod: GK.state.additionalInfo && GK.state.additionalInfo.codAmount ? GK.state.additionalInfo.codAmount : 0,
+					payment: GK.state.additionalInfo && GK.state.additionalInfo.paymentType
+				};
+				const url = moduleApiUrl + '&ajax=1&action=addNewGlobOrder&data=' + encodeURIComponent(JSON.stringify(dataToSend));
+				return fetch(url).then(function(r){ return r.json(); }).then(function(saved){
+					showOrderPlaced({
+						gkId: resp.number,
+						trackingNumber: saved && saved.trackingNumber ? saved.trackingNumber : null
+					});
+				});
 			});
 		})
 		.catch(function(e){
@@ -864,8 +902,12 @@ function bindEditModals() {
 function templateServicesPanel() { return ''; }
 
 	function setPackageInfoFromInputs() {
+		const selVal = $('#pkg-content-select').val();
+		const content = selVal === '__custom__' || selVal === ''
+			? ($('#pkg-content').val() || '')
+			: (selVal || $('#pkg-content').val() || '');
 		GK.state.packageInfo = {
-			content: $('#pkg-content').val() || '',
+			content: content,
 			length: parseFloat($('#pkg-length').val()) || null,
 			width: parseFloat($('#pkg-width').val()) || null,
 			height: parseFloat($('#pkg-height').val()) || null,
@@ -876,14 +918,11 @@ function templateServicesPanel() { return ''; }
 
 function populatePackageInputs() {
     const pi = GK.state.packageInfo || (window.InitialValues && window.InitialValues.defaultPackageInfo) || {};
-    if ($('#pkg-content').length) {
-        if (pi.content != null) $('#pkg-content').val(pi.content);
-        if (pi.length != null) $('#pkg-length').val(pi.length);
-        if (pi.width != null) $('#pkg-width').val(pi.width);
-        if (pi.height != null) $('#pkg-height').val(pi.height);
-        if (pi.weight != null) $('#pkg-weight').val(pi.weight);
-        if (pi.count != null) $('#pkg-count').val(pi.count);
-    }
+    if (pi.length != null) $('#pkg-length').val(pi.length);
+    if (pi.width != null) $('#pkg-width').val(pi.width);
+    if (pi.height != null) $('#pkg-height').val(pi.height);
+    if (pi.weight != null) $('#pkg-weight').val(pi.weight);
+    if (pi.count != null) $('#pkg-count').val(pi.count);
 }
 
 function buildProductsParams() {
@@ -1067,10 +1106,71 @@ function renderServiceOptionsContainer() {
     });
 }
 
+	function fetchContentList() {
+		const s = GK.state;
+		if (!s.pickedService) return;
+		const senderIso = (s.sender && s.sender.country && s.sender.country.isoCode) || (window.InitialValues && window.InitialValues.sender && window.InitialValues.sender.countryCode) || 'PL';
+		const receiverIso = (s.receiver && s.receiver.country && s.receiver.country.isoCode) || (window.InitialValues && window.InitialValues.receiver && window.InitialValues.receiver.countryCode) || 'PL';
+		const url = 'https://api.globkurier.pl/v1/order/content?' + new URLSearchParams({ productId: s.pickedService.id, senderCountry: senderIso, receiverCountry: receiverIso }).toString();
+		const defaultContent = (window.InitialValues && window.InitialValues.defaultPackageInfo && window.InitialValues.defaultPackageInfo.content) || '';
+		const currentCustom = (GK.state.packageInfo && GK.state.packageInfo.content) || '';
+		fetch(url, { headers: buildHeaders() })
+			.then(function(r) { return r.json(); })
+			.then(function(data) {
+				const list = Array.isArray(data) ? data : (data && Array.isArray(data.contents) ? data.contents : []);
+				const $sel = $('#pkg-content-select');
+				const $inp = $('#pkg-content');
+				let html = '<option value="">-- wybierz --</option>';
+				list.forEach(function(item) {
+					const val = (typeof item === 'string') ? item : (item.name || item.value || item);
+					html += '<option value="' + val + '">' + val + '</option>';
+				});
+				const customLabel = (window.InitialValues && window.InitialValues.langContentCustom) || 'Własna wartość';
+				html += '<option value="__custom__">' + customLabel + '</option>';
+				$sel.html(html);
+				const match = defaultContent && list.some(function(item) {
+					const val = (typeof item === 'string') ? item : (item.name || item.value || item);
+					return val === defaultContent;
+				});
+				if (match) {
+					$sel.val(defaultContent);
+					$inp.hide().val(defaultContent);
+					GK.state.packageInfo = GK.state.packageInfo || {};
+					GK.state.packageInfo.content = defaultContent;
+				} else if (defaultContent) {
+					$sel.val('__custom__');
+					$inp.show().val(defaultContent);
+					GK.state.packageInfo = GK.state.packageInfo || {};
+					GK.state.packageInfo.content = defaultContent;
+				}
+				$sel.off('change.content').on('change.content', function() {
+					const v = $(this).val();
+					if (v === '__custom__') {
+						$inp.show().focus();
+						GK.state.packageInfo = GK.state.packageInfo || {};
+						GK.state.packageInfo.content = $inp.val();
+					} else {
+						$inp.hide();
+						GK.state.packageInfo = GK.state.packageInfo || {};
+						GK.state.packageInfo.content = v;
+					}
+				});
+				$inp.off('input.content').on('input.content', function() {
+					GK.state.packageInfo = GK.state.packageInfo || {};
+					GK.state.packageInfo.content = $(this).val();
+				});
+			})
+			.catch(function() {
+				$('#pkg-content-select').hide();
+				$('#pkg-content').show();
+			});
+	}
+
 	function fetchAddonsAndPayments() {
 		const s = GK.state;
 		if (!s.pickedService) return;
 		renderServiceOptionsContainer();
+		fetchContentList();
 		// Addons
 		$('#addonsList').empty();
 		$('#addonsListContainer').hide();
@@ -1086,7 +1186,7 @@ function renderServiceOptionsContainer() {
 					const curr = (opt.currency || '').trim();
 					const priceTxt = (p != null) ? (' <span class="text-muted">(+' + p + (curr ? (' ' + curr) : '') + ')</span>') : '';
 					const label = opt.addonName || opt.name || opt.symbol || ('#' + opt.id);
-					var attrsEncoded = opt.attributes ? encodeURIComponent(opt.attributes) : '';
+					const attrsEncoded = opt.attributes ? encodeURIComponent(opt.attributes) : '';
 					return '' +
 						'<div class="col-lg-12">' +
 							'<label>' +
@@ -1098,6 +1198,7 @@ function renderServiceOptionsContainer() {
 				}).join('');
 				$('#addonsList').html(html);
 				if (html) { $('#addonsListContainer').show(); } else { $('#addonsListContainer').hide(); }
+				applyPickupMethodAddonLogic();
 				refreshPayments();
 			});
 		// Payments (requires grossOrderPrice in some cases)
@@ -1171,6 +1272,63 @@ function renderServiceOptionsContainer() {
 		}, 0);
 	}
 
+function updatePickupMetaVisibility() {
+    const sendingType = $('input[name=pickup_type]:checked').val();
+    if (sendingType !== 'PICKUP') {
+        $('#pickupMeta').hide();
+        return;
+    }
+    const $ordered = $('.addon-checkbox[data-category="ORDERED_COURIER"]');
+    const $paid = $('.addon-checkbox[data-category="PAID_PICKUP"]');
+    if ($paid.is(':checked')) {
+        $('#pickupMeta').show();
+    } else if ($ordered.is(':checked')) {
+        $('#pickupMeta').hide();
+    } else {
+        // Żadna opcja nie zaznaczona lub brak tych addonów — domyślnie pokaż
+        $('#pickupMeta').show();
+    }
+}
+
+function applyPickupMethodAddonLogic() {
+    const sendingType = $('input[name=pickup_type]:checked').val();
+    const $container = $('#pickupMethodAddons');
+
+    // Wyczyść stare elementy i przenieś świeże z #addonsList
+    $container.empty();
+    $('#addonsList .addon-checkbox[data-category="ORDERED_COURIER"]').closest('.col-lg-12').detach().appendTo($container);
+    $('#addonsList .addon-checkbox[data-category="PAID_PICKUP"]').closest('.col-lg-12').detach().appendTo($container);
+
+    if (!$container.children().length) {
+        $container.hide();
+        return;
+    }
+
+    if (sendingType === 'POINT') {
+        $container.hide();
+        $container.find('.addon-checkbox').each(function() {
+            const $cb = $(this);
+            if ($cb.is(':checked')) {
+                const cid = $cb.data('id');
+                $cb.prop('checked', false);
+                $cb.closest('.col-lg-12').find('.addon-attributes').hide().empty();
+                GK.state.serviceOptions = (GK.state.serviceOptions || []).filter(function(o) {
+                    return (o.id + '') !== (cid + '');
+                });
+            }
+        });
+    } else {
+        $container.show();
+        // Domyślnie zaznacz PAID_PICKUP jeśli żadna opcja nie jest wybrana
+        const $ordered = $container.find('.addon-checkbox[data-category="ORDERED_COURIER"]');
+        const $paid = $container.find('.addon-checkbox[data-category="PAID_PICKUP"]');
+        if (!$ordered.is(':checked') && !$paid.is(':checked') && $paid.length) {
+            $paid.prop('checked', true).trigger('change');
+        }
+    }
+    updatePickupMetaVisibility();
+}
+
 function updateCarrierDependentUI() {
     const s = GK.state;
     if (!s.pickedService) return;
@@ -1181,8 +1339,12 @@ function updateCarrierDependentUI() {
     // hide all
     $('.receiverAddressPointId').hide();
     $('.senderAddressPointId').hide();
-    // Toggle pickup meta only for courier pickup
-    if (sendingType === 'PICKUP') { $('#pickupMeta').show(); } else { $('#pickupMeta').hide(); }
+    updatePickupMetaVisibility();
+    // Synchronizuj widoczność addonów odbioru kuriera (są w #pickupMethodAddons, nie w #addonsList)
+    const $pma = $('#pickupMethodAddons');
+    if ($pma.children().length) {
+        if (sendingType === 'POINT') { $pma.hide(); } else { $pma.show(); }
+    }
     // Receiver point selection ONLY when deliveryTypes contains POINT (dostawa do paczkomatu)
     // This is independent of how we send it (courier pickup vs point drop-off)
     const hasPointDelivery = s.pickedService.deliveryTypes && s.pickedService.deliveryTypes.includes('POINT');
@@ -1300,7 +1462,7 @@ function updateChosenServiceUI() {
 				const html = list.map(function(opt){
 					const price = (opt.price != null) ? (' <span class="text-muted">(+' + opt.price + ')</span>') : '';
 					const label = opt.addonName || opt.name || opt.symbol || ('#' + opt.id);
-					var attrsEncoded = opt.attributes ? encodeURIComponent(opt.attributes) : '';
+					const attrsEncoded = opt.attributes ? encodeURIComponent(opt.attributes) : '';
 					return '' +
 						'<div class="col-lg-12">' +
 							'<label>' +
@@ -1312,6 +1474,7 @@ function updateChosenServiceUI() {
 				}).join('');
 				$('#addonsList').html(html);
 				if (html) { $('#addonsListContainer').show(); } else { $('#addonsListContainer').hide(); }
+				applyPickupMethodAddonLogic();
 			});
 	}
 
@@ -1360,6 +1523,25 @@ function updateChosenServiceUI() {
 					$('#paymentSelect').val(prev);
 					if (!s.additionalInfo) s.additionalInfo = {};
 					s.additionalInfo.paymentType = prev;
+				} else {
+					const iv = window.InitialValues || {};
+					const defaultPt = iv.defaultPaymentType ? (iv.defaultPaymentType + '').trim() : '';
+					const payments = GK.state.availablePayments;
+					let autoId = null;
+					if (defaultPt) {
+						const matched = payments.find(function(p) {
+							return (p.id + '') === defaultPt;
+						});
+						if (matched) autoId = matched.id + '';
+					}
+					if (!autoId && payments.length === 1) {
+						autoId = payments[0].id + '';
+					}
+					if (autoId) {
+						$('#paymentSelect').val(autoId);
+						if (!s.additionalInfo) s.additionalInfo = {};
+						s.additionalInfo.paymentType = autoId;
+					}
 				}
 				$('#paymentSelect').off('change').on('change', function(){
 					GK.state.additionalInfo.paymentType = $(this).val();
@@ -1782,7 +1964,7 @@ function renderServicesAndBind() {
     $('#getServicesBtn').off('click').on('click', function(){
             clearErrors();
             setPackageInfoFromInputs();
-            var dimFields = validateDimensions();
+            const dimFields = validateDimensions();
             if (dimFields) { showValidationErrors({ dimensionFields: dimFields }); return; }
             const $btn = $(this);
             $btn.prop('disabled', true);
@@ -1843,10 +2025,10 @@ function renderServicesAndBind() {
 			$('#senderPointLabel').text('');
 
 			// Restore pre-loaded terminal from customer's cart selection (cleared above, but customer's choice must persist).
-			var iv = window.InitialValues;
+			const iv = window.InitialValues;
 			if (iv && iv.terminalCode && iv.terminalType) {
 				if (!GK.state.additionalInfo) GK.state.additionalInfo = {};
-				var tt = (iv.terminalType + '').trim();
+				const tt = (iv.terminalType + '').trim();
 				if (tt === 'inpost' || tt === 'inpost_cod' || tt === 'inpostCod') {
 					GK.state.additionalInfo.inPostReceiverPoint = { id: iv.terminalCode };
 				} else if (tt === 'ruch') {
@@ -1914,6 +2096,27 @@ function renderServicesAndBind() {
 						GK.state.serviceOptions = (GK.state.serviceOptions || []).filter(function(o){ return (o.id + '') !== (otherId + ''); });
 					}
 				});
+			}
+
+			// ORDERED_COURIER i PAID_PICKUP wzajemnie się wykluczają
+			const pickupMethodPair = ['ORDERED_COURIER', 'PAID_PICKUP'];
+			if (isChecked && pickupMethodPair.indexOf(category) !== -1) {
+				$('.addon-checkbox').each(function(){
+					const $other = $(this);
+					if ($other[0] === $current[0]) return;
+					const otherCat = $other.data('category');
+					if (pickupMethodPair.indexOf(otherCat) === -1) return;
+					if ($other.is(':checked')) {
+						const otherId = $other.data('id');
+						const $otherAttrBox = $other.closest('.col-lg-12').find('.addon-attributes');
+						$other.prop('checked', false);
+						$otherAttrBox.hide().empty();
+						GK.state.serviceOptions = (GK.state.serviceOptions || []).filter(function(o){ return (o.id + '') !== (otherId + ''); });
+					}
+				});
+			}
+			if (pickupMethodPair.indexOf(category) !== -1) {
+				updatePickupMetaVisibility();
 			}
 
 			// Render attributes HTML (if provided) under the checkbox

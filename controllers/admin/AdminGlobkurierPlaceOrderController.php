@@ -146,6 +146,31 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
                 ];
             }
 
+            $orderProductsWeight = 0;
+            $catalogProductsWeight = 0;
+            try {
+                foreach ($order->getProducts() as $product) {
+                    $orderProductsWeight += (float) $product['product_weight'] * (int) $product['product_quantity'];
+                }
+            } catch (\Exception $e) {
+            }
+            if ($orderProductsWeight <= 0) {
+                try {
+                    foreach ($order->getProducts() as $product) {
+                        $p = new Product((int) $product['product_id']);
+                        $weight = Validate::isLoadedObject($p) ? (float) $p->weight : 0;
+                        if (!empty($product['product_attribute_id'])) {
+                            $combination = new Combination((int) $product['product_attribute_id']);
+                            if (Validate::isLoadedObject($combination)) {
+                                $weight += (float) $combination->weight;
+                            }
+                        }
+                        $catalogProductsWeight += $weight * (int) $product['product_quantity'];
+                    }
+                } catch (\Exception $e) {
+                }
+            }
+
             $this->context->smarty->assign([
                 'adress' => $adress,
                 'splitedAddress' => $splitedAddress,
@@ -157,6 +182,9 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
                 'presta_carrier_id' => $prestaCarrierId,
                 'presta_carrier_name' => $prestaCarrierName,
                 'carrier_limits' => $carrierLimits,
+                'order_products_weight' => $orderProductsWeight,
+                'catalog_products_weight' => $catalogProductsWeight,
+                'effective_products_weight' => max($orderProductsWeight, $catalogProductsWeight),
             ]);
         } else {
             $this->context->smarty->assign([
@@ -170,6 +198,9 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
                 'presta_carrier_id' => null,
                 'presta_carrier_name' => null,
                 'carrier_limits' => ['max_weight' => 0, 'max_width' => 0, 'max_height' => 0, 'max_depth' => 0],
+                'order_products_weight' => 0,
+                'catalog_products_weight' => 0,
+                'effective_products_weight' => 0,
             ]);
         }
 
@@ -312,9 +343,27 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
         $order->payment = $decode['payment'];
 
         $om = new Globkuriermodule\Order\OrderManager();
+        $success = $om->create($order);
+
+        $trackingNumber = null;
+        if ($success && !empty($order->hash)) {
+            try {
+                $c = new Globkuriermodule\Common\Config();
+                $api = new Globkuriermodule\Common\GlobkurierApi($c->login, $c->password, $c->apiKey);
+                $response = $api->getOrder($order->hash, $order->gkId);
+                $tn = isset($response['trackingNumber']) ? $response['trackingNumber'] : null;
+                if ($tn !== null) {
+                    $om->updateTrackingNumber($order->gkId, $tn);
+                    $trackingNumber = $tn;
+                }
+            } catch (\Exception $e) {
+                // tracking niedostępny jeszcze — CRON uzupełni później
+            }
+        }
 
         $d = [
-            'success' => $om->create($order),
+            'success' => $success,
+            'trackingNumber' => $trackingNumber,
         ];
 
         header('Content-Type: application/json');

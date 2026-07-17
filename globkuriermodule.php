@@ -135,6 +135,26 @@ class Globkuriermodule extends Module
         $carriers = Carrier::getCarriers($this->context->language->id);
         $countries = $api->getCountries();
         $latestVersion = $this->getLatestGithubVersion();
+
+        $gkPayments = [];
+        try {
+            $raw = $api->getPayments();
+            if (is_array($raw)) {
+                foreach ($raw as $p) {
+                    if (isset($p['id']) && isset($p['enabled']) && $p['enabled']) {
+                        $gkPayments[] = $p;
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+        }
+
+        $legacyPaymentMap = ['T' => 1, 'O' => 2, 'P' => 9, 'D' => 4, 'COD' => 6];
+        $currentPaymentId = $config->defaultPaymentType;
+        if (isset($legacyPaymentMap[$currentPaymentId])) {
+            $currentPaymentId = $legacyPaymentMap[$currentPaymentId];
+        }
+
         $this->context->smarty->assign([
             'countries' => $countries,
             'carriers' => $carriers,
@@ -143,6 +163,8 @@ class Globkuriermodule extends Module
             'gk_latestVersion' => $latestVersion,
             'gk_updateAvailable' => $latestVersion && version_compare($latestVersion, $this->version, '>'),
             'gk_githubReleaseUrl' => 'https://github.com/globkurier/prestashop-module/releases/latest',
+            'gk_payments' => $gkPayments,
+            'gk_currentPaymentId' => $currentPaymentId,
         ]);
         // Load jQuery-based config page script (Angular removed)
         $this->context->controller->addJS($this->_path . '/views/js/configApp.jquery.js');

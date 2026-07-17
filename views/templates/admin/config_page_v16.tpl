@@ -252,11 +252,21 @@
                     <div class="form-group">
                         <label class="col-lg-4 control-label">{l s='Payment' mod='globkuriermodule'}:<sup>*</sup></label>
                         <div class="col-lg-6">
-                            <select class="form-control" name="config_defaultPaymentType" value="{$config->defaultPaymentType|escape:'htmlall':'UTF-8'}" required="required">
-                                <option value="T" {if $config->defaultPaymentType == "T"}selected="selected"{/if}>{l s='Bankwire' mod='globkuriermodule'}</option>
-                                <option value="O" {if $config->defaultPaymentType == "O"}selected="selected"{/if}>{l s='Online transfer' mod='globkuriermodule'}</option>
-                                <option value="P" {if $config->defaultPaymentType == "P"}selected="selected"{/if}>{l s='Prepaid' mod='globkuriermodule'}</option>
-                                <option value="D" {if $config->defaultPaymentType == "D"}selected="selected"{/if}>{l s='Delayed payment' mod='globkuriermodule'}</option>
+                            <select class="form-control" name="config_defaultPaymentType">
+                                <option value="">{l s='-- none (manual selection) --' mod='globkuriermodule'}</option>
+                                {if isset($gk_payments) && $gk_payments}
+                                    {foreach from=$gk_payments item=gkp}
+                                    <option value="{$gkp.id|intval}" {if $gk_currentPaymentId == $gkp.id}selected="selected"{/if}>
+                                        {$gkp.name|escape:'htmlall':'UTF-8'}{if $gkp.price} (+{$gkp.price|floatval}){/if}
+                                    </option>
+                                    {/foreach}
+                                {else}
+                                    <option value="1" {if $gk_currentPaymentId == 1}selected="selected"{/if}>{l s='Bank transfer' mod='globkuriermodule'}</option>
+                                    <option value="2" {if $gk_currentPaymentId == 2}selected="selected"{/if}>{l s='Online payment' mod='globkuriermodule'}</option>
+                                    <option value="4" {if $gk_currentPaymentId == 4}selected="selected"{/if}>{l s='Collective invoice (delayed)' mod='globkuriermodule'}</option>
+                                    <option value="9" {if $gk_currentPaymentId == 9}selected="selected"{/if}>{l s='Pre-paid account' mod='globkuriermodule'}</option>
+                                    <option value="6" {if $gk_currentPaymentId == 6}selected="selected"{/if}>{l s='Cash on delivery' mod='globkuriermodule'}</option>
+                                {/if}
                             </select>
                         </div>
                     </div>

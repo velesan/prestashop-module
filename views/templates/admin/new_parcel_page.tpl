@@ -59,6 +59,7 @@
             <h4>{l s='There is some validation errors. Please fix them before you can continue' mod='globkuriermodule'}</h4>
             <span id="valErrSenderPhone" style="display:none;">{l s='Please provide sender phone number' mod='globkuriermodule'}</span>
             <span id="valErrReceiverPhone" style="display:none;">{l s='Please provide receiver phone number' mod='globkuriermodule'}</span>
+            <span id="valErrNoPickupMethod" style="display:none;">{l s='Please select a courier pickup method' mod='globkuriermodule'}</span>
             <button type="button" class="close" id="validationErrorClose">×</button>
         </div>
     </div>
@@ -73,6 +74,7 @@
             <h2><i class="icon-check" style="font-size: 50px!important; color:#96c21f;"></i></h2>
             <h2>{l s='Carrier was succesfully ordered' mod='globkuriermodule'}</h2>
             <p>{l s='Parcel No' mod='globkuriermodule'}: <span id="orderPlacedNumber"></span></p>
+            <p id="orderPlacedTrackingRow" style="display:none;">{l s='Tracking No' mod='globkuriermodule'}: <span id="orderPlacedTracking"></span></p>
             <button class="btn btn-warning" onclick="location.reload();">{l s='Ship next' mod='globkuriermodule'}</button>
         </div>
     </div>
@@ -167,17 +169,35 @@
                         </div>
                         <hr/>
                         <div class="row">
-                            <div class="col-lg-6">
-                                <div class="form-group"><label>{l s='Content' mod='globkuriermodule'}</label><input id="pkg-content" type="text" class="form-control"></div>
+                            <div class="col-lg-4">
+                                <div class="form-group"><label>{l s='Height (cm)' mod='globkuriermodule'}</label><input id="pkg-height" type="number" step="1" class="form-control"></div>
+                            </div>
+                            <div class="col-lg-4">
                                 <div class="form-group"><label>{l s='Length (cm)' mod='globkuriermodule'}</label><input id="pkg-length" type="number" step="1" class="form-control"></div>
+                            </div>
+                            <div class="col-lg-4">
                                 <div class="form-group"><label>{l s='Width (cm)' mod='globkuriermodule'}</label><input id="pkg-width" type="number" step="1" class="form-control"></div>
                             </div>
+                        </div>
+                        <div class="row">
                             <div class="col-lg-6">
-                                <div class="form-group"><label>{l s='Height (cm)' mod='globkuriermodule'}</label><input id="pkg-height" type="number" step="1" class="form-control"></div>
-                                <div class="form-group"><label>{l s='Weight (kg)' mod='globkuriermodule'}</label><input id="pkg-weight" type="number" step="0.01" class="form-control"></div>
                                 <div class="form-group"><label>{l s='Quantity' mod='globkuriermodule'}</label><input id="pkg-count" type="number" step="1" class="form-control" value="1"></div>
                             </div>
+                            <div class="col-lg-6">
+                                <div class="form-group"><label>{l s='Weight (kg)' mod='globkuriermodule'}</label><input id="pkg-weight" type="number" step="0.01" class="form-control"></div>
+                            </div>
                         </div>
+                        {if isset($order_products_weight) && ($order_products_weight > 0 || (isset($catalog_products_weight) && $catalog_products_weight > 0))}
+                        <div class="row">
+                            <div class="col-lg-12">
+                                {if $order_products_weight > 0}
+                                <p class="text-muted" style="font-size:12px; margin-bottom:6px;">{l s='Total product weight from order' mod='globkuriermodule'}: <strong>{$order_products_weight|floatval} kg</strong></p>
+                                {else}
+                                <p class="text-muted" style="font-size:12px; margin-bottom:6px;">{l s='Total product weight from order' mod='globkuriermodule'}: <strong>0 kg</strong> &nbsp;·&nbsp; {l s='Sum of product weights from catalog' mod='globkuriermodule'}: <strong>{$catalog_products_weight|floatval} kg</strong></p>
+                                {/if}
+                            </div>
+                        </div>
+                        {/if}
                         <div id="carrierLimitsWarning" class="alert alert-warning" style="display:none; margin-bottom: 10px;">
                             {l s='Some values exceed the maximum limits of the carrier.' mod='globkuriermodule'}
                         </div>
@@ -204,6 +224,7 @@
                             <label class="radio"><input type="radio" name="pickup_type" id="pickup" value="PICKUP" checked> {l s='The parcel will be picked up by a courier' mod='globkuriermodule'}</label>
                             <label class="radio"><input type="radio" name="pickup_type" id="point" value="POINT"> {l s='I will send the shipment at the terminal' mod='globkuriermodule'}</label>
                         </div>
+                        <div id="pickupMethodAddons" style="display:none; margin-top:4px;"></div>
                     </div>
                 </div>
             </div>
@@ -263,6 +284,15 @@
                                 <span id="dpdReceiverLabel"></span>
                                 <button class="btn btn-primary btn-gk-primary btn-xs open-terminal-picker" data-target="dpdpickupReceiverPoint">{l s='Choose/Change' mod='globkuriermodule'}</button>
                             </div></div>
+                        </div>
+                        <div class="form-group row">
+                            <label class="col-sm-4 col-form-label">{l s='Content' mod='globkuriermodule'}</label>
+                            <div class="col-sm-8">
+                                <select id="pkg-content-select" class="form-control">
+                                    <option value="">-- {l s='select' mod='globkuriermodule'} --</option>
+                                </select>
+                                <input id="pkg-content" type="text" class="form-control" style="margin-top:4px; display:none;" placeholder="{l s='Enter content' mod='globkuriermodule'}">
+                            </div>
                         </div>
                         <div class="form-group row">
                             <label class="col-sm-4 col-form-label">{l s='Payment' mod='globkuriermodule'}</label>
@@ -541,7 +571,7 @@
                 length : {if $config->defaultDepth}{$config->defaultDepth|escape:'javascript':'UTF-8'}{else}null{/if},
                 width  : {if $config->defaultWidth}{$config->defaultWidth|escape:'javascript':'UTF-8'}{else}null{/if},
                 height : {if $config->defaultHeight}{$config->defaultHeight|escape:'javascript':'UTF-8'}{else}null{/if},
-                weight : {if $config->defaultWeight}{$config->defaultWeight|escape:'javascript':'UTF-8'}{else}null{/if},
+                weight : {if $effective_products_weight > 0}{$effective_products_weight|floatval}{elseif $config->defaultWeight}{$config->defaultWeight|escape:'javascript':'UTF-8'}{else}null{/if},
                 count  : 1,
             },
             defaultPaymentType : '{$config->defaultPaymentType|escape:'javascript':'UTF-8'}',
@@ -583,6 +613,7 @@
             lang15: '{l s='Cancel' mod='globkuriermodule'}',
             lang16: '{l s='Save' mod='globkuriermodule'}',
             lang17: '{l s='Complete the recipients address before quoting' mod='globkuriermodule'}',
+            langContentCustom: '{l s='Custom value' mod='globkuriermodule'}',
         };
 
         $(document).ready(function() {

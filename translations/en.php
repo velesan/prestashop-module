@@ -98,8 +98,10 @@ $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_21708f389805e88d6fd12809
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_186eadf46189190622e915153e8a630e'] = 'Some values exceed the maximum limits of the carrier.';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_0491e88a49d0fecd79bcc61b4dc27681'] = 'Please provide sender phone number';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_6cde2d9e94eeaf8c2c05fd5e76675bc4'] = 'Please provide receiver phone number';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_6676f4eaeeef3de5e6ea0277bd25f91a'] = 'Please select a courier pickup method';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_46020bf8bdda3ab728d46963a6e88ffe'] = 'Carrier was succesfully ordered';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_6d4eb58c02952f850f2b257e016d6147'] = 'Parcel No';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_febffbbacc34abcad2615de8bb9a3842'] = 'Tracking No';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_3905a21c5e3eb2da3f58475292440def'] = 'Ship next';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_598b49a7386efb458c64abdef8a85790'] = 'Pick point';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_e930470b2a3b934992cf86f3202b6eba'] = 'Your client wants to pick parcel in parcel point:';
@@ -109,6 +111,10 @@ $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_92ff47dc085caa8e6f6a89ab
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_93cba07454f06a4a960172bbd6e2a435'] = 'Yes';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_bafd7322c6e97d25b6299b5d6fe8920b'] = 'No';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_94966d90747b97d1f0f206c98a8b1ac3'] = 'Send';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_0a50b13c496c64c251b666a7d317af6c'] = 'Total product weight from order';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_587eee5099d2783897bca86841d6aa08'] = 'Sum of product weights from catalog';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_7d2341628ab27a4bc087ddb130f313d6'] = 'Enter content';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_6acec4d2dbecc08e23550eb5db40d016'] = 'Custom value';
 $_MODULE['<{globkuriermodule}prestashop>carrier_list_7c51308c9919827029230e313c0c2013'] = 'Type a name of your city and select parcel point closest to you';
 $_MODULE['<{globkuriermodule}prestashop>carrier_list_13348442cc6a27032d2b4aa28b75a5d3'] = 'Search';
 $_MODULE['<{globkuriermodule}prestashop>carrier_list_e150ad0ce25b32cc393d6cb7c8be9e3f'] = 'Found inPost parcel points';

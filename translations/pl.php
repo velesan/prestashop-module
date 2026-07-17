@@ -123,8 +123,10 @@ $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_d12779809a4e23e975c656c0
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_21708f389805e88d6fd12809fddc0647'] = 'Wystąpił błąd walidacji. Proszę poprawić pola wymienione poniżej';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_0491e88a49d0fecd79bcc61b4dc27681'] = 'Proszę podać numer telefonu nadawcy';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_6cde2d9e94eeaf8c2c05fd5e76675bc4'] = 'Proszę podać numer telefonu odbiorcy';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_6676f4eaeeef3de5e6ea0277bd25f91a'] = 'Wybierz metodę odbioru przez kuriera';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_46020bf8bdda3ab728d46963a6e88ffe'] = 'Kurier został pomyślnie zamówiony';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_6d4eb58c02952f850f2b257e016d6147'] = 'Numer przesyłki';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_febffbbacc34abcad2615de8bb9a3842'] = 'Numer śledzenia';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_3905a21c5e3eb2da3f58475292440def'] = 'Nadaj kolejne';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_8aace3ec18d83874d22850b7eee93c7d'] = 'Nadawca';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_eb399bcaca686f8609137153307eecf1'] = 'zmień';
@@ -205,6 +207,10 @@ $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_b7cea4f6e8dd41e0cc16f0da
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_5cdea0362d09eaf35436fd7a67990c8a'] = 'Numer mieszkania';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_59716c97497eb9694541f7c3d37b1a4d'] = 'Kraj';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_311768edcde59acb5d264cd7f81f2c19'] = 'Przed wyceną należy uzupełnić adres odbiorcy';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_0a50b13c496c64c251b666a7d317af6c'] = 'Łączna waga produktów z zamówienia';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_587eee5099d2783897bca86841d6aa08'] = 'Suma wag produktów z katalogu';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_7d2341628ab27a4bc087ddb130f313d6'] = 'Wpisz zawartość';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_6acec4d2dbecc08e23550eb5db40d016'] = 'Własna wartość';
 $_MODULE['<{globkuriermodule}prestashop>admin_order_170a094ce3123d9a518c0903164b4001'] = 'Wysyłanie paczek z GlobKurier';
 $_MODULE['<{globkuriermodule}prestashop>admin_order_6d9a83e9ff6b9d9eba96a7306a14e618'] = 'ID GlobKurier';
 $_MODULE['<{globkuriermodule}prestashop>admin_order_809776a66554800005f5a219b61d6445'] = 'Data nadania';

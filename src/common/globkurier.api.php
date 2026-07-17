@@ -305,6 +305,32 @@ class GlobkurierApi
         return $this->token;
     }
 
+    /**
+     * Pobiera dane zamówienia z GlobKurier API — w tym trackingNumber od przewoźnika.
+     * @param string $hash  hash zamówienia
+     * @param string|null $number numer zamówienia GK (opcjonalnie, np. "GK260522105311")
+     * @return array dane zamówienia
+     */
+    /**
+     * Pobiera dostępne metody płatności dla konta (bez kontekstu produktu).
+     * @return array
+     */
+    public function getPayments()
+    {
+        $url = $this->baseApiUrl . 'order/payments';
+        return $this->sendJSONRequest($url, $this->token, [], 'GET');
+    }
+
+    public function getOrder($hash, $number = null)
+    {
+        $params = ['hash' => $hash];
+        if ($number) {
+            $params['number'] = $number;
+        }
+        $url = $this->baseApiUrl . 'order?' . http_build_query($params);
+        return $this->sendJSONRequest($url, null, [], 'GET');
+    }
+
     public function getLabel($token, $hash)
     {
         $curl = curl_init();
