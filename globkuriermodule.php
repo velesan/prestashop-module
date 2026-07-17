@@ -168,10 +168,14 @@ class Globkuriermodule extends Module
             $currentPaymentId = $legacyPaymentMap[$currentPaymentId];
         }
 
-        $tm = new Globkuriermodule\Template\TemplateManager();
         $gkTemplatesArr = [];
-        foreach ($tm->getAll() as $tmpl) {
-            $gkTemplatesArr[] = $tmpl->toArray();
+        try {
+            $tm = new Globkuriermodule\Template\TemplateManager();
+            foreach ($tm->getAll() as $tmpl) {
+                $gkTemplatesArr[] = $tmpl->toArray();
+            }
+        } catch (\Exception $e) {
+            // Tabela jeszcze nie istnieje — uruchom upgrade przez panel PS
         }
 
         $configAjaxUrl = $this->context->link->getAdminLink('AdminModules')
