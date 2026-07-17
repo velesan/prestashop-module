@@ -22,14 +22,14 @@ if (!defined('_PS_VERSION_')) {
 }
 
 /**
- * Upgrade script 3.3.5 → 3.3.6
+ * Upgrade script 3.3.5 → 3.4.0
  *
  * Changes:
  *  1. Add `tracking_number` column to gk_orders (if missing)
  *  2. Create globkurier_template table (idempotent)
  *  3. Migrate existing config settings into a default template (one-time, if table empty)
  */
-function upgrade_module_3_3_6($module)
+function upgrade_module_3_4_0($module)
 {
     $db = Db::getInstance();
     $prefix = _DB_PREFIX_;

@@ -1,3 +1,11 @@
+## [3.4.0] - 2026-07-17
++ Template management: create, edit, delete and set default shipment templates
++ Config page redesigned with 4 tabs: Sender, Shipment settings, Operators, Templates
++ Auto-select template by PS carrier on order placement, fallback to default template
++ Sync templates from GlobKurier API
++ New DB table: globkurier_template (upgrade script + migration from config)
++ Translations PL/EN extended for new UI
+
 ## [3.3.6] - 2026-07-27
 + Tracking code fetched automatically after order placement
 + Refactor Order history page
