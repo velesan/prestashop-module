@@ -142,6 +142,14 @@ function upgrade_module_3_4_0($module)
     // above, so cleared explicitly here.
     Media::clearCache();
 
+    // Admin Smarty compiled templates — in production compile_check=false,
+    // so Smarty never picks up new .tpl files without a manual flush.
+    // Flush explicitly so the redesigned config page renders immediately.
+    $smarty = Context::getContext()->smarty;
+    if ($smarty && method_exists($smarty, 'clearCompiledTemplate')) {
+        $smarty->clearCompiledTemplate();
+    }
+
     // Invalidate OPcache for the module entry point so the server loads
     // the updated PHP file immediately instead of serving stale bytecode.
     if (function_exists('opcache_invalidate')) {

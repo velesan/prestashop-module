@@ -115,6 +115,16 @@ class Globkuriermodule extends Module
             return '';
         }
 
+        // One-time Smarty compile-cache clear after 3.4.0 upgrade.
+        // In production PS compile_check=false, so new .tpl files are never
+        // picked up until the compile directory is flushed.
+        if (!Configuration::get('GK_SMARTY_CLEARED_340')) {
+            if (method_exists($this->context->smarty, 'clearCompiledTemplate')) {
+                $this->context->smarty->clearCompiledTemplate();
+            }
+            Configuration::updateValue('GK_SMARTY_CLEARED_340', 1);
+        }
+
         $config = new Config();
         if (Tools::getValue('action') == 'updateConfig' && $this->validateConfigFields()) {
             $return = $config->update();
