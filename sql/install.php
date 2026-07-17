@@ -59,6 +59,31 @@ $sql[] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'gk_terminal_pickup` (
    PRIMARY KEY  (`cart_id`)
    ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8';
 
+$sql[] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'globkurier_template` (
+    `id_template`    INT UNSIGNED    NOT NULL AUTO_INCREMENT,
+    `gk_template_id` INT             DEFAULT NULL,
+    `name`           VARCHAR(255)    NOT NULL,
+    `package_list`   VARCHAR(50)     NOT NULL DEFAULT \'PARCEL\',
+    `length`         DECIMAL(8,2)    DEFAULT NULL,
+    `width`          DECIMAL(8,2)    DEFAULT NULL,
+    `height`         DECIMAL(8,2)    DEFAULT NULL,
+    `weight`         DECIMAL(8,2)    DEFAULT NULL,
+    `quantity`       INT             NOT NULL DEFAULT 1,
+    `contents`       VARCHAR(255)    DEFAULT NULL,
+    `gk_product_id`  INT             DEFAULT NULL,
+    `gk_addons`      TEXT            DEFAULT NULL,
+    `payment_type`   INT             DEFAULT NULL,
+    `is_default`     TINYINT(1)      NOT NULL DEFAULT 0,
+    `ps_carrier_id`  INT             DEFAULT NULL,
+    `gk_sync_at`     DATETIME        DEFAULT NULL,
+    `date_add`       DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `date_upd`       DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id_template`),
+    KEY `idx_ps_carrier`  (`ps_carrier_id`),
+    KEY `idx_gk_template` (`gk_template_id`),
+    KEY `idx_default`     (`is_default`)
+) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci';
+
 foreach ($sql as $query) {
     if (Db::getInstance()->execute($query) == false) {
         return false;

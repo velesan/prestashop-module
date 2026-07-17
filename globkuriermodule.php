@@ -108,6 +108,13 @@ class Globkuriermodule extends Module
      */
     public function getContent()
     {
+        // AJAX handler dla operacji na szablonach (nie wymaga renderowania HTML)
+        $ajaxAction = Tools::getValue('ajax_action');
+        if ($ajaxAction) {
+            $this->handleTemplateAjax($ajaxAction);
+            return '';
+        }
+
         $config = new Config();
         if (Tools::getValue('action') == 'updateConfig' && $this->validateConfigFields()) {
             $return = $config->update();
@@ -161,16 +168,29 @@ class Globkuriermodule extends Module
             $currentPaymentId = $legacyPaymentMap[$currentPaymentId];
         }
 
+        $tm = new Globkuriermodule\Template\TemplateManager();
+        $gkTemplatesArr = [];
+        foreach ($tm->getAll() as $tmpl) {
+            $gkTemplatesArr[] = $tmpl->toArray();
+        }
+
+        $configAjaxUrl = $this->context->link->getAdminLink('AdminModules')
+            . '&configure=' . $this->name
+            . '&token=' . Tools::getAdminTokenLite('AdminModules');
+
         $this->context->smarty->assign([
-            'countries' => $countries,
-            'carriers' => $carriers,
-            'tokenAPI' => $api->getToken(),
-            'moduleVersion' => $this->version,
-            'gk_latestVersion' => $latestVersion,
-            'gk_updateAvailable' => $latestVersion && version_compare($latestVersion, $this->version, '>'),
+            'countries'           => $countries,
+            'carriers'            => $carriers,
+            'tokenAPI'            => $api->getToken(),
+            'moduleVersion'       => $this->version,
+            'gk_latestVersion'    => $latestVersion,
+            'gk_updateAvailable'  => $latestVersion && version_compare($latestVersion, $this->version, '>'),
             'gk_githubReleaseUrl' => 'https://github.com/globkurier/prestashop-module/releases/latest',
-            'gk_payments' => $gkPayments,
+            'gk_payments'         => $gkPayments,
             'gk_currentPaymentId' => $currentPaymentId,
+            'gk_templates_json'   => json_encode($gkTemplatesArr),
+            'gk_template_count'   => count($gkTemplatesArr),
+            'configAjaxUrl'       => $configAjaxUrl,
         ]);
         // Load jQuery-based config page script (Angular removed)
         $this->context->controller->addJS($this->_path . '/views/js/configApp.jquery.js');
@@ -179,6 +199,99 @@ class Globkuriermodule extends Module
         }
 
         return $this->display(__FILE__, 'views/templates/admin/config_page_v15.tpl');
+    }
+
+    /**
+     * Obsługuje żądania AJAX ze strony konfiguracji (szablony).
+     * Wysyła JSON i kończy wykonanie.
+     *
+     * @param string $action
+     */
+    private function handleTemplateAjax($action)
+    {
+        header('Content-Type: application/json; charset=utf-8');
+
+        $tm = new Globkuriermodule\Template\TemplateManager();
+
+        try {
+            switch ($action) {
+                case 'getTemplates':
+                    $result = [];
+                    foreach ($tm->getAll() as $t) {
+                        $result[] = $t->toArray();
+                    }
+                    echo json_encode(['success' => true, 'templates' => $result]);
+                    break;
+
+                case 'saveTemplate':
+                    $name = trim((string)Tools::getValue('name', ''));
+                    if ($name === '') {
+                        echo json_encode(['success' => false, 'error' => 'Brak nazwy szablonu']);
+                        break;
+                    }
+                    $id = (int)Tools::getValue('id_template', 0);
+                    if ($id) {
+                        $t = $tm->getById($id);
+                        if (!$t) {
+                            echo json_encode(['success' => false, 'error' => 'Nie znaleziono szablonu']);
+                            break;
+                        }
+                    } else {
+                        $t = new Globkuriermodule\Template\TemplateModel();
+                    }
+                    $len = Tools::getValue('length', '');
+                    $wid = Tools::getValue('width', '');
+                    $hei = Tools::getValue('height', '');
+                    $wei = Tools::getValue('weight', '');
+                    $pay = Tools::getValue('payment_type', '');
+                    $car = Tools::getValue('ps_carrier_id', '');
+                    $t->name        = $name;
+                    $t->packageList = 'PARCEL';
+                    $t->length      = $len !== '' ? (float)$len : null;
+                    $t->width       = $wid !== '' ? (float)$wid : null;
+                    $t->height      = $hei !== '' ? (float)$hei : null;
+                    $t->weight      = $wei !== '' ? (float)$wei : null;
+                    $t->quantity    = max(1, (int)Tools::getValue('quantity', 1));
+                    $cont           = Tools::getValue('contents', '');
+                    $t->contents    = $cont !== '' ? (string)$cont : null;
+                    $t->paymentType = $pay !== '' ? (int)$pay : null;
+                    $t->isDefault   = Tools::getValue('is_default', 0) ? 1 : 0;
+                    $t->psCarrierId = $car !== '' ? (int)$car : null;
+                    $ok = $id ? $tm->update($t) : $tm->create($t);
+                    echo json_encode(['success' => $ok, 'id_template' => $t->idTemplate]);
+                    break;
+
+                case 'deleteTemplate':
+                    $id = (int)Tools::getValue('id_template', 0);
+                    echo json_encode(['success' => $id ? $tm->delete($id) : false]);
+                    break;
+
+                case 'setDefaultTemplate':
+                    $id = (int)Tools::getValue('id_template', 0);
+                    echo json_encode(['success' => $id ? $tm->setDefault($id) : false]);
+                    break;
+
+                case 'syncTemplates':
+                    $config = new Config();
+                    $api = new Globkuriermodule\Common\GlobkurierApi($config->login, $config->password, $config->apiKey);
+                    if (!$api->isUserAuthorized()) {
+                        echo json_encode(['success' => false, 'error' => 'Błąd autoryzacji']);
+                        break;
+                    }
+                    $raw = $api->getTemplates();
+                    $list = is_array($raw) ? $raw : [];
+                    $stats = $tm->syncFromApi($list);
+                    echo json_encode(['success' => true] + $stats);
+                    break;
+
+                default:
+                    echo json_encode(['success' => false, 'error' => 'Nieznana akcja']);
+            }
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+
+        exit;
     }
 
     private function validateConfigFields()

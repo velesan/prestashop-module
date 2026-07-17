@@ -46,6 +46,27 @@
         {if $orderId}{l s='Based on order' mod='globkuriermodule'} #{$orderId|escape:'htmlall':'UTF-8'}{/if}
     </div>
 
+    {if $gk_all_templates_json && $gk_all_templates_json != '[]'}
+    <div style="background:#f8f9fa; border-bottom:1px solid #e5e5e5; padding:10px 20px;">
+        <div class="form-horizontal">
+            <div class="form-group" style="margin-bottom:0;">
+                <label class="col-sm-2 control-label" style="padding-top:6px; font-weight:600;">{l s='Template' mod='globkuriermodule'}</label>
+                <div class="col-sm-6">
+                    <select class="form-control" id="gk-template-select">
+                        <option value="">{l s='-- no template --' mod='globkuriermodule'}</option>
+                    </select>
+                </div>
+                <div class="col-sm-4" id="gk-template-applied-label" style="padding-top:6px; display:none;">
+                    <span class="label label-success" style="font-size:11px;">{l s='Template applied' mod='globkuriermodule'}</span>
+                    {if $selected_template && $selected_template.ps_carrier_id}
+                    <span class="text-muted" style="font-size:11px; margin-left:6px;">{l s='matched by carrier' mod='globkuriermodule'}</span>
+                    {/if}
+                </div>
+            </div>
+        </div>
+    </div>
+    {/if}
+
     <div class="bootstrap" id="orderErrorBox" style="display:none;">
         <div class="alert alert-danger">
             <h4>{l s='We\'ve try to send you request but there was an error' mod='globkuriermodule'}</h4>
@@ -572,14 +593,14 @@
                 }
             },
             defaultPackageInfo : {
-                content: '{$config->defaultContent|escape:'javascript':'UTF-8'  }',
-                length : {if $config->defaultDepth}{$config->defaultDepth|escape:'javascript':'UTF-8'}{else}null{/if},
-                width  : {if $config->defaultWidth}{$config->defaultWidth|escape:'javascript':'UTF-8'}{else}null{/if},
-                height : {if $config->defaultHeight}{$config->defaultHeight|escape:'javascript':'UTF-8'}{else}null{/if},
-                weight : {if $effective_products_weight > 0}{$effective_products_weight|floatval}{elseif $config->defaultWeight}{$config->defaultWeight|escape:'javascript':'UTF-8'}{else}null{/if},
-                count  : 1,
+                content: '{if $selected_template && $selected_template.contents}{$selected_template.contents|escape:'javascript':'UTF-8'}{else}{$config->defaultContent|escape:'javascript':'UTF-8'}{/if}',
+                length : {if $selected_template && $selected_template.length}{$selected_template.length|floatval}{elseif $config->defaultDepth}{$config->defaultDepth|escape:'javascript':'UTF-8'}{else}null{/if},
+                width  : {if $selected_template && $selected_template.width}{$selected_template.width|floatval}{elseif $config->defaultWidth}{$config->defaultWidth|escape:'javascript':'UTF-8'}{else}null{/if},
+                height : {if $selected_template && $selected_template.height}{$selected_template.height|floatval}{elseif $config->defaultHeight}{$config->defaultHeight|escape:'javascript':'UTF-8'}{else}null{/if},
+                weight : {if $effective_products_weight > 0}{$effective_products_weight|floatval}{elseif $selected_template && $selected_template.weight}{$selected_template.weight|floatval}{elseif $config->defaultWeight}{$config->defaultWeight|escape:'javascript':'UTF-8'}{else}null{/if},
+                count  : {if $selected_template && $selected_template.quantity}{$selected_template.quantity|intval}{else}1{/if},
             },
-            defaultPaymentType : '{$config->defaultPaymentType|escape:'javascript':'UTF-8'}',
+            defaultPaymentType : '{if $selected_template && $selected_template.payment_type}{$selected_template.payment_type|intval}{else}{$config->defaultPaymentType|escape:'javascript':'UTF-8'}{/if}',
             defaultCodAccount : '{$config->defaultCodAccount|escape:'javascript':'UTF-8'}',
             defaultCodAccountHolderName : '{$config->defaultCodAccountHolderName|escape:'javascript':'UTF-8'}',
             defaultCodAccountHolderAddr1 : '{$config->defaultCodAccountHolderAddr1|escape:'javascript':'UTF-8'}',
@@ -620,6 +641,10 @@
             lang17: '{l s='Complete the recipients address before quoting' mod='globkuriermodule'}',
             langContentCustom: '{l s='Custom value' mod='globkuriermodule'}',
         };
+
+        window.GkTemplates = {$gk_all_templates_json};
+        window.GkSelectedTemplateId = {if $selected_template}{$selected_template.id_template|intval}{else}0{/if};
+        window.GkSelectedTemplateServiceId = {if $selected_template && $selected_template.gk_product_id}{$selected_template.gk_product_id|intval}{else}0{/if};
 
         $(document).ready(function() {
             $(document).on('click', '.searchTerminals', function() {

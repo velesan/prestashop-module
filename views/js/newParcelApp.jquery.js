@@ -2432,9 +2432,59 @@ function renderServicesAndBind() {
 		recalcOrderPrice();
 	});
 
+	function applyTemplate(tmpl) {
+		if (!tmpl) return;
+		GK.state.packageInfo = GK.state.packageInfo || {};
+		if (tmpl.weight  != null) { $('#pkg-weight').val(tmpl.weight);  GK.state.packageInfo.weight  = parseFloat(tmpl.weight);  }
+		if (tmpl.height  != null) { $('#pkg-height').val(tmpl.height);  GK.state.packageInfo.height  = parseFloat(tmpl.height);  }
+		if (tmpl.length  != null) { $('#pkg-length').val(tmpl.length);  GK.state.packageInfo.length  = parseFloat(tmpl.length);  }
+		if (tmpl.width   != null) { $('#pkg-width').val(tmpl.width);    GK.state.packageInfo.width   = parseFloat(tmpl.width);   }
+		if (tmpl.quantity) { $('#pkg-count').val(tmpl.quantity); GK.state.packageInfo.count = parseInt(tmpl.quantity, 10); }
+		if (tmpl.contents) {
+			GK.state.packageInfo.content = tmpl.contents;
+			$('#pkg-content').val(tmpl.contents);
+		}
+		if (tmpl.payment_type) {
+			GK.state._templatePaymentId = tmpl.payment_type + '';
+		}
+		if (tmpl.gk_product_id) {
+			GK.state._templateServiceId = parseInt(tmpl.gk_product_id, 10);
+		}
+		$('#gk-template-applied-label').show();
+	}
+
+	function initTemplateSelector() {
+		var templates = window.GkTemplates || [];
+		if (!templates.length) return;
+		var selectedId = window.GkSelectedTemplateId || 0;
+		var $sel = $('#gk-template-select');
+		if (!$sel.length) return;
+		var html = '<option value="">{l s=\'-- no template --\' mod=\'globkuriermodule\'}</option>';
+		templates.forEach(function(t) {
+			var label = t.name;
+			if (t.is_default) label += ' (★)';
+			html += '<option value="' + t.id_template + '">' + label + '</option>';
+		});
+		$sel.html(html);
+		if (selectedId) {
+			$sel.val(selectedId);
+			$('#gk-template-applied-label').show();
+		}
+		$sel.off('change.template').on('change.template', function() {
+			var id = parseInt($(this).val(), 10);
+			var tmpl = templates.find(function(t) { return t.id_template === id; });
+			if (tmpl) {
+				applyTemplate(tmpl);
+			} else {
+				$('#gk-template-applied-label').hide();
+			}
+		});
+	}
+
 	$(function(){
 		initStateFromInitialValues();
 		GK.state.packageInfo = (window.InitialValues && window.InitialValues.defaultPackageInfo) ? window.InitialValues.defaultPackageInfo : { count: 1 };
+		initTemplateSelector();
 		renderAddressBoxes();
         populateDisplayPanels();
         bindEditModals();

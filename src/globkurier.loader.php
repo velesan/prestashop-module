@@ -34,6 +34,8 @@ require_once 'common/moduletabs.service.php';
 require_once 'order/order.manager.php';
 require_once 'order/order.model.php';
 require_once 'terminalpickup/terminalpickup.manager.php';
+require_once 'Template/TemplateModel.php';
+require_once 'Template/TemplateManager.php';
 
 require_once 'addressspliter/AddressPart.php';
 require_once 'addressspliter/AddressSplitter.php';

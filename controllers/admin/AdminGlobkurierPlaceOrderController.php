@@ -65,6 +65,12 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
 
         $lang = new Language((int) $this->context->cookie->id_lang);
 
+        $tmgrAll = new Globkuriermodule\Template\TemplateManager();
+        $allTemplatesArr = [];
+        foreach ($tmgrAll->getAll() as $tmpl) {
+            $allTemplatesArr[] = $tmpl->toArray();
+        }
+
         $this->context->smarty->assign([
             'orderId' => Tools::getValue('order_id'),
             'moduleApiUrl' => $moduleApiUrl,
@@ -74,6 +80,7 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
             'service' => 'PICKUP',
             'iso_code' => $lang->iso_code,
             'sender_country_iso' => $sender_country_iso,
+            'gk_all_templates_json' => json_encode($allTemplatesArr),
         ]);
 
         if (Tools::getValue('order_id')) {
@@ -146,6 +153,16 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
                 ];
             }
 
+            // Dobierz szablon: najpierw wg PS carrier, potem domyślny
+            $tmgr = new Globkuriermodule\Template\TemplateManager();
+            $selectedTemplate = null;
+            if ($prestaCarrierId) {
+                $selectedTemplate = $tmgr->getByCarrierId($prestaCarrierId);
+            }
+            if (!$selectedTemplate) {
+                $selectedTemplate = $tmgr->getDefault();
+            }
+
             $orderProductsWeight = 0;
             $catalogProductsWeight = 0;
 
@@ -186,8 +203,13 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
                 'order_products_weight' => $orderProductsWeight,
                 'catalog_products_weight' => $catalogProductsWeight,
                 'effective_products_weight' => max($orderProductsWeight, $catalogProductsWeight),
+                'selected_template' => $selectedTemplate ? $selectedTemplate->toArray() : null,
             ]);
         } else {
+            // Brak zamówienia — użyj domyślnego szablonu (jeśli jest)
+            $tmgr = new Globkuriermodule\Template\TemplateManager();
+            $selectedTemplate = $tmgr->getDefault();
+
             $this->context->smarty->assign([
                 'adress' => [],
                 'splitedAddress' => null,
@@ -202,6 +224,7 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
                 'order_products_weight' => 0,
                 'catalog_products_weight' => 0,
                 'effective_products_weight' => 0,
+                'selected_template' => $selectedTemplate ? $selectedTemplate->toArray() : null,
             ]);
         }
 

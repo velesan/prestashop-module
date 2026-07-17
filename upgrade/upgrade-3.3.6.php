@@ -21,17 +21,87 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
+/**
+ * Upgrade script 3.3.5 → 3.3.6
+ *
+ * Changes:
+ *  1. Add `tracking_number` column to gk_orders (if missing)
+ *  2. Create globkurier_template table (idempotent)
+ *  3. Migrate existing config settings into a default template (one-time, if table empty)
+ */
 function upgrade_module_3_3_6($module)
 {
     $db = Db::getInstance();
-    $table = _DB_PREFIX_ . 'gk_orders';
+    $prefix = _DB_PREFIX_;
 
-    $columns = $db->executeS('SHOW COLUMNS FROM `' . $table . '` LIKE "tracking_number"');
-    if (empty($columns)) {
-        if (!$db->execute('ALTER TABLE `' . $table . '` ADD `tracking_number` VARCHAR(255) NULL')) {
-            // Abort the upgrade if the schema change failed, instead of
-            // silently continuing with a missing column.
-            return false;
+    /* ── 1. Add tracking_number to gk_orders if the table exists ── */
+    $tableExists = $db->executeS(
+        'SHOW TABLES LIKE \'' . pSQL($prefix . 'gk_orders') . '\''
+    );
+    if ($tableExists) {
+        $colExists = $db->executeS(
+            'SHOW COLUMNS FROM `' . $prefix . 'gk_orders` LIKE \'tracking_number\''
+        );
+        if (empty($colExists)) {
+            if (!$db->execute(
+                'ALTER TABLE `' . $prefix . 'gk_orders`
+                 ADD COLUMN `tracking_number` VARCHAR(255) DEFAULT NULL AFTER `payment`'
+            )) {
+                return false;
+            }
+        }
+    }
+
+    /* ── 2. Create globkurier_template (idempotent) ── */
+    if (!$db->execute('
+        CREATE TABLE IF NOT EXISTS `' . $prefix . 'globkurier_template` (
+            `id_template`    INT UNSIGNED    NOT NULL AUTO_INCREMENT,
+            `gk_template_id` INT             DEFAULT NULL
+                COMMENT "ID szablonu w GlobKurier API",
+            `name`           VARCHAR(255)    NOT NULL,
+            `package_list`   VARCHAR(50)     NOT NULL DEFAULT "PARCEL"
+                COMMENT "PARCEL | DOX | PALLET",
+            `length`         DECIMAL(8,2)    DEFAULT NULL,
+            `width`          DECIMAL(8,2)    DEFAULT NULL,
+            `height`         DECIMAL(8,2)    DEFAULT NULL,
+            `weight`         DECIMAL(8,2)    DEFAULT NULL,
+            `quantity`       INT             NOT NULL DEFAULT 1,
+            `contents`       VARCHAR(255)    DEFAULT NULL,
+            `gk_product_id`  INT             DEFAULT NULL
+                COMMENT "ID usługi/produktu GlobKurier",
+            `gk_addons`      TEXT            DEFAULT NULL
+                COMMENT "JSON: wybrane dodatki",
+            `payment_type`   INT             DEFAULT NULL
+                COMMENT "null = używa globalnego domyślnego",
+            `is_default`     TINYINT(1)      NOT NULL DEFAULT 0,
+            `ps_carrier_id`  INT             DEFAULT NULL
+                COMMENT "id_carrier z PrestaShop (auto-dopasowanie)",
+            `gk_sync_at`     DATETIME        DEFAULT NULL
+                COMMENT "ostatnia synchronizacja z GK API",
+            `date_add`       DATETIME        NOT NULL,
+            `date_upd`       DATETIME        NOT NULL,
+            PRIMARY KEY (`id_template`),
+            KEY `idx_ps_carrier`  (`ps_carrier_id`),
+            KEY `idx_gk_template` (`gk_template_id`),
+            KEY `idx_default`     (`is_default`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ')) {
+        return false;
+    }
+
+    /* ── 3. One-time migration: config → default template ── */
+    $count = (int) $db->getValue(
+        'SELECT COUNT(*) FROM `' . $prefix . 'globkurier_template`'
+    );
+    if ($count === 0) {
+        try {
+            $config = new Globkuriermodule\Common\Config();
+            if ($config->defaultWeight || $config->defaultServiceCode || $config->defaultContent) {
+                $manager = new Globkuriermodule\Template\TemplateManager();
+                $manager->createFromConfig($config);
+            }
+        } catch (\Exception $e) {
+            // Migration is optional — do not abort the upgrade on failure
         }
     }
 

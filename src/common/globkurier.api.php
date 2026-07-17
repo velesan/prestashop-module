@@ -348,6 +348,24 @@ class GlobkurierApi
      * @return array dane zamówienia
      */
     /**
+     * Pobiera listę szablonów przesyłek z GlobKurier API.
+     * GET /v1/order/productTemplate
+     *
+     * @param int $limit
+     * @param int $offset
+     * @return array
+     */
+    public function getTemplates($limit = 100, $offset = 0)
+    {
+        $url = $this->baseApiUrl . 'order/productTemplate?limit=' . (int)$limit . '&offset=' . (int)$offset;
+        $result = $this->sendJSONRequest($url, $this->token, [], 'GET');
+        if (is_array($result) && isset($result['data'])) {
+            return $result['data'];
+        }
+        return is_array($result) ? $result : [];
+    }
+
+    /**
      * Pobiera dostępne metody płatności dla konta (bez kontekstu produktu).
      *
      * @return array
