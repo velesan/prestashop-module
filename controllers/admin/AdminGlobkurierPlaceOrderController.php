@@ -1,5 +1,4 @@
 <?php
-
 /**
  * 2007-2026 PrestaShop.
  *
@@ -115,13 +114,13 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
                             }
                             $carrierLimits = [
                                 'max_weight' => (float) $carrier->max_weight,
-                                'max_width'  => (float) $carrier->max_width,
+                                'max_width' => (float) $carrier->max_width,
                                 'max_height' => (float) $carrier->max_height,
-                                'max_depth'  => (float) $carrier->max_depth,
+                                'max_depth' => (float) $carrier->max_depth,
                             ];
                         }
                     }
-                } catch (\Throwable $e) {
+                } catch (Throwable $e) {
                     $prestaCarrierName = null;
                 }
             }
@@ -149,11 +148,12 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
 
             $orderProductsWeight = 0;
             $catalogProductsWeight = 0;
+
             try {
                 foreach ($order->getProducts() as $product) {
                     $orderProductsWeight += (float) $product['product_weight'] * (int) $product['product_quantity'];
                 }
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
             }
             if ($orderProductsWeight <= 0) {
                 try {
@@ -168,7 +168,7 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
                         }
                         $catalogProductsWeight += $weight * (int) $product['product_quantity'];
                     }
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                 }
             }
 
@@ -222,6 +222,7 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
      * pole address2, z tego wzgledu, ze niektore sklepy dziela adres na dwa pola
      *
      * @param Address $address - intancja adresu
+     *
      * @return AddressSplitter\AddressSplitter|null w przypadku nieudanego podzialu zwraca null
      */
     private function getSplittedAddres(Address $address)
@@ -234,9 +235,9 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
         $splitter = new AddressSplitter\AddressSplitter();
         if ($splitter->split($address->address1)) {
             return $splitter;
-        } else {
-            return null;
         }
+
+        return null;
     }
 
     // strona z informacja, ze uzytkownik musi sie najpierw zalogowac
@@ -248,9 +249,9 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
 
         if (version_compare(_PS_VERSION_, '1.6.0', '>=') === true) {
             return $this->module->display($this->path, 'views/templates/admin/auth_fail_v16.tpl');
-        } else {
-            return $this->module->display($this->path, 'views/templates/admin/auth_fail_v15.tpl');
         }
+
+        return $this->module->display($this->path, 'views/templates/admin/auth_fail_v15.tpl');
     }
 
     // @Override
@@ -262,6 +263,7 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
     /**
      * Szkielet metody do zapisywania logów z zamawianych przesyłek
      * przykladowy adres: index.php?controller=AdminGlobkurierPlaceOrder&ajax=1&action=logXml
+     *
      * @return bool zwracana zmienna nie ma znaczenia
      */
     public function displayAjaxLogXml()
@@ -276,12 +278,14 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
 
         header('Content-Type: application/json');
         echo json_encode($data);
+
         return true;
     }
 
     /**
      * Szkielet metody do zapisywania logów z zamawianych przesyłek
      * przykladowy adres: index.php?controller=AdminGlobkurierPlaceOrder&ajax=1&action=getLogs
+     *
      * @return bool zwracana zmienna nie ma znaczenia
      */
     public function displayAjaxGetLogs()
@@ -297,12 +301,14 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
         header('Content-Length: ' . strlen($string));
 
         echo $string;
+
         return true;
     }
 
     /**
      * Szkielet metody do zapisywania odpowiedzi z serwera
      * przykladowy adres: index.php?controller=AdminGlobkurierPlaceOrder&ajax=1&action=logServerResponse
+     *
      * @return bool zwracana zmienna nie ma znaczenia
      */
     public function displayAjaxLogServerResponse()
@@ -316,12 +322,14 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
 
         header('Content-Type: application/json');
         echo json_encode($data);
+
         return true;
     }
 
     /**
      * Szkielet metody do zapisywania nowych zamówień kurierskich do bazy danych
      * przykladowy adres: index.php?controller=AdminGlobkurierPlaceOrder&ajax=1&action=addNewGlobOrder
+     *
      * @return bool zwracana zmienna nie ma znaczenia
      */
     public function displayAjaxAddNewGlobOrder()
@@ -358,7 +366,7 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
                     $om->updateTrackingNumber($order->gkId, $tn);
                     $trackingNumber = $tn;
                 }
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // tracking niedostępny jeszcze — JS polling uzupełni
             }
         }
@@ -370,6 +378,7 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
 
         header('Content-Type: application/json');
         echo json_encode($d);
+
         return true;
     }
 
@@ -388,11 +397,13 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
         }
         header('Content-Type: application/json');
         echo json_encode(['success' => $success]);
+
         return true;
     }
 
     /**
      * przykladowy adres: index.php?controller=AdminGlobkurierPlaceOrder&ajax=1&action=getAllPickupPoints
+     *
      * @return bool zwracana zmienna nie ma znaczenia
      */
     public function displayAjaxGetAllPickupPoints()

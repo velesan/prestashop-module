@@ -1,5 +1,4 @@
 <?php
-
 /**
  * 2007-2026 PrestaShop.
  *
@@ -114,6 +113,7 @@ class ModuleTabs
     /**
      * Uninstall tabs. There are two times PlaceOrder class, because there are
      * two tabs pointing at it
+     *
      * @return bool
      */
     public static function uninstall()

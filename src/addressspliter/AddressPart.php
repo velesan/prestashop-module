@@ -1,5 +1,4 @@
 <?php
-
 /**
  * 2007-2026 PrestaShop.
  *
@@ -24,16 +23,18 @@
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License 3.0 (AFL-3.0)
  * International Registered Trademark & Property of PrestaShop SA
  */
+
 namespace AddressSplitter;
+
 if (!defined('_PS_VERSION_')) {
     exit;
 }
 class AddressPart
 {
-    const OTHER = 1;
-    const APARTMENT_SEPARATOR = 2;
-    const STREET_TYPE = 3;
-    const NUMBER = 4;
+    public const OTHER = 1;
+    public const APARTMENT_SEPARATOR = 2;
+    public const STREET_TYPE = 3;
+    public const NUMBER = 4;
 
     /**
      * @var int

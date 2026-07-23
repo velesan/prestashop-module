@@ -1,5 +1,4 @@
 <?php
-
 /**
  * 2007-2026 PrestaShop.
  *
@@ -24,7 +23,9 @@
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License 3.0 (AFL-3.0)
  * International Registered Trademark & Property of PrestaShop SA
  */
+
 namespace AddressSplitter;
+
 if (!defined('_PS_VERSION_')) {
     exit;
 }
@@ -52,6 +53,7 @@ class AddressSplitter
 
     /**
      * @param $rawAddress
+     *
      * @return bool
      */
     public function split($rawAddress)
@@ -60,54 +62,59 @@ class AddressSplitter
 
         // ul. 3 Maja 12/5  (Polish: street type + numbered street name + house + separator + apt)
         $arr = [AddressPart::STREET_TYPE, AddressPart::NUMBER, AddressPart::OTHER,
-                     AddressPart::NUMBER, AddressPart::APARTMENT_SEPARATOR, AddressPart::NUMBER];
+            AddressPart::NUMBER, AddressPart::APARTMENT_SEPARATOR, AddressPart::NUMBER];
         if ($this->addressPartsMatch($arr, $addressParts)) {
             $this->streetType = (string) $addressParts[0];
             $this->street = (string) $addressParts[1] . ' ' . (string) $addressParts[2];
             $this->houseNumber = (string) $addressParts[3];
             $this->apartmentNumber = (string) $addressParts[5];
+
             return true;
         }
 
         // ul. XYZ 5a 3/b  (Polish: street type + name + two-part house + separator + apt)
         $arr = [AddressPart::STREET_TYPE, AddressPart::OTHER, AddressPart::NUMBER, AddressPart::NUMBER,
-                     AddressPart::APARTMENT_SEPARATOR, AddressPart::NUMBER];
+            AddressPart::APARTMENT_SEPARATOR, AddressPart::NUMBER];
         if ($this->addressPartsMatch($arr, $addressParts)) {
             $this->streetType = (string) $addressParts[0];
             $this->street = (string) $addressParts[1] . ' ' . (string) $addressParts[2];
             $this->houseNumber = (string) $addressParts[3];
             $this->apartmentNumber = (string) $addressParts[5];
+
             return true;
         }
 
         // ul. XYZ 5/3  (Polish standard: street type + name + house + separator + apt)
         $arr = [AddressPart::STREET_TYPE, AddressPart::OTHER, AddressPart::NUMBER,
-                     AddressPart::APARTMENT_SEPARATOR, AddressPart::NUMBER];
+            AddressPart::APARTMENT_SEPARATOR, AddressPart::NUMBER];
         if ($this->addressPartsMatch($arr, $addressParts)) {
             $this->streetType = (string) $addressParts[0];
             $this->street = (string) $addressParts[1];
             $this->houseNumber = (string) $addressParts[2];
             $this->apartmentNumber = (string) $addressParts[4];
+
             return true;
         }
 
         // 3 Maja 12/5  (Polish: numbered street name + house + separator + apt)
         $arr = [AddressPart::NUMBER, AddressPart::OTHER, AddressPart::NUMBER,
-                     AddressPart::APARTMENT_SEPARATOR, AddressPart::NUMBER];
+            AddressPart::APARTMENT_SEPARATOR, AddressPart::NUMBER];
         if ($this->addressPartsMatch($arr, $addressParts)) {
             $this->street = (string) $addressParts[0] . ' ' . (string) $addressParts[1];
             $this->houseNumber = (string) $addressParts[2];
             $this->apartmentNumber = (string) $addressParts[4];
+
             return true;
         }
 
         // XYZ 5 flat 3  (EU/US: name + house + apt indicator + apt)
         $arr = [AddressPart::OTHER, AddressPart::NUMBER, AddressPart::NUMBER,
-                     AddressPart::APARTMENT_SEPARATOR, AddressPart::NUMBER];
+            AddressPart::APARTMENT_SEPARATOR, AddressPart::NUMBER];
         if ($this->addressPartsMatch($arr, $addressParts)) {
             $this->street = (string) $addressParts[0] . ' ' . (string) $addressParts[1];
             $this->houseNumber = (string) $addressParts[2];
             $this->apartmentNumber = (string) $addressParts[4];
+
             return true;
         }
 
@@ -117,6 +124,7 @@ class AddressSplitter
             $this->streetType = (string) $addressParts[0];
             $this->street = (string) $addressParts[1] . ' ' . (string) $addressParts[2];
             $this->houseNumber = (string) $addressParts[3];
+
             return true;
         }
 
@@ -126,6 +134,7 @@ class AddressSplitter
             $this->streetType = (string) $addressParts[0];
             $this->street = (string) $addressParts[1];
             $this->houseNumber = (string) $addressParts[2];
+
             return true;
         }
 
@@ -135,6 +144,7 @@ class AddressSplitter
             $this->street = (string) $addressParts[0];
             $this->houseNumber = (string) $addressParts[1];
             $this->apartmentNumber = (string) $addressParts[3];
+
             return true;
         }
 
@@ -144,6 +154,7 @@ class AddressSplitter
             $this->houseNumber = (string) $addressParts[0];
             $this->street = (string) $addressParts[1];
             $this->apartmentNumber = (string) $addressParts[3];
+
             return true;
         }
 
@@ -152,6 +163,7 @@ class AddressSplitter
         if ($this->addressPartsMatch($arr, $addressParts)) {
             $this->street = (string) $addressParts[0] . ' ' . (string) $addressParts[1];
             $this->houseNumber = (string) $addressParts[2];
+
             return true;
         }
 
@@ -159,6 +171,7 @@ class AddressSplitter
         if ($this->addressPartsMatch([AddressPart::OTHER, AddressPart::NUMBER], $addressParts)) {
             $this->street = (string) $addressParts[0];
             $this->houseNumber = (string) $addressParts[1];
+
             return true;
         }
 
@@ -166,6 +179,7 @@ class AddressSplitter
         if ($this->addressPartsMatch([AddressPart::NUMBER, AddressPart::OTHER], $addressParts)) {
             $this->houseNumber = (string) $addressParts[0];
             $this->street = (string) $addressParts[1];
+
             return true;
         }
 
@@ -174,6 +188,7 @@ class AddressSplitter
 
     /**
      * @param string $rawAddress
+     *
      * @return AddressPart[]
      */
     private function parseAddress($rawAddress)
@@ -191,6 +206,7 @@ class AddressSplitter
             $parts = $this->splitElement($parts, '[0-9]+[a-zA-Z]*', AddressPart::NUMBER);
         } while ($numberOfPartsBefore != count($parts));
         $parts = $this->convertCommonStringsToPart($parts, AddressPart::OTHER);
+
         return $parts;
     }
 
@@ -198,6 +214,7 @@ class AddressSplitter
      * @param array $parts
      * @param string $regex
      * @param int $type
+     *
      * @return array
      */
     private function splitElement(array $parts, $regex, $type)
@@ -227,12 +244,14 @@ class AddressSplitter
                 $splittedParts[] = $part;
             }
         }
+
         return $splittedParts;
     }
 
     /**
      * @param array $parts
      * @param int $type
+     *
      * @return array
      */
     private function convertCommonStringsToPart(array $parts, $type)
@@ -242,12 +261,14 @@ class AddressSplitter
                 $parts[$index] = new AddressPart($value, $type);
             }
         }
+
         return $parts;
     }
 
     /**
      * @param array $pattern
      * @param array $addressParts
+     *
      * @return bool
      */
     private function addressPartsMatch(array $pattern, array $addressParts)
@@ -256,13 +277,14 @@ class AddressSplitter
             return false;
         }
         foreach ($pattern as $index => $expectedType) {
-            if (!($addressParts[$index] instanceof AddressPart)) {
+            if (!$addressParts[$index] instanceof AddressPart) {
                 return false;
             }
             if ($addressParts[$index]->getType() !== $expectedType) {
                 return false;
             }
         }
+
         return true;
     }
 

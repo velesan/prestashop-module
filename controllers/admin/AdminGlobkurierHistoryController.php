@@ -1,5 +1,4 @@
 <?php
-
 /**
  * 2007-2026 PrestaShop.
  *
@@ -30,6 +29,7 @@ if (!defined('_PS_VERSION_')) {
 class AdminGlobkurierHistoryController extends ModuleAdminController
 {
     private $link;
+
     public function __construct()
     {
         $this->table = 'configuration';
@@ -76,6 +76,7 @@ class AdminGlobkurierHistoryController extends ModuleAdminController
             'moduleApiUrl' => $baseUrl,
             'urlModule' => $this->link->getModuleLink('globkuriermodule', 'getLabel'),
         ]);
+
         return $this->module->display($this->path, 'views/templates/admin/history_page.tpl');
     }
 
@@ -110,6 +111,7 @@ class AdminGlobkurierHistoryController extends ModuleAdminController
         if (empty($missing)) {
             header('Content-Type: application/json');
             echo json_encode(['success' => true, 'trackings' => []]);
+
             return true;
         }
 
@@ -118,9 +120,10 @@ class AdminGlobkurierHistoryController extends ModuleAdminController
 
         try {
             $api->login();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             header('Content-Type: application/json');
             echo json_encode(['success' => false, 'error' => 'Login failed: ' . $e->getMessage()]);
+
             return true;
         }
 
@@ -136,13 +139,14 @@ class AdminGlobkurierHistoryController extends ModuleAdminController
                         'psTracking' => $order->psTrackingNumber,
                     ];
                 }
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // skip — missing tracking on one order should not block others
             }
         }
 
         header('Content-Type: application/json');
         echo json_encode(['success' => true, 'trackings' => $trackings]);
+
         return true;
     }
 
@@ -156,34 +160,40 @@ class AdminGlobkurierHistoryController extends ModuleAdminController
         if (!$gkId) {
             header('Content-Type: application/json');
             echo json_encode(['success' => false, 'error' => 'Missing gkId']);
+
             return true;
         }
 
         $om = new Globkuriermodule\Order\OrderManager();
         $order = null;
+
         try {
             $order = $om->getByGkId($gkId);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             header('Content-Type: application/json');
             echo json_encode(['success' => false, 'error' => 'Order not found']);
+
             return true;
         }
 
         if (!$order->trackingNumber) {
             header('Content-Type: application/json');
             echo json_encode(['success' => false, 'error' => 'No GK tracking number to copy']);
+
             return true;
         }
 
         $success = $om->updatePsCarrierTracking($gkId, $order->trackingNumber);
         header('Content-Type: application/json');
         echo json_encode(['success' => $success, 'trackingNumber' => $order->trackingNumber]);
+
         return true;
     }
 
     /**
      * Metoda do zwracania linku do listu przewozowego
      * przykladowy adres: index.php?controller=AdminGlobkurierPlaceOrder&ajax=1&action=getWaybill&gknumber=xc123123
+     *
      * @return bool zwracana zmienna nie ma znaczenia
      */
     public function displayAjaxGetWaybill()
@@ -191,6 +201,7 @@ class AdminGlobkurierHistoryController extends ModuleAdminController
         /** @var string numer przesylki dla ktorej chcemy pobrać list przewozowy */
         $number = Tools::getValue('gknumber', null);
         $resData = [];
+
         try {
             $c = new Globkuriermodule\Common\Config();
             $api = new Globkuriermodule\Common\GlobkurierApi($c->login, $c->password, $c->apiKey);
@@ -203,6 +214,7 @@ class AdminGlobkurierHistoryController extends ModuleAdminController
         }
         header('Content-Type: application/json');
         echo json_encode($resData);
+
         return true;
     }
 }

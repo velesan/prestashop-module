@@ -1,5 +1,4 @@
 <?php
-
 /**
  * 2007-2026 PrestaShop.
  *
@@ -75,6 +74,7 @@ class GlobkuriermoduleRestinterfaceModuleFrontController extends ModuleFrontCont
 
     /**
      * Zapisuje punkt inpost
+     *
      * @return bool nieistotne
      */
     public function displayAjaxSaveInPostPoint()
@@ -95,11 +95,13 @@ class GlobkuriermoduleRestinterfaceModuleFrontController extends ModuleFrontCont
 
         header('Content-Type: application/json');
         echo json_encode($responseData);
+
         return true;
     }
 
     /**
      * Zapisuje punkt paczka w ruchu
+     *
      * @return bool nieistotne
      */
     public function displayAjaxSavePaczkaRuchPoint()
@@ -120,11 +122,13 @@ class GlobkuriermoduleRestinterfaceModuleFrontController extends ModuleFrontCont
 
         header('Content-Type: application/json');
         echo json_encode($responseData);
+
         return true;
     }
 
     /**
      * Zapisuje punkt pocztex48 OWP
+     *
      * @return bool nieistotne
      */
     public function displayAjaxSavePocztex48owpPoint()
@@ -141,11 +145,13 @@ class GlobkuriermoduleRestinterfaceModuleFrontController extends ModuleFrontCont
         }
         header('Content-Type: application/json');
         echo json_encode($responseData);
+
         return true;
     }
 
     /**
      * Zapisuje punkt paczka w ruchu
+     *
      * @return bool nieistotne
      */
     public function displayAjaxSaveDhlParcelPoint()
@@ -164,11 +170,13 @@ class GlobkuriermoduleRestinterfaceModuleFrontController extends ModuleFrontCont
         }
         header('Content-Type: application/json');
         echo json_encode($responseData);
+
         return true;
     }
 
     /**
      * Zapisuje punkt DPD Pickup
+     *
      * @return bool nieistotne
      */
     public function displayAjaxSaveDpdPickupPoint()
@@ -187,11 +195,13 @@ class GlobkuriermoduleRestinterfaceModuleFrontController extends ModuleFrontCont
         }
         header('Content-Type: application/json');
         echo json_encode($responseData);
+
         return true;
     }
 
     /**
      * Usuwa wpis o wyborze punktu inpost
+     *
      * @deprecated use displayAjaxDeletePickupPoint instead
      */
     public function displayAjaxDeleteInPostPoint()
@@ -201,6 +211,7 @@ class GlobkuriermoduleRestinterfaceModuleFrontController extends ModuleFrontCont
 
     /**
      * Usuwa wpis o wyborze punktu odbioru
+     *
      * @return bool
      */
     public function displayAjaxDeletePickupPoint()
@@ -212,6 +223,7 @@ class GlobkuriermoduleRestinterfaceModuleFrontController extends ModuleFrontCont
         $terminalPickup->deletePickup($this->id_cart);
         header('Content-Type: application/json');
         echo json_encode($responseData);
+
         return true;
     }
 
@@ -237,6 +249,7 @@ class GlobkuriermoduleRestinterfaceModuleFrontController extends ModuleFrontCont
         }
         header('Content-Type: application/json');
         echo json_encode($responseData);
+
         return true;
     }
 
@@ -252,12 +265,14 @@ class GlobkuriermoduleRestinterfaceModuleFrontController extends ModuleFrontCont
             'success' => true,
             'pickup' => $pickup ? $pickup : null,
         ]);
+
         return true;
     }
 
     /**
      * Sprawdza czy podano dobry token dla danego koszyka. Zabezpiecza przed nieuprawniona
      * modyfikacja nieswojego koszyka
+     *
      * @return bool wartosc, ktora zostala ustawiona w $this->tokenAuth
      */
     private function authorize()
@@ -266,6 +281,7 @@ class GlobkuriermoduleRestinterfaceModuleFrontController extends ModuleFrontCont
         $id_cart = Tools::getValue('id_cart');
         if (!$token || !$id_cart) {
             $this->tokenAuth = false;
+
             return false;
         }
         if ($token == $this->encryptCartId($id_cart)) {
@@ -274,19 +290,23 @@ class GlobkuriermoduleRestinterfaceModuleFrontController extends ModuleFrontCont
         } else {
             $this->tokenAuth = false;
         }
+
         return $this->tokenAuth;
     }
 
     /**
      * Encrypt cart ID for security token
      * Compatible with all PrestaShop versions
+     *
      * @param int $cartId
+     *
      * @return string
      */
     private function encryptCartId($cartId)
     {
         // Use hash with salt for security
         $salt = _COOKIE_KEY_ . 'globkuriermodule';
+
         return hash('sha256', $cartId . $salt);
     }
 }

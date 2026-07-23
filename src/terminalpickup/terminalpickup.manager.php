@@ -1,5 +1,4 @@
 <?php
-
 /**
  * 2007-2026 PrestaShop.
  *
@@ -24,7 +23,9 @@
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License 3.0 (AFL-3.0)
  * International Registered Trademark & Property of PrestaShop SA
  */
+
 namespace Globkuriermodule\TerminalPickup;
+
 if (!defined('_PS_VERSION_')) {
     exit;
 }
@@ -32,7 +33,9 @@ class TerminalPickupManager
 {
     /**
      * Zwraca dane wybranego terminalu po id koszyka
+     *
      * @param int $id - id koszyka
+     *
      * @return array|false - tablica z danymi terminalu lub false jeśli nie znaleziono
      */
     public function getByCartId($id)
@@ -42,13 +45,16 @@ class TerminalPickupManager
         if (!$row) {
             return false;
         }
+
         return $row;
     }
 
     /**
      * Dodaje / zmienia rekord z fraza 'ruch' w kolumnie type
+     *
      * @param $cartId - id koszyka
      * @param $code - kod terminalu
+     *
      * @return bool - true w przy pomyślnego utworzenia/zmiany
      */
     public function setRuchPickup($cartId, $code)
@@ -58,8 +64,10 @@ class TerminalPickupManager
 
     /**
      * Dodaje / zmienia rekord z fraza 'pocztex48owp' w kolumnie type
+     *
      * @param $cartId - id koszyka
      * @param $code - kod terminalu
+     *
      * @return bool - true w przy pomyślnego utworzenia/zmiany
      */
     public function setPocztex48owpPickup($cartId, $code)
@@ -69,8 +77,10 @@ class TerminalPickupManager
 
     /**
      * Dodaje / zmienia rekord z fraza 'dhlparcel' w kolumnie type
+     *
      * @param $cartId - id koszyka
      * @param $code - kod terminalu
+     *
      * @return bool - true w przy pomyślnego utworzenia/zmiany
      */
     public function setDhlParcelPickup($cartId, $code)
@@ -80,8 +90,10 @@ class TerminalPickupManager
 
     /**
      * Dodaje / zmienia rekord z fraza 'dpdpickup' w kolumnie type
+     *
      * @param $cartId - id koszyka
      * @param $code - kod terminalu
+     *
      * @return bool - true w przy pomyślnego utworzenia/zmiany
      */
     public function setDpdPickupPickup($cartId, $code)
@@ -91,8 +103,10 @@ class TerminalPickupManager
 
     /**
      * Dodaje / zmienia rekord z fraza 'inpost' w kolumnie type
+     *
      * @param $cartId - id koszyka
      * @param $code - kod paczkomatu
+     *
      * @return bool - true w przy pomyślnego utworzenia/zmiany
      */
     public function setInpostPickup($cartId, $code)
@@ -102,8 +116,10 @@ class TerminalPickupManager
 
     /**
      * Dodaje / zmienia rekord z fraza 'globbox' w kolumnie type
+     *
      * @param $cartId - id koszyka
      * @param $code - kod globbox
+     *
      * @return bool - true w przy pomyślnego utworzenia/zmiany
      */
     public function setGlobboxPickup($cartId, $code)
@@ -125,12 +141,15 @@ class TerminalPickupManager
             $data['cart_id'] = (int) $cartId;
             $r = \Db::getInstance()->insert('gk_terminal_pickup', $data);
         }
+
         return $r ? true : false;
     }
 
     /**
      * Usuwa rekord po id koszyka
+     *
      * @param $cart_id - id koszyka
+     *
      * @return bool - true w przy pomyślnego usunięcia
      */
     public function deletePickup($cartId)
@@ -140,6 +159,7 @@ class TerminalPickupManager
         if (!$results) {
             return false;
         }
+
         return true;
     }
 }

@@ -1,5 +1,4 @@
 <?php
-
 /**
  * 2007-2026 PrestaShop.
  *
@@ -37,6 +36,7 @@ require_once 'src/globkurier.loader.php';
 class Globkuriermodule extends Module
 {
     protected $config_form = false;
+
     protected $link;
 
     private $payments = [
@@ -78,6 +78,7 @@ class Globkuriermodule extends Module
         Configuration::updateValue('GLOBKURIER2_LIVE_MODE', false);
         require_once __DIR__ . '/sql/install.php';
         ModuleTabs::install();
+
         return parent::install()
             && $this->registerHook('displayHeader')
             && $this->registerHook('displayBackOfficeHeader')
@@ -97,6 +98,7 @@ class Globkuriermodule extends Module
         ModuleTabs::uninstall();
         // include(dirname(__FILE__).'/sql/uninstall.php');
         Config::purge();
+
         return parent::uninstall();
     }
 
@@ -130,15 +132,16 @@ class Globkuriermodule extends Module
         if (!$api->isUserAuthorized()) {
             if (version_compare(_PS_VERSION_, '1.6.0', '>=') === true) {
                 return $this->display(__FILE__, 'views/templates/admin/login_page_v16.tpl');
-            } else {
-                return $this->display(__FILE__, 'views/templates/admin/login_page_v15.tpl');
             }
+
+            return $this->display(__FILE__, 'views/templates/admin/login_page_v15.tpl');
         }
         $carriers = Carrier::getCarriers($this->context->language->id);
         $countries = $api->getCountries();
         $latestVersion = $this->getLatestGithubVersion();
 
         $gkPayments = [];
+
         try {
             $raw = $api->getPayments();
             if (is_array($raw)) {
@@ -148,7 +151,7 @@ class Globkuriermodule extends Module
                     }
                 }
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
         }
 
         $legacyPaymentMap = ['T' => 1, 'O' => 2, 'P' => 9, 'D' => 4, 'COD' => 6];
@@ -172,9 +175,9 @@ class Globkuriermodule extends Module
         $this->context->controller->addJS($this->_path . '/views/js/configApp.jquery.js');
         if (version_compare(_PS_VERSION_, '1.6.0', '>=') === true) {
             return $this->display(__FILE__, 'views/templates/admin/config_page_v16.tpl');
-        } else {
-            return $this->display(__FILE__, 'views/templates/admin/config_page_v15.tpl');
         }
+
+        return $this->display(__FILE__, 'views/templates/admin/config_page_v15.tpl');
     }
 
     private function validateConfigFields()
@@ -186,6 +189,7 @@ class Globkuriermodule extends Module
             $this->context->controller->errors[] = $this->l('You cant use same carrier for two services');
             $valid = false;
         }
+
         return $valid;
     }
 
@@ -217,10 +221,10 @@ class Globkuriermodule extends Module
         } elseif (version_compare(_PS_VERSION_, '1.6.0', '>=') === true) {
             // PrestaShop 1.6.x
             return $this->display(__FILE__, 'views/templates/hooks/order_details_page_v16.tpl');
-        } else {
-            // PrestaShop 1.5.x and older
-            return $this->display(__FILE__, 'views/templates/hooks/order_details_v15.tpl');
         }
+
+        // PrestaShop 1.5.x and older
+        return $this->display(__FILE__, 'views/templates/hooks/order_details_v15.tpl');
     }
 
     /**
@@ -228,6 +232,7 @@ class Globkuriermodule extends Module
      * This method makes an internal API call to check the status of a parcel label
      *
      * @param string|null $hash The parcel hash identifier
+     *
      * @return int Returns 1 if PDF is ready, 0 otherwise
      */
     private function checkPDFReady($hash)
@@ -263,7 +268,9 @@ class Globkuriermodule extends Module
 
     /**
      * Wyświetla i ładuje skrypty związane z wyborem paczkomatów
+     *
      * @param $params
+     *
      * @return string
      */
     public function hookDisplayCarrierList($params)
@@ -297,24 +304,29 @@ class Globkuriermodule extends Module
         } elseif (version_compare(_PS_VERSION_, '1.7.0', '>=') === true) {
             // PrestaShop 1.7.x
             return $this->display(__FILE__, 'views/templates/hooks/carrier_list_17.tpl');
-        } else {
-            // PrestaShop 1.6.x and older
-            return $this->display(__FILE__, 'views/templates/hooks/carrier_list.tpl');
         }
+
+        // PrestaShop 1.6.x and older
+        return $this->display(__FILE__, 'views/templates/hooks/carrier_list.tpl');
     }
 
     /**
      * Alias for hookDisplayCarrierList used in PS1.7 version
+     *
      * @param $params
+     *
      * @return string
      */
     public function hookDisplayAfterCarrier($params)
     {
         return $this->hookDisplayCarrierList($params);
     }
+
     /**
      * aktualizuje id przewoźnika inPostu
+     *
      * @param $params - parametry przewoźnika
+     *
      * @return void
      */
     /**
@@ -587,13 +599,16 @@ class Globkuriermodule extends Module
     /**
      * Encrypt cart ID for security token
      * Compatible with all PrestaShop versions
+     *
      * @param int $cartId
+     *
      * @return string
      */
     private function encryptCartId($cartId)
     {
         // Use hash with salt for security
         $salt = _COOKIE_KEY_ . $this->name;
+
         return hash('sha256', $cartId . $salt);
     }
 }

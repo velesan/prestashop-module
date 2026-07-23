@@ -1,5 +1,4 @@
 <?php
-
 /**
  * globkuriermodule Prestashop module
  *
@@ -15,57 +14,99 @@
  *  @copyright 2017-2023 Silver Rose Wiktor Koźmiński
  *  @license   LICENSE.txt
  */
+
 namespace Globkuriermodule\Common;
+
 if (!defined('_PS_VERSION_')) {
     exit;
 }
 /* Configuration class, stored all config in one DB record in JSON */
 class Config
 {
-    const CONFIG_COLUMN_NAME = 'wk_globkurier_config';
+    public const CONFIG_COLUMN_NAME = 'wk_globkurier_config';
 
     /** Poniżej są dane kofiguracyjne, które można wykorzystać w formularzu */
     public $defaultSenderName;
+
     public $defaultSenderPersonName;
+
     public $defaultSenderStreet;
+
     public $defaultSenderHouseNumber;
+
     public $defaultSenderApartmentNumber;
+
     public $defaultSenderCity;
+
     public $defaultSenderPostCode;
+
     public $defaultCountryCode;
+
     public $defaultSenderEmail;
+
     public $defaultSenderPhoneNumber;
+
     public $defaultWeight;
+
     public $defaultWidth;
+
     public $defaultHeight;
+
     public $defaultDepth;
+
     public $defaultContent;
+
     public $defaultServiceCode;
+
     public $defaultServiceName;
+
     public $defaultPaymentType;
+
     public $defaultCodAccount;
+
     public $defaultCodAccountHolderName;
+
     public $defaultCodAccountHolderAddr1;
+
     public $defaultCodAccountHolderAddr2;
+
     public $inPostEnabled;
+
     public $inPostCarrier;
+
     public $inPostCODEnabled;
+
     public $inPostCODCarrier;
+
     public $defaultInPostPoint;
+
     public $paczkaRuchEnabled;
+
     public $paczkaRuchCarrier;
+
     public $pocztex48owpEnabled;
+
     public $pocztex48owpCarrier;
+
     public $dhlparcelEnabled;
+
     public $dhlparcelCarrier;
+
     public $dpdpickupEnabled;
+
     public $dpdpickupCarrier;
+
     public $globboxEnabled;
+
     public $login;
+
     public $password;
+
     public $apiKey;
+
     /** @deprecated No longer used - replaced with Leaflet maps */
     public $googleMapsApiKey;
+
     /** --- */
     public function __construct($initialLoad = true)
     {
@@ -76,6 +117,7 @@ class Config
 
     /**
      * Purges (removes) current configuration from presta db
+     *
      * @return void
      */
     public static function purge()
@@ -85,7 +127,9 @@ class Config
 
     /**
      * Saves current config into DB.
+     *
      * @param $getPostValues - if set to true, get post values with config_ prefix
+     *
      * @return bool
      */
     public function update($getPostValues = true)
@@ -95,11 +139,13 @@ class Config
         }
 
         $json = json_encode($this);
+
         return (bool) \Configuration::updateValue(self::CONFIG_COLUMN_NAME, $json);
     }
 
     /**
      * Loads config from DB.
+     *
      * @return bool false if values couldn't been loaded
      */
     public function load()
@@ -124,6 +170,7 @@ class Config
 
     /**
      * Assign post values with prefix 'config_' to class vars.
+     *
      * @return void
      */
     private function assignPostValues()

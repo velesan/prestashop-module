@@ -1,5 +1,4 @@
 <?php
-
 /**
  * 2007-2026 PrestaShop.
  *
@@ -24,7 +23,9 @@
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License 3.0 (AFL-3.0)
  * International Registered Trademark & Property of PrestaShop SA
  */
+
 namespace Globkuriermodule\Order;
+
 if (!defined('_PS_VERSION_')) {
     exit;
 }
@@ -44,8 +45,10 @@ class OrderManager
 
     /**
      * Pobiera stronę zamówień GK z numerem śledzenia z ps_order_carrier (do porównania)
+     *
      * @param int $limit
      * @param int $offset
+     *
      * @return OrderModel[]
      */
     public function getAll($limit = 20, $offset = 0)
@@ -62,13 +65,17 @@ class OrderManager
             $this->assignMySqlDataToOrder($row, $order);
             $orders[] = $order;
         }
+
         return $orders;
     }
 
     /**
      * Zwraca obiekt typu order po id zamówienia
+     *
      * @param $orderId - id zamowienia
+     *
      * @return array - tablica obiektów typu zamowienie z wszystkimi jego wartościami
+     *
      * @throws \Exception
      */
     public function getByOrderId($orderId)
@@ -90,8 +97,11 @@ class OrderManager
 
     /**
      * Zwraca obiekt typu order po id globkuriera (id wysyłki)
+     *
      * @param $gkId - id globkuriera (id wysyłki)
+     *
      * @return OrderModel - obiekt typu zamowienie z wszystkimi jego wartościami
+     *
      * @throws \Exception
      */
     public function getByGkId($gkId)
@@ -114,7 +124,9 @@ class OrderManager
 
     /**
      * Tworzy nowe zamówienie i wkłada je do bazy danych
+     *
      * @param $orderToCreate - obiekt typu zamowienie który ma zostac utowrzony
+     *
      * @return bool - true w przy pomyslnego utworzenia
      */
     public function create(OrderModel $orderToCreate)
@@ -140,12 +152,14 @@ class OrderManager
         if (!$results) {
             return false;
         }
+
         return true;
     }
 
     /**
      * Zwraca wszystkie zamówienia bez przypisanego tracking number (bez limitu czasu)
      * Sortuje malejąco po dacie, żeby pierwsze wystąpienie danego order_id to było najnowsze
+     *
      * @return OrderModel[]
      */
     public function getAllWithoutTracking()
@@ -161,11 +175,13 @@ class OrderManager
             $this->assignMySqlDataToOrder($row, $order);
             $orders[] = $order;
         }
+
         return $orders;
     }
 
     /**
      * Zwraca zamówienia z ostatnich 48h bez przypisanego tracking number
+     *
      * @return OrderModel[]
      */
     public function getWithoutTracking48h()
@@ -183,13 +199,16 @@ class OrderManager
             $this->assignMySqlDataToOrder($row, $order);
             $orders[] = $order;
         }
+
         return $orders;
     }
 
     /**
      * Zapisuje tracking w tabeli gk_orders (per GK zamówienie)
+     *
      * @param string $gkId
      * @param string $trackingNumber
+     *
      * @return bool
      */
     public function updateGkOrderTracking($gkId, $trackingNumber)
@@ -204,8 +223,10 @@ class OrderManager
     /**
      * Zapisuje tracking w ps_order_carrier tylko gdy pole jest jeszcze puste.
      * Używa PS ObjectModel per https://devdocs.prestashop-project.org/1.7/faq/shipping/
+     *
      * @param string $gkId
      * @param string $trackingNumber
+     *
      * @return bool
      */
     public function updatePsCarrierTracking($gkId, $trackingNumber)
@@ -237,19 +258,23 @@ class OrderManager
         }
 
         $orderCarrier->tracking_number = pSQL($trackingNumber);
+
         return (bool) $orderCarrier->save();
     }
 
     /**
      * Aktualizuje tracking zarówno w gk_orders jak i ps_order_carrier.
      * Używane po złożeniu zamówienia — wtedy to zamówienie jest z definicji najnowszym GK dla tego PS order.
+     *
      * @param string $gkId
      * @param string $trackingNumber
+     *
      * @return bool
      */
     public function updateTrackingNumber($gkId, $trackingNumber)
     {
         $this->updateGkOrderTracking($gkId, $trackingNumber);
+
         return $this->updatePsCarrierTracking($gkId, $trackingNumber);
     }
 
@@ -298,6 +323,7 @@ class OrderManager
             default:
                 $name = 'Inny';
         }
+
         return $name;
     }
 }

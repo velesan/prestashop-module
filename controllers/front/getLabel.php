@@ -1,5 +1,4 @@
 <?php
-
 /**
  * 2007-2026 PrestaShop.
  *
@@ -61,23 +60,21 @@ class GlobkuriermoduleGetLabelModuleFrontController extends ModuleFrontControlle
                 $return['status'] = false;
                 echo json_encode($return);
                 exit;
-            } else {
-                if ($ajax) {
-                    $return['status'] = true;
-                    echo json_encode($return);
-                    exit;
-                } else {
-                    $dir = __DIR__ . '/../../files/' . $hash . '.pdf';
-                    file_put_contents($dir, $request);
-                    $size = filesize($dir);
-                    header('Content-Type: application/pdf');
-                    header('Content-Length: ' . $size);
-                    header('Content-Disposition: attachment; filename="' . basename($hash . '.pdf') . '"');
-                    ob_end_flush();
-                    @readfile($dir);
-                    exit;
-                }
             }
+            if ($ajax) {
+                $return['status'] = true;
+                echo json_encode($return);
+                exit;
+            }
+            $dir = __DIR__ . '/../../files/' . $hash . '.pdf';
+            file_put_contents($dir, $request);
+            $size = filesize($dir);
+            header('Content-Type: application/pdf');
+            header('Content-Length: ' . $size);
+            header('Content-Disposition: attachment; filename="' . basename($hash . '.pdf') . '"');
+            ob_end_flush();
+            @readfile($dir);
+            exit;
         }
     }
 }

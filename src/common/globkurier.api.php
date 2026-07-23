@@ -1,5 +1,4 @@
 <?php
-
 /**
  * 2007-2026 PrestaShop.
  *
@@ -24,23 +23,31 @@
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License 3.0 (AFL-3.0)
  * International Registered Trademark & Property of PrestaShop SA
  */
+
 namespace Globkuriermodule\Common;
+
 if (!defined('_PS_VERSION_')) {
     exit;
 }
 class GlobkurierApi
 {
     private $baseApiUrl = 'https://api.globkurier.pl/v1/';
+
     /** @var string user login in globkurier.pl */
     private $login;
+
     /** @var string user password */
     private $password;
+
     /** @var string user api key */
     private $apiKey;
+
     /** @var int user id in globkurier.pl */
     private $clientId;
+
     /** @var string */
     private $token;
+
     /** @var string */
     private $pathForCachedPointsCalledFromAdmin;
 
@@ -54,6 +61,7 @@ class GlobkurierApi
 
     /**
      * Probuje zalogowac uzytkowanika i pobrac token autoryzacyjny
+     *
      * @throws \Exception jest server odpowie z kodem > 299 lub nie udalo sie uzyskac tokena
      */
     public function login()
@@ -79,6 +87,7 @@ class GlobkurierApi
         if (isset($r['clientId'])) {
             $this->clientId = $r['clientId'];
         }
+
         return $this;
     }
 
@@ -87,6 +96,7 @@ class GlobkurierApi
      * Remeber to set login, password and apiKey first.
      * If user is authorized method will set $clientId var
      * Also receives token
+     *
      * @return bool
      */
     public function isUserAuthorized()
@@ -96,12 +106,15 @@ class GlobkurierApi
         } catch (\Exception $e) {
             return false;
         }
+
         return true;
     }
 
     /**
      * Pobiera i zwraca link z ktorego mozna pobrac list przewozowy
+     *
      * @param $gkNumber - numer przesylki dla ktorej ma zostac pobrany list
+     *
      * @return string - adres url z ktorego mozna pobrac list
      */
     public function getWaybillUrl($gkNumber)
@@ -121,6 +134,7 @@ class GlobkurierApi
         if ($r['status'] != true) {
             $errorMsg = $r['error'] ? $r['error'] : 'Nie udało się pobrać listu przewozowego';
             Logger::error('Błąd podczas pobierania listu przewozowego: ' . $errorMsg);
+
             throw new \Exception($errorMsg);
         }
 
@@ -129,6 +143,7 @@ class GlobkurierApi
 
     /**
      * Pobiera liste terminali dla InPostu
+     *
      * @return true
      */
     public function cacheInPostPoints()
@@ -146,6 +161,7 @@ class GlobkurierApi
 
     /**
      * Pobiera liste terminali dla Paczka w Ruchu
+     *
      * @return true
      */
     public function cachePaczkaWRuchuPoints()
@@ -160,19 +176,23 @@ class GlobkurierApi
 
     /**
      * Pobiera listę krajów
+     *
      * @return array lista krajów
      */
     public function getCountries()
     {
         $url = $this->baseApiUrl . 'countries';
         $r = $this->sendJSONRequest($url);
+
         return $r ? $r : [];
     }
 
     /**
      * Send http reqest to given url and returns response
+     *
      * @param $url
      * @param $data
+     *
      * @return bool|string
      */
     private function sendHttpRequest($url, $data = '')
@@ -227,6 +247,7 @@ class GlobkurierApi
 
     /**
      * Gets the value of login.
+     *
      * @return string
      */
     public function getLogin()
@@ -236,17 +257,21 @@ class GlobkurierApi
 
     /**
      * Sets the value of login.
+     *
      * @param $login - the login
+     *
      * @return self
      */
     public function setLogin($login)
     {
         $this->login = $login;
+
         return $this;
     }
 
     /**
      * Gets the value of password.
+     *
      * @return string
      */
     public function getPassword()
@@ -256,17 +281,21 @@ class GlobkurierApi
 
     /**
      * Sets the value of password.
+     *
      * @param $password - the password
+     *
      * @return self
      */
     public function setPassword($password)
     {
         $this->password = $password;
+
         return $this;
     }
 
     /**
      * Gets the value of apiKey.
+     *
      * @return string
      */
     public function getApiKey()
@@ -276,17 +305,21 @@ class GlobkurierApi
 
     /**
      * Sets the value of apiKey.
+     *
      * @param $apiKey - the api key
+     *
      * @return self
      */
     public function setApiKey($apiKey)
     {
         $this->apiKey = $apiKey;
+
         return $this;
     }
 
     /**
      * Gets the value of apiKey.
+     *
      * @return int|null
      */
     public function getClientId()
@@ -308,17 +341,21 @@ class GlobkurierApi
 
     /**
      * Pobiera dane zamówienia z GlobKurier API — w tym trackingNumber od przewoźnika.
-     * @param string $hash  hash zamówienia
+     *
+     * @param string $hash hash zamówienia
      * @param string|null $number numer zamówienia GK (opcjonalnie, np. "GK260522105311")
+     *
      * @return array dane zamówienia
      */
     /**
      * Pobiera dostępne metody płatności dla konta (bez kontekstu produktu).
+     *
      * @return array
      */
     public function getPayments()
     {
         $url = $this->baseApiUrl . 'order/payments';
+
         return $this->sendJSONRequest($url, $this->token, [], 'GET');
     }
 
@@ -329,6 +366,7 @@ class GlobkurierApi
             $params['number'] = $number;
         }
         $url = $this->baseApiUrl . 'order?' . http_build_query($params);
+
         return $this->sendJSONRequest($url, $this->token, [], 'GET');
     }
 

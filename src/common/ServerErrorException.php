@@ -1,5 +1,4 @@
 <?php
-
 /**
  * globkuriermodule Prestashop module
  *
@@ -15,7 +14,9 @@
  *  @copyright 2017-2017 Silver Rose Wiktor Koźmiński
  *  @license   LICENSE.txt
  */
+
 namespace Globkuriermodule\Common;
+
 if (!defined('_PS_VERSION_')) {
     exit;
 }
@@ -23,6 +24,7 @@ class ServerErrorException extends \Exception
 {
     /** @var array */
     protected $request;
+
     /** @var array */
     protected $response;
 
@@ -47,11 +49,13 @@ class ServerErrorException extends \Exception
      * Sets the value of request.
      *
      * @param array $request the request
+     *
      * @return self
      */
     protected function setRequest(array $request)
     {
         $this->request = $request;
+
         return $this;
     }
 
@@ -69,11 +73,13 @@ class ServerErrorException extends \Exception
      * Sets the value of response.
      *
      * @param array $response the response
+     *
      * @return self
      */
     protected function setResponse(array $response)
     {
         $this->response = $response;
+
         return $this;
     }
 }

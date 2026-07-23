@@ -1,7 +1,7 @@
 <?php
 
 global $_MODULE;
-$_MODULE = array();
+$_MODULE = [];
 $_MODULE['<{globkuriermodule}prestashop>globkuriermodule_a7668e8a363d1bacc163881e2d24208f'] = 'Integracja Globkurier';
 $_MODULE['<{globkuriermodule}prestashop>globkuriermodule_125613edd7596ea2022ddfb1a24e6ca3'] = 'Oficjalny moduł integracyjny Globkurier do wysyłania przesyłek';
 $_MODULE['<{globkuriermodule}prestashop>globkuriermodule_2357fa4873645dccbeaf2cd856fa2fa5'] = 'Ustawienia modułu zostały poprawnie zapisane.';
