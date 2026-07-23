@@ -72,10 +72,15 @@
     <div class="panel-body order-placed" id="orderPlacedBox" style="display:none;">
         <div class="col-lg-12" style="text-align: center;">
             <h2><i class="icon-check" style="font-size: 50px!important; color:#96c21f;"></i></h2>
-            <h2>{l s='Carrier was succesfully ordered' mod='globkuriermodule'}</h2>
+            <h2>Zamówienie zostało złożone pomyślnie</h2>
             <p>{l s='Parcel No' mod='globkuriermodule'}: <span id="orderPlacedNumber"></span></p>
-            <p id="orderPlacedTrackingRow" style="display:none;">{l s='Tracking No' mod='globkuriermodule'}: <span id="orderPlacedTracking"></span></p>
+            <p id="orderPlacedTrackingRow" style="display:none;">
+                <span id="orderPlacedTrackingLabel" style="display:none;">{l s='Tracking No' mod='globkuriermodule'}: <strong><span id="orderPlacedTracking"></span></strong></span>
+                <span id="orderPlacedTrackingSpinner" style="display:none;"><i class="icon-cog icon-spin"></i> Oczekiwanie na kod śledzenia...</span>
+                <span id="orderPlacedTrackingTimeout" style="display:none; color:#c0392b;">Nie udało się pobrać kodu śledzenia. Sprawdź panel GlobKurier.</span>
+            </p>
             <button class="btn btn-warning" onclick="location.reload();">{l s='Ship next' mod='globkuriermodule'}</button>
+            <button class="btn btn-primary" id="downloadLabelBtn" style="display:none; margin-left:8px;">Pobierz etykietę</button>
         </div>
     </div>
     <div class="panel-body" id="mainFormBox">

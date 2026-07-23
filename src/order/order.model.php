@@ -45,6 +45,9 @@ class OrderModel
     /** @var string nazwa płatności zrozumiała dla człowieka */
     public $paymentName;
 
-    /** @var string|null numer śledzenia od przewoźnika (np. numer DPD) */
+    /** @var string|null numer śledzenia od przewoźnika zapisany w gk_orders */
     public $trackingNumber;
+
+    /** @var string|null numer śledzenia zapisany w ps_order_carrier (zamówienie PS) */
+    public $psTrackingNumber;
 }

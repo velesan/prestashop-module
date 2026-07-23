@@ -350,6 +350,7 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
             try {
                 $c = new Globkuriermodule\Common\Config();
                 $api = new Globkuriermodule\Common\GlobkurierApi($c->login, $c->password, $c->apiKey);
+                $api->login();
                 $response = $api->getOrder($order->hash, $order->gkId);
                 $tn = isset($response['trackingNumber']) ? $response['trackingNumber'] : null;
                 if ($tn !== null) {
@@ -357,7 +358,7 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
                     $trackingNumber = $tn;
                 }
             } catch (\Exception $e) {
-                // tracking niedostępny jeszcze — CRON uzupełni później
+                // tracking niedostępny jeszcze — JS polling uzupełni
             }
         }
 
@@ -368,6 +369,24 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
 
         header('Content-Type: application/json');
         echo json_encode($d);
+        return true;
+    }
+
+    /**
+     * Zapisuje numer śledzenia przesyłki pobrany przez JS z /v1/order/tracking
+     * przykladowy adres: index.php?controller=AdminGlobkurierPlaceOrder&ajax=1&action=saveTrackingNumber
+     */
+    public function displayAjaxSaveTrackingNumber()
+    {
+        $gkId = Tools::getValue('gkId');
+        $trackingNumber = Tools::getValue('trackingNumber');
+        $success = false;
+        if ($gkId && $trackingNumber) {
+            $om = new Globkuriermodule\Order\OrderManager();
+            $success = $om->updateTrackingNumber($gkId, $trackingNumber);
+        }
+        header('Content-Type: application/json');
+        echo json_encode(['success' => $success]);
         return true;
     }
 

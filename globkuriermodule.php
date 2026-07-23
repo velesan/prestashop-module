@@ -84,7 +84,8 @@ class Globkuriermodule extends Module
             && $this->registerHook('displayCarrierList')
             && $this->registerHook('displayAfterCarrier')
             && $this->registerHook('displayAdminOrderMainBottom')
-            && $this->registerHook('actionUpdateCarrier');
+            && $this->registerHook('actionUpdateCarrier')
+            && $this->registerHook('actionAdminOrdersTrackingNumberUpdate');
     }
 
     public function uninstall()
@@ -315,6 +316,16 @@ class Globkuriermodule extends Module
      * @param $params - parametry przewoźnika
      * @return void
      */
+    /**
+     * Fires after admin saves a tracking number on the order page.
+     * $params: ['order' => Order, 'carrier' => OrderCarrier, 'tracking_number' => string]
+     * PS already wrote the number to ps_order_carrier before this hook fires.
+     */
+    public function hookActionAdminOrdersTrackingNumberUpdate($params)
+    {
+        // Future: forward tracking to GlobKurier API or trigger status change
+    }
+
     public function hookActionUpdateCarrier($params)
     {
         $id_carrier_old = (int) $params['id_carrier'];

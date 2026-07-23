@@ -24,17 +24,12 @@ if (!defined('_PS_VERSION_')) {
 function upgrade_module_3_3_6($module)
 {
     $db = Db::getInstance();
+    $table = _DB_PREFIX_ . 'gk_orders';
 
-    $cols = $db->executeS(
-        'SHOW COLUMNS FROM `' . _DB_PREFIX_ . 'gk_orders` LIKE "tracking_number"'
-    );
-
-    if (empty($cols)) {
-        return (bool) $db->execute(
-            'ALTER TABLE `' . _DB_PREFIX_ . 'gk_orders`
-             ADD COLUMN `tracking_number` varchar(255) DEFAULT NULL'
-        );
+    $columns = $db->executeS('SHOW COLUMNS FROM `' . $table . '` LIKE "tracking_number"');
+    if (empty($columns)) {
+        $db->execute('ALTER TABLE `' . $table . '` ADD `tracking_number` varchar(255) NULL');
     }
 
-    return true;
+    return (bool) $module->registerHook('actionAdminOrdersTrackingNumberUpdate');
 }

@@ -83,6 +83,15 @@ $_MODULE['<{globkuriermodule}prestashop>history_page_b021df6aac4654c454f46c77646
 $_MODULE['<{globkuriermodule}prestashop>history_page_bffc5c6cf79a55ee32c666e422cdfe37'] = 'Pobierz list przewozowy';
 $_MODULE['<{globkuriermodule}prestashop>history_page_cb8fe83175bea4ba19d633b1dc6ea656'] = 'Zobacz zamówienie';
 $_MODULE['<{globkuriermodule}prestashop>history_page_5f3d6341b77a04c52450d34c0d03bcfe'] = 'Śledź przesyłkę';
+$_MODULE['<{globkuriermodule}prestashop>history_page_933292561b46133ff5348c7740874c56'] = 'Kod śledzenia';
+$_MODULE['<{globkuriermodule}prestashop>history_page_97696b03757f24de4d9843d57c52432e'] = 'Zaktualizuj w zamówieniu';
+$_MODULE['<{globkuriermodule}prestashop>history_page_aadaba40380923f8be5f173e9316ffe1'] = 'Zsynchronizowany z zamówieniem';
+$_MODULE['<{globkuriermodule}prestashop>history_page_1bea3cc675a130ad64e235f982761b13'] = 'Brak w zamówieniu';
+$_MODULE['<{globkuriermodule}prestashop>history_page_1279e6fa8ce9443f3f0c84824abd3b9b'] = 'Inny niż w zamówieniu';
+$_MODULE['<{globkuriermodule}prestashop>history_page_96b0141273eabab320119c467cdcaf17'] = 'Łącznie';
+$_MODULE['<{globkuriermodule}prestashop>history_page_4dc23b29ac04ff8a10ee727ebf8f9560'] = 'Na stronę';
+$_MODULE['<{globkuriermodule}prestashop>history_page_d79cf3f429596f77db95c65074663a54'] = 'ID zamówienia';
+$_MODULE['<{globkuriermodule}prestashop>history_page_193cfc9be3b995831c6af2fea6650e60'] = 'Strona';
 $_MODULE['<{globkuriermodule}prestashop>login_page_v16_bffe9a3c9a7e00ba00a11749e022d911'] = 'Zaloguj';
 $_MODULE['<{globkuriermodule}prestashop>login_page_v16_df1b4fed4f1c438a1057d3c51ba069d1'] = 'Nie mogliśmy Cię zalgować używając podanych przez Ciebie danych!';
 $_MODULE['<{globkuriermodule}prestashop>login_page_v16_7b3c8ad29117ed89da3c611c56dfc37d'] = 'Prosimy spróbować ponownie. Jeśli problem będzie się powtarzał prosimy o kontakt:';

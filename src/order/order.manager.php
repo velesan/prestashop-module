@@ -34,16 +34,32 @@ class OrderManager
     }
 
     /**
-     * Pobiera wszystkie rekordy zamówień
-     * @return array zwaraca tablicę obiektów typu order model
+     * Liczba wszystkich zamówień GK
      */
-    public function getAll()
+    public function getCount()
     {
-        $orders = [];
-        $sql = 'SELECT * FROM ' . _DB_PREFIX_ . 'gk_orders ORDER BY crate_date DESC LIMIT 50';
+        return (int) \Db::getInstance()->getValue('SELECT COUNT(*) FROM ' . _DB_PREFIX_ . 'gk_orders');
+    }
+
+    /**
+     * Pobiera stronę zamówień GK z numerem śledzenia z ps_order_carrier (do porównania)
+     * @param int $limit
+     * @param int $offset
+     * @return OrderModel[]
+     */
+    public function getAll($limit = 20, $offset = 0)
+    {
+        $sql = 'SELECT gko.*, oc.tracking_number AS oc_tracking_number
+                FROM ' . _DB_PREFIX_ . 'gk_orders gko
+                LEFT JOIN ' . _DB_PREFIX_ . 'order_carrier oc ON gko.order_id = oc.id_order
+                ORDER BY gko.crate_date DESC
+                LIMIT ' . (int) $limit . ' OFFSET ' . (int) $offset;
         $results = \Db::getInstance()->executeS($sql);
+        $orders = [];
         foreach ($results as $row) {
-            $orders[] = $this->getByGkId($row['gk_id']);
+            $order = new OrderModel();
+            $this->assignMySqlDataToOrder($row, $order);
+            $orders[] = $order;
         }
         return $orders;
     }
@@ -80,7 +96,10 @@ class OrderManager
     public function getByGkId($gkId)
     {
         $order = new OrderModel();
-        $sql = 'SELECT * FROM ' . _DB_PREFIX_ . 'gk_orders WHERE gk_id = "' . pSQL($gkId) . '"';
+        $sql = 'SELECT gko.*, oc.tracking_number AS oc_tracking_number
+                FROM ' . _DB_PREFIX_ . 'gk_orders gko
+                LEFT JOIN ' . _DB_PREFIX_ . 'order_carrier oc ON gko.order_id = oc.id_order
+                WHERE gko.gk_id = "' . pSQL($gkId) . '"';
         $row = \Db::getInstance()->getRow($sql);
 
         if (!$row) {
@@ -124,14 +143,15 @@ class OrderManager
     }
 
     /**
-     * Zwraca zamówienia z ostatnich 48h bez przypisanego tracking number
+     * Zwraca wszystkie zamówienia bez przypisanego tracking number (bez limitu czasu)
+     * Sortuje malejąco po dacie, żeby pierwsze wystąpienie danego order_id to było najnowsze
      * @return OrderModel[]
      */
-    public function getWithoutTracking48h()
+    public function getAllWithoutTracking()
     {
         $sql = 'SELECT * FROM ' . _DB_PREFIX_ . 'gk_orders
                 WHERE (tracking_number IS NULL OR tracking_number = "")
-                AND crate_date >= DATE_SUB(NOW(), INTERVAL 48 HOUR)
+                AND order_id > 0
                 ORDER BY crate_date DESC';
         $results = \Db::getInstance()->executeS($sql);
         $orders = [];
@@ -144,16 +164,92 @@ class OrderManager
     }
 
     /**
-     * Aktualizuje tracking number dla danego zamówienia GK
+     * Zwraca zamówienia z ostatnich 48h bez przypisanego tracking number
+     * @return OrderModel[]
+     */
+    public function getWithoutTracking48h()
+    {
+        $sql = 'SELECT gko.*, oc.tracking_number AS oc_tracking_number
+                FROM ' . _DB_PREFIX_ . 'gk_orders gko
+                LEFT JOIN ' . _DB_PREFIX_ . 'order_carrier oc ON gko.order_id = oc.id_order
+                WHERE (oc.tracking_number IS NULL OR oc.tracking_number = "")
+                AND gko.crate_date >= DATE_SUB(NOW(), INTERVAL 48 HOUR)
+                ORDER BY gko.crate_date DESC';
+        $results = \Db::getInstance()->executeS($sql);
+        $orders = [];
+        foreach ($results as $row) {
+            $order = new OrderModel();
+            $this->assignMySqlDataToOrder($row, $order);
+            $orders[] = $order;
+        }
+        return $orders;
+    }
+
+    /**
+     * Zapisuje tracking w tabeli gk_orders (per GK zamówienie)
+     * @param string $gkId
+     * @param string $trackingNumber
+     * @return bool
+     */
+    public function updateGkOrderTracking($gkId, $trackingNumber)
+    {
+        return (bool) \Db::getInstance()->update(
+            'gk_orders',
+            ['tracking_number' => pSQL($trackingNumber)],
+            'gk_id = "' . pSQL($gkId) . '"'
+        );
+    }
+
+    /**
+     * Zapisuje tracking w ps_order_carrier tylko gdy pole jest jeszcze puste.
+     * Używa PS ObjectModel per https://devdocs.prestashop-project.org/1.7/faq/shipping/
+     * @param string $gkId
+     * @param string $trackingNumber
+     * @return bool
+     */
+    public function updatePsCarrierTracking($gkId, $trackingNumber)
+    {
+        $row = \Db::getInstance()->getRow(
+            'SELECT order_id FROM ' . _DB_PREFIX_ . 'gk_orders WHERE gk_id = "' . pSQL($gkId) . '"'
+        );
+        if (!$row || !(int) $row['order_id']) {
+            return false;
+        }
+
+        $order = new \Order((int) $row['order_id']);
+        if (!\Validate::isLoadedObject($order)) {
+            return false;
+        }
+
+        $idOrderCarrier = $order->getIdOrderCarrier();
+        if (!$idOrderCarrier) {
+            return false;
+        }
+
+        $orderCarrier = new \OrderCarrier((int) $idOrderCarrier);
+        if (!\Validate::isLoadedObject($orderCarrier)) {
+            return false;
+        }
+
+        if (!empty($orderCarrier->tracking_number)) {
+            return true; // already set — do not overwrite
+        }
+
+        $orderCarrier->tracking_number = pSQL($trackingNumber);
+        return (bool) $orderCarrier->save();
+    }
+
+    /**
+     * Aktualizuje tracking zarówno w gk_orders jak i ps_order_carrier.
+     * Używane po złożeniu zamówienia — wtedy to zamówienie jest z definicji najnowszym GK dla tego PS order.
      * @param string $gkId
      * @param string $trackingNumber
      * @return bool
      */
     public function updateTrackingNumber($gkId, $trackingNumber)
     {
-        return \Db::getInstance()->update('gk_orders', [
-            'tracking_number' => pSQL($trackingNumber),
-        ], 'gk_id = "' . pSQL($gkId) . '"');
+        $this->updateGkOrderTracking($gkId, $trackingNumber);
+        return $this->updatePsCarrierTracking($gkId, $trackingNumber);
     }
 
     private function assignMySqlDataToOrder($mysqlData, $order)
@@ -170,7 +266,9 @@ class OrderManager
         $order->cod = $mysqlData['cod'];
         $order->payment = $mysqlData['payment'];
         $order->paymentName = $this->translatePaymentName($mysqlData['payment']);
-        $order->trackingNumber = isset($mysqlData['tracking_number']) ? $mysqlData['tracking_number'] : null;
+        $order->trackingNumber = !empty($mysqlData['tracking_number']) ? $mysqlData['tracking_number'] : null;
+        $order->psTrackingNumber = isset($mysqlData['oc_tracking_number']) && $mysqlData['oc_tracking_number'] !== ''
+            ? $mysqlData['oc_tracking_number'] : null;
     }
 
     private function translatePaymentName($paymentCode)

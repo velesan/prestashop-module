@@ -328,7 +328,7 @@ class GlobkurierApi
             $params['number'] = $number;
         }
         $url = $this->baseApiUrl . 'order?' . http_build_query($params);
-        return $this->sendJSONRequest($url, null, [], 'GET');
+        return $this->sendJSONRequest($url, $this->token, [], 'GET');
     }
 
     public function getLabel($token, $hash)

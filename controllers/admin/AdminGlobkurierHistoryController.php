@@ -43,12 +43,32 @@ class AdminGlobkurierHistoryController extends ModuleAdminController
     // @Override
     public function renderView()
     {
+        $allowedPerPage = [10, 20, 50, 100];
+        $perPage = (int) Tools::getValue('perPage', 20);
+        if (!in_array($perPage, $allowedPerPage)) {
+            $perPage = 20;
+        }
+        $page = max(1, (int) Tools::getValue('page', 1));
+
         $orderManager = new Globkuriermodule\Order\OrderManager();
-        $orders = $orderManager->getAll();
+        $total = $orderManager->getCount();
+        $totalPages = max(1, (int) ceil($total / $perPage));
+        if ($page > $totalPages) {
+            $page = $totalPages;
+        }
+        $offset = ($page - 1) * $perPage;
+        $orders = $orderManager->getAll($perPage, $offset);
+
+        $baseUrl = $this->link->getAdminLink('AdminGlobkurierHistory');
         $this->context->smarty->assign([
             'orders' => $orders,
+            'total' => $total,
+            'page' => $page,
+            'perPage' => $perPage,
+            'totalPages' => $totalPages,
+            'historyBaseUrl' => $baseUrl,
             'orderDetailsUrl' => $this->link->getAdminLink('AdminOrders') . '&vieworder',
-            'moduleApiUrl' => $this->link->getAdminLink('AdminGlobkurierHistory'),
+            'moduleApiUrl' => $baseUrl,
             'urlModule' => $this->link->getModuleLink('globkuriermodule', 'getLabel'),
         ]);
         return $this->module->display($this->path, 'views/templates/admin/history_page.tpl');
@@ -58,6 +78,102 @@ class AdminGlobkurierHistoryController extends ModuleAdminController
     public function postProcess()
     {
         return parent::postProcess();
+    }
+
+    /**
+     * Auto-sync: fetches missing tracking codes from GK API for orders
+     * that have no tracking_number in gk_orders (current page only).
+     * Does NOT update ps_order_carrier.
+     */
+    public function displayAjaxAutoSyncTracking()
+    {
+        $allowedPerPage = [10, 20, 50, 100];
+        $perPage = (int) Tools::getValue('perPage', 20);
+        if (!in_array($perPage, $allowedPerPage)) {
+            $perPage = 20;
+        }
+        $page = max(1, (int) Tools::getValue('page', 1));
+        $offset = ($page - 1) * $perPage;
+
+        $om = new Globkuriermodule\Order\OrderManager();
+        $orders = $om->getAll($perPage, $offset);
+
+        $missing = array_filter($orders, function ($o) {
+            return $o->hash && !$o->trackingNumber;
+        });
+
+        if (empty($missing)) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => true, 'trackings' => []]);
+            return true;
+        }
+
+        $c = new Globkuriermodule\Common\Config();
+        $api = new Globkuriermodule\Common\GlobkurierApi($c->login, $c->password, $c->apiKey);
+
+        try {
+            $api->login();
+        } catch (\Exception $e) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Login failed: ' . $e->getMessage()]);
+            return true;
+        }
+
+        $trackings = [];
+        foreach ($missing as $order) {
+            try {
+                $response = $api->getOrder($order->hash, $order->gkId);
+                $tn = isset($response['trackingNumber']) ? $response['trackingNumber'] : null;
+                if ($tn) {
+                    $om->updateGkOrderTracking($order->gkId, $tn);
+                    $trackings[$order->gkId] = [
+                        'gkTracking' => $tn,
+                        'psTracking' => $order->psTrackingNumber,
+                    ];
+                }
+            } catch (\Exception $e) {
+                // skip — missing tracking on one order should not block others
+            }
+        }
+
+        header('Content-Type: application/json');
+        echo json_encode(['success' => true, 'trackings' => $trackings]);
+        return true;
+    }
+
+    /**
+     * Updates tracking in ps_order_carrier for a single GK order.
+     * Triggered by the per-row "Update in order" button.
+     */
+    public function displayAjaxUpdateCarrierTracking()
+    {
+        $gkId = Tools::getValue('gkId');
+        if (!$gkId) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Missing gkId']);
+            return true;
+        }
+
+        $om = new Globkuriermodule\Order\OrderManager();
+        $order = null;
+        try {
+            $order = $om->getByGkId($gkId);
+        } catch (\Exception $e) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Order not found']);
+            return true;
+        }
+
+        if (!$order->trackingNumber) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'No GK tracking number to copy']);
+            return true;
+        }
+
+        $success = $om->updatePsCarrierTracking($gkId, $order->trackingNumber);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => $success, 'trackingNumber' => $order->trackingNumber]);
+        return true;
     }
 
     /**

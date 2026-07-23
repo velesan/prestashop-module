@@ -141,15 +141,67 @@ function showOrderPlaced(order) {
 		GK.state.orderPlaced = order;
 		$('#mainFormBox').hide();
 		$('#orderPlacedBox').show();
-
 		$('#orderPlacedNumber').text(order && order.gkId ? order.gkId : 'Brak numeru');
 
 		if (order && order.trackingNumber) {
 			$('#orderPlacedTracking').text(order.trackingNumber);
+			$('#orderPlacedTrackingLabel').show();
+			$('#orderPlacedTrackingSpinner').hide();
+			$('#orderPlacedTrackingTimeout').hide();
+			$('#orderPlacedTrackingRow').show();
+		} else if (order && order.hash) {
+			$('#orderPlacedTrackingLabel').hide();
+			$('#orderPlacedTrackingSpinner').show();
+			$('#orderPlacedTrackingTimeout').hide();
 			$('#orderPlacedTrackingRow').show();
 		} else {
 			$('#orderPlacedTrackingRow').hide();
 		}
+
+		$('#downloadLabelBtn').toggle(!!(order && order.hash));
+	}
+
+	var _trackingPollTimer = null;
+	var _trackingPollAttempts = 0;
+	var _trackingPollMax = 24;
+
+	function startTrackingPoll(gkId, hash, moduleApiUrl) {
+		_trackingPollAttempts = 0;
+		if (_trackingPollTimer) clearTimeout(_trackingPollTimer);
+		pollForTracking(gkId, hash, moduleApiUrl);
+	}
+
+	function pollForTracking(gkId, hash, moduleApiUrl) {
+		_trackingPollAttempts++;
+		if (_trackingPollAttempts > _trackingPollMax) {
+			$('#orderPlacedTrackingSpinner').hide();
+			$('#orderPlacedTrackingTimeout').show();
+			return;
+		}
+		fetch('https://api.globkurier.pl/v1/order?hash=' + encodeURIComponent(hash), { headers: buildHeaders() })
+			.then(function(r){ return r.json(); })
+			.then(function(resp){
+				var tracking = (resp && resp.trackingNumber) ? resp.trackingNumber : null;
+				if (tracking) {
+					GK.state.orderPlaced.trackingNumber = tracking;
+					$('#orderPlacedTracking').text(tracking);
+					$('#orderPlacedTrackingSpinner').hide();
+					$('#orderPlacedTrackingTimeout').hide();
+					$('#orderPlacedTrackingLabel').show();
+					if (moduleApiUrl) {
+						fetch(moduleApiUrl + '&ajax=1&action=saveTrackingNumber&gkId=' + encodeURIComponent(gkId) + '&trackingNumber=' + encodeURIComponent(tracking));
+					}
+				} else {
+					_trackingPollTimer = setTimeout(function(){
+						pollForTracking(gkId, hash, moduleApiUrl);
+					}, 5000);
+				}
+			})
+			.catch(function(){
+				_trackingPollTimer = setTimeout(function(){
+					pollForTracking(gkId, hash, moduleApiUrl);
+				}, 5000);
+			});
 	}
 
 	function clearErrors() {
@@ -304,9 +356,13 @@ function showOrderErrors(obj) {
 				dst.apartmentNumber = src.apartmentNumber;
 			}
 
-			// Add pointId for specific carrier terminal points (like Angular does in generateAddress)
-			// For POINT collection type OR when delivery is to POINT (like InPost Paczkomat)
-			const isPointDelivery = isPointLikeCollectionType(collectionType) || (s.pickedService && s.pickedService.deliveryTypes && s.pickedService.deliveryTypes.includes('POINT'));
+			// Add pointId driven by API: customRequiredFields returns senderAddressPointId/receiverAddressPointId.
+			// Fall back to service-based heuristic when customRequired not yet loaded.
+			const cr = GK.state.customRequired;
+			const deliveryIsToPoint = !!(s.pickedService && s.pickedService.deliveryTypes && s.pickedService.deliveryTypes.includes('POINT'));
+			const isPointDelivery = cr
+				? (role === 'sender' ? cr.senderAddressPointId === true : cr.receiverAddressPointId === true)
+				: (isPointLikeCollectionType(collectionType) || (role === 'receiver' && deliveryIsToPoint));
 			if (s.pickedService && isPointDelivery) {
 				const carrierName = (s.pickedService.carrierName || '').toLowerCase();
 				const serviceName = (s.pickedService.name || '').toLowerCase();
@@ -356,9 +412,8 @@ function showOrderErrors(obj) {
 				}
 			}
 
-			// Also add terminal/point ID for POINT collection type (fallback)
-			const isPointDeliveryFallback = isPointLikeCollectionType(collectionType) || (s.pickedService && s.pickedService.deliveryTypes && s.pickedService.deliveryTypes.includes('POINT'));
-			if (isPointDeliveryFallback && src.terminal) {
+			// Fallback: terminal/point ID — uses same role-aware isPointDelivery computed above
+			if (isPointDelivery && src.terminal) {
 				dst.pointId = src.terminal;
 			}
 
@@ -370,11 +425,6 @@ function showOrderErrors(obj) {
 				dst.stateId = s.additionalInfo.stateType;
 			}
 
-			// Gdy dostawa do punktu (pointId ustawiony w receiverAddress), API akceptuje tylko pointId —
-			// wszystkie inne pola adresowe są w tym przypadku nadmiarowe
-			if (role === 'receiver' && dst.pointId) {
-				data.receiverAddress = { pointId: dst.pointId };
-			}
 		});
 
 		// Add international shipment fields (like Angular)
@@ -575,12 +625,15 @@ function showOrderErrors(obj) {
 					cod: GK.state.additionalInfo && GK.state.additionalInfo.codAmount ? GK.state.additionalInfo.codAmount : 0,
 					payment: GK.state.additionalInfo && GK.state.additionalInfo.paymentType
 				};
+				const gkId = resp.number;
+				const gkHash = resp.hash || '';
 				const url = moduleApiUrl + '&ajax=1&action=addNewGlobOrder&data=' + encodeURIComponent(JSON.stringify(dataToSend));
 				return fetch(url).then(function(r){ return r.json(); }).then(function(saved){
-					showOrderPlaced({
-						gkId: resp.number,
-						trackingNumber: saved && saved.trackingNumber ? saved.trackingNumber : null
-					});
+					const trackingFromPs = saved && saved.trackingNumber ? saved.trackingNumber : null;
+					showOrderPlaced({ gkId: gkId, hash: gkHash, trackingNumber: trackingFromPs });
+					if (!trackingFromPs && gkHash) {
+						startTrackingPoll(gkId, gkHash, moduleApiUrl);
+					}
 				});
 			});
 		})
@@ -594,6 +647,23 @@ function showOrderErrors(obj) {
 		$(document).on('click', '#orderErrorClose', function(){ $('#orderErrorBox').hide(); });
 		$(document).on('click', '#validationErrorClose', function(){ $('#validationErrorBox').hide(); });
 		$(document).on('click', '#sendOrderBtn', placeOrder);
+		$(document).on('click', '#downloadLabelBtn', function(){
+			var order = GK.state.orderPlaced;
+			if (!order || !order.hash) return;
+			fetch(
+				'https://api.globkurier.pl/v1/order/labels?orderHashes[0]=' + encodeURIComponent(order.hash),
+				{ headers: buildHeaders() }
+			).then(function(r){ return r.blob(); }).then(function(blob){
+				var url = URL.createObjectURL(blob);
+				var a = document.createElement('a');
+				a.href = url;
+				a.download = (order.gkId || 'label') + '.pdf';
+				document.body.appendChild(a);
+				a.click();
+				document.body.removeChild(a);
+				URL.revokeObjectURL(url);
+			});
+		});
 	}
 
 function initStateFromInitialValues() {
