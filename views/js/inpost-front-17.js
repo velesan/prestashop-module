@@ -96,18 +96,43 @@ $(function () {
         return;
     }
 
-    // Try to append to container - support both Classic and Hummingbird themes
-    // Priority: 1) .delivery-options (Classic), 2) .delivery-options__container (Hummingbird), 3) #hook-display-after-carrier (fallback)
-    let targetContainer = $('.delivery-options');
-    if (targetContainer.length === 0) {
-        targetContainer = $('.delivery-options__form .delivery-options__container');
+    function positionPickupContainer() {
+        const $cont = $('#pickup-terminal-container');
+        if ($cont.length === 0) return;
+
+        // PS 8/9 Hummingbird + PS 1.7/8 Classic with <ul>: place after the list element
+        const $list = $('.delivery-options__list');
+        if ($list.length > 0) {
+            $cont.insertAfter($list);
+            return;
+        }
+
+        // PS 1.7 Classic: carriers are direct divs inside .delivery-options (no <ul>)
+        const $deliveryOptions = $('.delivery-options');
+        if ($deliveryOptions.length > 0) {
+            $cont.appendTo($deliveryOptions);
+            return;
+        }
+
+        // Hummingbird without list fallback
+        const $hbContainer = $('.delivery-options__container');
+        if ($hbContainer.length > 0) {
+            $cont.appendTo($hbContainer);
+            return;
+        }
+
+        // Last resort: before the submit button, not at the end of the form
+        const $btn = $('button[name="confirmDeliveryOption"]');
+        if ($btn.length > 0) {
+            $cont.insertBefore($btn);
+        }
     }
 
-    if (targetContainer.length > 0) {
-        mainContainer.appendTo(targetContainer);
-    } else {
-        // Last resort - append to form
-        mainContainer.appendTo('#js-delivery');
+    positionPickupContainer();
+
+    // Re-position after PS 1.7/8/9 AJAX refresh of the delivery step
+    if (window.prestashop && window.prestashop.on) {
+        window.prestashop.on('updatedDeliveryForm', positionPickupContainer);
     }
 
     $('img.ajax-loader').hide();
@@ -405,8 +430,16 @@ $(function () {
         });
     });
 
+    $(document).on('input', 'input[name="pickup_town"]', function () {
+        $('#gk-pickup-error').removeClass('is-visible');
+    });
+
     $(document).on('change', 'select[name="pickup_point"]', function () {
         const selected_point = $('select[name="pickup_point"]').val();
+        if (selected_point !== '0' && selected_point) {
+            $('#gk-pickup-error').removeClass('is-visible');
+            $('select[name="pickup_point"]').removeClass('gk-field-error');
+        }
         if (selected_point === 0 || selected_point == '0') {
             // Remove highlighting when no point is selected
             if (selectedMarker) {
@@ -485,19 +518,26 @@ $(function () {
      */
     $(document).on('submit', '#js-delivery', function () {
         const selected_point = $('select[name="pickup_point"]').val();
-        if ((!selected_point || selected_point == '0')
-            && isAnyCarrierSelected()) {
-            if (!!$.prototype.fancybox)
-                $.fancybox.open([
-                    {
-                        type: 'inline',
-                        autoScale: true,
-                        minHeight: 30,
-                        content: $('.no_inpost_point_selected').html(),
-                    }]);
-            else {
-                alert($('.no_inpost_point_selected').text());
+        if ((!selected_point || selected_point == '0') && isAnyCarrierSelected()) {
+            const $container = $('#pickup-terminal-container');
+            const $select = $container.find('select[name="pickup_point"]');
+            const $search = $container.find('input[name="pickup_town"]');
+
+            $('#gk-pickup-error').addClass('is-visible');
+
+            if ($select.closest('.pickup-result').is(':visible')) {
+                $select.addClass('gk-field-error');
+                setTimeout(function () { $select.removeClass('gk-field-error'); }, 600);
+            } else {
+                $container.addClass('gk-field-error');
+                $search.addClass('gk-field-error');
+                setTimeout(function () {
+                    $container.removeClass('gk-field-error');
+                    $search.removeClass('gk-field-error');
+                }, 600);
             }
+
+            $container[0].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             return false;
         }
         return true;
@@ -587,7 +627,7 @@ $(function () {
 
     function isRuchCarrierSelected()
     {
-        const paczkaruchId = (typeof window.paczkaruch_carrier_id !== 'undefined') ? window.paczkaruch_carrier_id : (typeof paczkaruch_carrier_id !== 'undefined' ? paczkaruch_carrier_id : null);
+        const paczkaruchId = window.GlobKurier.get('carriers.paczkaruch');
         if (paczkaruchId === null || paczkaruchId === undefined) {
             return false;
         }
@@ -596,7 +636,7 @@ $(function () {
 
     function isPocztex48owpCarrierSelected()
     {
-        const pocztexId = (typeof window.pocztex48owp_carrier_id !== 'undefined') ? window.pocztex48owp_carrier_id : (typeof pocztex48owp_carrier_id !== 'undefined' ? pocztex48owp_carrier_id : null);
+        const pocztexId = window.GlobKurier.get('carriers.pocztex48owp');
         if (pocztexId === null || pocztexId === undefined) {
             return false;
         }
@@ -605,7 +645,7 @@ $(function () {
 
     function isDhlParcelCarrierSelected()
     {
-        const dhlparcelId = (typeof window.dhlparcel_carrier_id !== 'undefined') ? window.dhlparcel_carrier_id : (typeof dhlparcel_carrier_id !== 'undefined' ? dhlparcel_carrier_id : null);
+        const dhlparcelId = window.GlobKurier.get('carriers.dhlparcel');
         if (dhlparcelId === null || dhlparcelId === undefined) {
             return false;
         }
@@ -614,7 +654,7 @@ $(function () {
 
     function isDpdPickupCarrierSelected()
     {
-        const dpdpickupId = (typeof window.dpdpickup_carrier_id !== 'undefined') ? window.dpdpickup_carrier_id : (typeof dpdpickup_carrier_id !== 'undefined' ? dpdpickup_carrier_id : null);
+        const dpdpickupId = window.GlobKurier.get('carriers.dpdpickup');
         if (dpdpickupId === null || dpdpickupId === undefined) {
             return false;
         }
@@ -1099,8 +1139,7 @@ function enableCheckoutStep() {
     $('button[name="confirmDeliveryOption"]').prop('disabled', false);
     $('button[name="confirmDeliveryOption"]').removeClass('disabled');
 
-    // Remove delivery form block
-    $('#js-delivery').off('submit').on('submit', function() {
-        return true;
-    });
+    // Do NOT remove the submit handler — the delegated handler on $(document)
+    // re-checks the selected value on every submit, so it remains effective
+    // even after the user changes carrier back to a pickup operator.
 }

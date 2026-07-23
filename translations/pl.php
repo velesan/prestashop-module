@@ -239,6 +239,7 @@ $_MODULE['<{globkuriermodule}prestashop>carrier_list_17_e150ad0ce25b32cc393d6cb7
 $_MODULE['<{globkuriermodule}prestashop>carrier_list_17_94a3750f044c39365ddd987d31946002'] = 'Proszę użyć wyszukiwarki obok';
 $_MODULE['<{globkuriermodule}prestashop>carrier_list_17_1ace43ccc7e0af067b36c2d9b34efe7a'] = 'Niestety nie znaleźliśmy żadnych punktów odbioru w tej miejscowości';
 $_MODULE['<{globkuriermodule}prestashop>carrier_list_17_5e408603ae11bdc576b14294ce20b230'] = 'Nie wybrano żadnego punktu odbioru!';
+$_MODULE['<{globkuriermodule}prestashop>carrier_list_17_827f7a0734724e854c6dd5ffba116511'] = 'Wybierz punkt odbioru, aby kontynuować';
 $_MODULE['<{globkuriermodule}prestashop>carrier_list_17_d55669822f1a8cf72ec1911e462a54eb'] = 'dla';
 $_MODULE['<{globkuriermodule}prestashop>github_update_notification_aa8d2f8568f9f916a599935c0d2bd953'] = 'Dostępna jest nowa wersja';
 $_MODULE['<{globkuriermodule}prestashop>github_update_notification_8524a49944ae7ba2fa9d88067a7b0235'] = 'aktualna wersja';

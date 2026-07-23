@@ -2026,8 +2026,8 @@ function renderServicesAndBind() {
 
 			// Restore pre-loaded terminal from customer's cart selection (cleared above, but customer's choice must persist).
 			const iv = window.InitialValues;
+			if (!GK.state.additionalInfo) GK.state.additionalInfo = {};
 			if (iv && iv.terminalCode && iv.terminalType) {
-				if (!GK.state.additionalInfo) GK.state.additionalInfo = {};
 				const tt = (iv.terminalType + '').trim();
 				if (tt === 'inpost' || tt === 'inpost_cod' || tt === 'inpostCod') {
 					GK.state.additionalInfo.inPostReceiverPoint = { id: iv.terminalCode };
@@ -2042,8 +2042,12 @@ function renderServicesAndBind() {
 				}
 				GK.state.receiver = GK.state.receiver || {};
 				GK.state.receiver.terminal = iv.terminalCode;
-				populateReceiverPoints();
 			}
+			// Always restore default sender point — cleared above, must persist across service changes.
+			if (iv && iv.defaultInPostPoint) {
+				GK.state.additionalInfo.inPostSenderPoint = { id: iv.defaultInPostPoint };
+			}
+			populateReceiverPoints();
 
 			// reset previously selected addons/options when changing service
 			GK.state.serviceOptions = [];

@@ -39,6 +39,10 @@
      data-gk-carrier-pocztex48owp="{if $globConfig->pocztex48owpEnabled}{$globConfig->pocztex48owpCarrier|escape:'html':'UTF-8'}{/if}"
      data-gk-carrier-dpdpickup="{if $globConfig->dpdpickupEnabled}{$globConfig->dpdpickupCarrier|escape:'html':'UTF-8'}{/if}">
 
+    <div class="gk-pickup-error-banner" id="gk-pickup-error">
+        {l s='Select a pickup point before continuing' mod='globkuriermodule'}
+    </div>
+
     <div class="no_results" style="display: none; color: red; text-align: center">
         {l s='No results found for: ' mod='globkuriermodule'} <b></b>
     </div>

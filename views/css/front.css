@@ -34,6 +34,10 @@
     display: block;
     width: 100%;
 }
+.pickup-search .input-group-btn .search-button {
+    height: 100%;
+    white-space: nowrap;
+}
 .pickup-result {
     display: none;
 }
@@ -223,4 +227,43 @@ button.gm-ui-hover-effect {
 
 #containerForMapOfTerminals img {
     max-width: none !important;
+}
+
+/* Pickup point validation */
+@keyframes gk-shake {
+    0%, 100% { transform: translateX(0); }
+    20%       { transform: translateX(-5px); }
+    40%       { transform: translateX(5px); }
+    60%       { transform: translateX(-3px); }
+    80%       { transform: translateX(3px); }
+}
+
+.gk-pickup-error-banner {
+    display: none;
+    margin: 0 0 12px 0;
+    padding: 8px 12px;
+    background: #fdf2f0;
+    border: 1px solid #e4b9b3;
+    border-left: 4px solid #c0392b;
+    border-radius: 4px;
+    color: #922b21;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.gk-pickup-error-banner.is-visible {
+    display: block;
+}
+
+#pickup-terminal-container.gk-field-error .pickup-search {
+    border: 2px solid #c0392b;
+    border-radius: 4px;
+    padding: 8px;
+    animation: gk-shake 0.4s ease-in-out;
+}
+
+select[name="pickup_point"].gk-field-error {
+    border: 2px solid #c0392b !important;
+    box-shadow: 0 0 0 3px rgba(192, 57, 43, 0.15) !important;
+    animation: gk-shake 0.4s ease-in-out;
 }
