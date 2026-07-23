@@ -130,11 +130,6 @@ $(function () {
 
     positionPickupContainer();
 
-    // Re-position after PS 1.7/8/9 AJAX refresh of the delivery step
-    if (window.prestashop && window.prestashop.on) {
-        window.prestashop.on('updatedDeliveryForm', positionPickupContainer);
-    }
-
     $('img.ajax-loader').hide();
     if (isAnyCarrierSelected()) {
         mainContainer.show();
@@ -514,11 +509,16 @@ $(function () {
 
 
     /**
-     * Saves selected pickup point before proceeding to next step
+     * Saves selected pickup point before proceeding to next step.
+     * Uses native capture-phase listener so it fires before PS's own submit handler,
+     * preventing PS from disabling the button before our validation runs.
      */
-    $(document).on('submit', '#js-delivery', function () {
+    function gkValidateDeliverySubmit(e) {
         const selected_point = $('select[name="pickup_point"]').val();
         if ((!selected_point || selected_point == '0') && isAnyCarrierSelected()) {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+
             const $container = $('#pickup-terminal-container');
             const $select = $container.find('select[name="pickup_point"]');
             const $search = $container.find('input[name="pickup_town"]');
@@ -538,10 +538,28 @@ $(function () {
             }
 
             $container[0].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            return false;
         }
-        return true;
-    });
+    }
+
+    function bindDeliveryValidation() {
+        var form = document.getElementById('js-delivery');
+        if (!form || form._gkValidationBound) return;
+        // Capture phase fires before all bubble-phase handlers (including PS's jQuery submit handler)
+        form.addEventListener('submit', gkValidateDeliverySubmit, true);
+        form._gkValidationBound = true;
+    }
+
+    bindDeliveryValidation();
+
+    if (window.prestashop && window.prestashop.on) {
+        window.prestashop.on('updatedDeliveryForm', function () {
+            positionPickupContainer();
+            // Re-bind after PS re-renders the form (new DOM element, flag lost)
+            var form = document.getElementById('js-delivery');
+            if (form) form._gkValidationBound = false;
+            bindDeliveryValidation();
+        });
+    }
 
     function getProductId(carrierType, callback)
     {
