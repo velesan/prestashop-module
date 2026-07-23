@@ -271,6 +271,8 @@ class Globkuriermodule extends Module
             return '';
         }
         $address = new Address($this->context->cart->id_address_delivery);
+        $terminalPickupManager = new Globkuriermodule\TerminalPickup\TerminalPickupManager();
+        $savedPickup = $terminalPickupManager->getByCartId($params['cart']->id);
         $this->smarty->assign([
             'globConfig' => $config,
             'inpost_carrier_id' => $config->inPostEnabled ? $config->inPostCarrier : null,
@@ -284,6 +286,8 @@ class Globkuriermodule extends Module
             'baseurl' => 'https://' . $this->context->shop->domain . $this->context->shop->physical_uri,
             'city' => $address->city,
             'postcode' => $address->postcode,
+            'saved_pickup_type' => $savedPickup ? $savedPickup['type'] : null,
+            'saved_pickup_code' => $savedPickup ? $savedPickup['code'] : null,
         ]);
         if (version_compare(_PS_VERSION_, '8.0.0', '>=') === true) {
             // PrestaShop 8.x and 9.x

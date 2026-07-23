@@ -37,7 +37,9 @@
      data-gk-carrier-inpost-cod="{if $globConfig->inPostCODEnabled}{$globConfig->inPostCODCarrier|escape:'html':'UTF-8'}{/if}"
      data-gk-carrier-paczkaruch="{if $globConfig->paczkaRuchEnabled}{$globConfig->paczkaRuchCarrier|escape:'html':'UTF-8'}{/if}"
      data-gk-carrier-pocztex48owp="{if $globConfig->pocztex48owpEnabled}{$globConfig->pocztex48owpCarrier|escape:'html':'UTF-8'}{/if}"
-     data-gk-carrier-dpdpickup="{if $globConfig->dpdpickupEnabled}{$globConfig->dpdpickupCarrier|escape:'html':'UTF-8'}{/if}">
+     data-gk-carrier-dpdpickup="{if $globConfig->dpdpickupEnabled}{$globConfig->dpdpickupCarrier|escape:'html':'UTF-8'}{/if}"
+     data-gk-saved-type="{if $saved_pickup_type}{$saved_pickup_type|escape:'html':'UTF-8'}{/if}"
+     data-gk-saved-code="{if $saved_pickup_code}{$saved_pickup_code|escape:'html':'UTF-8'}{/if}">
 
     <div class="gk-pickup-error-banner" id="gk-pickup-error">
         {l s='Select a pickup point before continuing' mod='globkuriermodule'}
@@ -116,6 +118,10 @@
         i18n: {
             mainText: '{l s='Type a name of your city and select parcel point closest to you' mod='globkuriermodule'}',
             mainText2: '{l s='for' mod='globkuriermodule'}'
+        },
+        savedPickup: {
+            type: {if $saved_pickup_type}'{$saved_pickup_type|escape:'javascript':'UTF-8'}'{else}null{/if},
+            code: {if $saved_pickup_code}'{$saved_pickup_code|escape:'javascript':'UTF-8'}'{else}null{/if}
         }
     };
 })();

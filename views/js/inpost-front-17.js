@@ -551,6 +551,61 @@ $(function () {
 
     bindDeliveryValidation();
 
+    function fetchAndRestoreSavedPickup() {
+        const el = document.getElementById('pickup-terminal-container');
+        if (!el) return;
+
+        const cartId = window.GlobKurier.get('cart.id') || el.getAttribute('data-gk-cart-id');
+        const token = window.GlobKurier.get('cart.token') || el.getAttribute('data-gk-token');
+        const endpoint = (window.GlobKurier.get('api.endpoint') || el.getAttribute('data-gk-rest-endpoint') || '').replace(/&amp;/g, '&');
+
+        if (!cartId || !token || !endpoint) return;
+
+        $.ajax({
+            url: endpoint,
+            method: 'POST',
+            data: {
+                id_cart: cartId,
+                ajax: 1,
+                action: 'getPickupPoint',
+                token: token
+            },
+            dataType: 'json'
+        }).done(function (r) {
+            if (!r.success || !r.pickup) return;
+
+            const savedType = r.pickup.type;
+            const savedCode = r.pickup.code;
+            if (!savedType || !savedCode) return;
+
+            const typeToCarrierCheck = {
+                'inpost': function() { return isInpostCarrierSelected() || isInpostCODCarrierSelected(); },
+                'ruch': isRuchCarrierSelected,
+                'pocztex48owp': isPocztex48owpCarrierSelected,
+                'dhlparcel': isDhlParcelCarrierSelected,
+                'dpdpickup': isDpdPickupCarrierSelected
+            };
+            const matchFn = typeToCarrierCheck[savedType];
+            if (!matchFn || !matchFn()) return;
+
+            $('#pickup-terminal-container').show();
+
+            const $select = $('select[name="pickup_point"]');
+            $select.empty();
+            $select.append('<option value="' + savedCode + '">' + savedCode + '</option>');
+            $select.val(savedCode);
+            $select.hide();
+
+            const $result = $('.pickup-result');
+            $result.find('> span').hide();
+            $result.show();
+            $('.pickup-point-selected').html('<p>Wybrany punkt: <b>' + savedCode + '</b></p>');
+            $('#gk-pickup-error').removeClass('is-visible');
+        }).fail(function () {
+            // silently ignore — user can search manually
+        });
+    }
+
     if (window.prestashop && window.prestashop.on) {
         window.prestashop.on('updatedDeliveryForm', function () {
             positionPickupContainer();
@@ -558,6 +613,7 @@ $(function () {
             var form = document.getElementById('js-delivery');
             if (form) form._gkValidationBound = false;
             bindDeliveryValidation();
+            fetchAndRestoreSavedPickup();
         });
     }
 
@@ -1018,6 +1074,7 @@ $(function () {
     {
         const selectElement = $('select[name="pickup_point"]');
         selectElement.find('option').remove();
+        $('.pickup-result > span').show();
         if (cachedPoints && cachedPoints.length) {
             $('div.no_inpost_point').hide();
             const options = cachedPoints.map((v, i) => { return `<option value="${v.id}">${v.city} - ${v.address} [${v.id} -  ${v.name}]</option>` });
@@ -1140,6 +1197,8 @@ $(function () {
                 }
             }, 50);
         }
+
+        fetchAndRestoreSavedPickup();
     });
 
 });

@@ -240,6 +240,21 @@ class GlobkuriermoduleRestinterfaceModuleFrontController extends ModuleFrontCont
     }
 
     /**
+     * Zwraca zapisany punkt odbioru dla koszyka
+     */
+    public function displayAjaxGetPickupPoint()
+    {
+        $terminalPickup = new Globkuriermodule\TerminalPickup\TerminalPickupManager();
+        $pickup = $terminalPickup->getByCartId($this->id_cart);
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => true,
+            'pickup' => $pickup ? $pickup : null,
+        ]);
+        return true;
+    }
+
+    /**
      * Sprawdza czy podano dobry token dla danego koszyka. Zabezpiecza przed nieuprawniona
      * modyfikacja nieswojego koszyka
      * @return bool wartosc, ktora zostala ustawiona w $this->tokenAuth
