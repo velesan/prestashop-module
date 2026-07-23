@@ -1,4 +1,5 @@
 <?php
+
 /**
  * 2007-2026 PrestaShop.
  *
@@ -66,6 +67,10 @@ class AdminGlobkurierHistoryController extends ModuleAdminController
             'page' => $page,
             'perPage' => $perPage,
             'totalPages' => $totalPages,
+            'prevPage' => $page - 1,
+            'nextPage' => $page + 1,
+            'pFrom' => max(1, $page - 3),
+            'pTo' => min($totalPages, $page + 3),
             'historyBaseUrl' => $baseUrl,
             'orderDetailsUrl' => $this->link->getAdminLink('AdminOrders') . '&vieworder',
             'moduleApiUrl' => $baseUrl,

@@ -33,7 +33,7 @@
     <div class="panel-heading">
         <i class="icon-send"></i> {l s='Globkurier - order history' mod='globkuriermodule'}
         <span style="float:right; font-size:13px; font-weight:normal;">
-            {l s='Total' mod='globkuriermodule'}: <strong>{$total}</strong>
+            {l s='Total' mod='globkuriermodule'}: <strong>{$total|intval}</strong>
             <span id="autoSyncStatus"></span>
         </span>
     </div>
@@ -42,8 +42,8 @@
         <div style="display:flex; align-items:center; gap:6px;">
             <label style="margin:0;">{l s='Per page' mod='globkuriermodule'}:</label>
             {foreach from=[10,20,50,100] item=pp}
-                <a href="{$historyBaseUrl|escape:'htmlall':'UTF-8'}&page=1&perPage={$pp}"
-                   class="btn btn-xs {if $perPage == $pp}btn-primary{else}btn-default{/if}">{$pp}</a>
+                <a href="{$historyBaseUrl|escape:'htmlall':'UTF-8'}&page=1&perPage={$pp|intval}"
+                   class="btn btn-xs {if $perPage == $pp}btn-primary{else}btn-default{/if}">{$pp|intval}</a>
             {/foreach}
         </div>
         <div style="font-size:11px; color:#888; line-height:1.6;">
@@ -141,33 +141,30 @@
     {if $totalPages > 1}
     <div class="gk-history-pagination">
         {if $page > 1}
-            <a href="{$historyBaseUrl|escape:'htmlall':'UTF-8'}&page={$page-1}&perPage={$perPage}" class="btn btn-default btn-sm page-btn">&laquo;</a>
+            <a href="{$historyBaseUrl|escape:'htmlall':'UTF-8'}&page={$prevPage|intval}&perPage={$perPage|intval}" class="btn btn-default btn-sm page-btn">&laquo;</a>
         {/if}
 
-        {assign var="pFrom" value=max(1, $page-3)}
-        {assign var="pTo"   value=min($totalPages, $page+3)}
-
         {if $pFrom > 1}
-            <a href="{$historyBaseUrl|escape:'htmlall':'UTF-8'}&page=1&perPage={$perPage}" class="btn btn-default btn-sm page-btn">1</a>
+            <a href="{$historyBaseUrl|escape:'htmlall':'UTF-8'}&page=1&perPage={$perPage|intval}" class="btn btn-default btn-sm page-btn">1</a>
             {if $pFrom > 2}<span>…</span>{/if}
         {/if}
 
         {for $p = $pFrom to $pTo}
-            <a href="{$historyBaseUrl|escape:'htmlall':'UTF-8'}&page={$p}&perPage={$perPage}"
-               class="btn btn-default btn-sm page-btn{if $p == $page} active{/if}">{$p}</a>
+            <a href="{$historyBaseUrl|escape:'htmlall':'UTF-8'}&page={$p|intval}&perPage={$perPage|intval}"
+               class="btn btn-default btn-sm page-btn{if $p == $page} active{/if}">{$p|intval}</a>
         {/for}
 
         {if $pTo < $totalPages}
             {if $pTo < $totalPages-1}<span>…</span>{/if}
-            <a href="{$historyBaseUrl|escape:'htmlall':'UTF-8'}&page={$totalPages}&perPage={$perPage}" class="btn btn-default btn-sm page-btn">{$totalPages}</a>
+            <a href="{$historyBaseUrl|escape:'htmlall':'UTF-8'}&page={$totalPages|intval}&perPage={$perPage|intval}" class="btn btn-default btn-sm page-btn">{$totalPages|intval}</a>
         {/if}
 
         {if $page < $totalPages}
-            <a href="{$historyBaseUrl|escape:'htmlall':'UTF-8'}&page={$page+1}&perPage={$perPage}" class="btn btn-default btn-sm page-btn">&raquo;</a>
+            <a href="{$historyBaseUrl|escape:'htmlall':'UTF-8'}&page={$nextPage|intval}&perPage={$perPage|intval}" class="btn btn-default btn-sm page-btn">&raquo;</a>
         {/if}
 
         <span style="color:#888; font-size:12px;">
-            {l s='Page' mod='globkuriermodule'} {$page} / {$totalPages} ({$total})
+            {l s='Page %1$d / %2$d (%3$d total)' sprintf=[$page|intval, $totalPages|intval, $total|intval] mod='globkuriermodule'}
         </span>
     </div>
     {/if}
@@ -176,10 +173,12 @@
 <script type="text/javascript">
 (function($){
 
-    var moduleApiUrl   = '{$moduleApiUrl|escape:'javascript':'UTF-8'}';
-    var currentPage    = {$page|intval};
-    var currentPerPage = {$perPage|intval};
-    var labelUpdateBtn = '{l s='Update in order' mod='globkuriermodule'|escape:'javascript':'UTF-8'}';
+    const moduleApiUrl   = '{$moduleApiUrl|escape:'javascript':'UTF-8'}';
+    const currentPage    = {$page|intval};
+    const currentPerPage = {$perPage|intval};
+    const labelUpdateBtn = '{l s='Update in order' mod='globkuriermodule'}';
+
+    const escHtml = str => $('<div>').text(str).html();
 
     // Build the cell HTML based on gkTracking / psTracking values
     function buildTrackingCell(gkTracking, psTracking, gkId, hasOrderId) {
@@ -190,7 +189,7 @@
             return '<span class="gk-tracking-green">' + escHtml(gkTracking) + '</span>';
         }
         if (!psTracking) {
-            var btn = hasOrderId
+            const btn = hasOrderId
                 ? '<br><button class="btn btn-warning btn-xs gk-update-carrier-btn"'
                     + ' data-gk-id="' + escHtml(gkId) + '"'
                     + ' data-url="' + escHtml(moduleApiUrl) + '">'
@@ -202,25 +201,21 @@
         return '<span class="gk-tracking-gray">' + escHtml(gkTracking) + '</span>';
     }
 
-    function escHtml(str) {
-        return $('<div>').text(str).html();
-    }
-
     // Auto-sync missing tracking codes after page load
     function autoSync() {
-        var url = moduleApiUrl + '&ajax=1&action=autoSyncTracking'
+        const url = moduleApiUrl + '&ajax=1&action=autoSyncTracking'
             + '&page=' + currentPage + '&perPage=' + currentPerPage;
 
         $('#autoSyncStatus').text('↻ syncing...');
 
         $.getJSON(url, function(resp) {
             if (resp && resp.success && resp.trackings) {
-                var count = 0;
+                let count = 0;
                 $.each(resp.trackings, function(gkId, data) {
-                    var $row = $('tr[data-gk-id="' + gkId + '"]');
+                    const $row = $('tr[data-gk-id="' + gkId + '"]');
                     if (!$row.length) return;
-                    var $cell = $row.find('.tracking-cell');
-                    var hasOrderId = !!$row.find('a[href*="id_order"]').length;
+                    const $cell = $row.find('.tracking-cell');
+                    const hasOrderId = !!$row.find('a[href*="id_order"]').length;
                     $cell.attr('data-gk-tracking', data.gkTracking || '');
                     $cell.html(buildTrackingCell(data.gkTracking, data.psTracking, gkId, hasOrderId));
                     count++;
@@ -236,16 +231,16 @@
 
     // Per-row "Update in order" button
     $(document).on('click', '.gk-update-carrier-btn', function() {
-        var $btn = $(this);
-        var gkId = $btn.data('gk-id');
-        var $cell = $btn.closest('.tracking-cell');
-        var url = $btn.data('url') + '&ajax=1&action=updateCarrierTracking&gkId=' + encodeURIComponent(gkId);
+        const $btn = $(this);
+        const gkId = $btn.data('gk-id');
+        const $cell = $btn.closest('.tracking-cell');
+        const url = $btn.data('url') + '&ajax=1&action=updateCarrierTracking&gkId=' + encodeURIComponent(gkId);
 
         $btn.prop('disabled', true).text('...');
 
         $.getJSON(url, function(resp) {
             if (resp && resp.success) {
-                var gkTracking = $cell.data('gk-tracking');
+                const gkTracking = $cell.data('gk-tracking');
                 $cell.attr('data-ps-tracking', gkTracking);
                 $cell.html('<span class="gk-tracking-green">' + escHtml(gkTracking) + '</span>');
             } else {

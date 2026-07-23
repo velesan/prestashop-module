@@ -92,6 +92,7 @@ $_MODULE['<{globkuriermodule}prestashop>history_page_96b0141273eabab320119c467cd
 $_MODULE['<{globkuriermodule}prestashop>history_page_4dc23b29ac04ff8a10ee727ebf8f9560'] = 'Na stronę';
 $_MODULE['<{globkuriermodule}prestashop>history_page_d79cf3f429596f77db95c65074663a54'] = 'ID zamówienia';
 $_MODULE['<{globkuriermodule}prestashop>history_page_193cfc9be3b995831c6af2fea6650e60'] = 'Strona';
+$_MODULE['<{globkuriermodule}prestashop>history_page_2fcded6b6e7bd202773c1cd319d2aeba'] = 'Strona %1$d / %2$d (łącznie %3$d)';
 $_MODULE['<{globkuriermodule}prestashop>login_page_v16_bffe9a3c9a7e00ba00a11749e022d911'] = 'Zaloguj';
 $_MODULE['<{globkuriermodule}prestashop>login_page_v16_df1b4fed4f1c438a1057d3c51ba069d1'] = 'Nie mogliśmy Cię zalgować używając podanych przez Ciebie danych!';
 $_MODULE['<{globkuriermodule}prestashop>login_page_v16_7b3c8ad29117ed89da3c611c56dfc37d'] = 'Prosimy spróbować ponownie. Jeśli problem będzie się powtarzał prosimy o kontakt:';
