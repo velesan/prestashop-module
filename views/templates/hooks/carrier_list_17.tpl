@@ -32,6 +32,7 @@
      data-gk-rest-endpoint="{$rest_endpoint|escape:'html':'UTF-8'}"
      data-gk-delivery-city="{$city|escape:'html':'UTF-8'}"
      data-gk-delivery-postcode="{$postcode|escape:'html':'UTF-8'}"
+     data-gk-delivery-country-iso="{$country_iso|escape:'html':'UTF-8'}"
      data-gk-base-url="{$baseurl|escape:'html':'UTF-8'}"
      data-gk-carrier-inpost="{if $globConfig->inPostEnabled}{$globConfig->inPostCarrier|escape:'html':'UTF-8'}{/if}"
      data-gk-carrier-inpost-cod="{if $globConfig->inPostCODEnabled}{$globConfig->inPostCODCarrier|escape:'html':'UTF-8'}{/if}"
@@ -52,7 +53,7 @@
     <div class="col-sm-12 pickup-search">
         <span>{l s='Type a name of your city and select parcel point closest to you' mod='globkuriermodule'}</span>
         <div class="input-group">
-            <input type="text" name="pickup_town" class="form-control pickup_town" value="{$city|escape:'htmlall':'UTF-8'}" />
+            <input type="text" name="pickup_town" class="form-control pickup_town" value="{$city|escape:'htmlall':'UTF-8'}{if $postcode}, {$postcode|escape:'htmlall':'UTF-8'}{/if}" />
             <div class="input-group-btn">
                 <button class="btn btn-primary search-button">{l s='Search' mod='globkuriermodule'}</button>
             </div>
@@ -113,8 +114,10 @@
         address: {
             all: '{$address_all|escape:'javascript':'UTF-8'}',
             city: '{$city|escape:'javascript':'UTF-8'}',
-            postcode: '{$postcode|escape:'javascript':'UTF-8'}'
+            postcode: '{$postcode|escape:'javascript':'UTF-8'}',
+            countryIso: '{$country_iso|escape:'javascript':'UTF-8'}'
         },
+        countriesMap: {$countries_map_json|default:'{}'},
         i18n: {
             mainText: '{l s='Type a name of your city and select parcel point closest to you' mod='globkuriermodule'}',
             mainText2: '{l s='for' mod='globkuriermodule'}'

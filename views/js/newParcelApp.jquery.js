@@ -2244,6 +2244,18 @@ function renderServicesAndBind() {
 		const params = { productId: s.pickedService.id };
 		if (query) params.filter = query;
 		params.isCashOnDeliveryAddonSelected = !!(s.additionalInfo && s.additionalInfo.codAmount);
+
+		// Pass countryId so foreign points load correctly.
+		// addr.countryId is a primitive copy from init; addr.country.id is kept up-to-date
+		// by ensureCountryIdsFromIso(), so check both.
+		const target = s.terminalTarget || '';
+		const isSender = target.toLowerCase().indexOf('sender') > -1;
+		const addr = isSender ? s.sender : s.receiver;
+		const resolvedCountryId = (addr && addr.countryId) || (addr && addr.country && addr.country.id);
+		if (resolvedCountryId) {
+			params.countryId = resolvedCountryId;
+		}
+
 		const url = 'https://api.globkurier.pl/v1/points?' + new URLSearchParams(params).toString();
 		return fetch(url, { headers: buildHeaders() })
 			.then(function(r){ return r.json(); })
@@ -2273,7 +2285,11 @@ function renderServicesAndBind() {
 				const html = list.map(function(t, i){
 					const label = (t.city ? t.city + ', ' : '') + (t.address || '');
 					const id = t.id || t.code || ('pt_' + i);
-					return '<option value="' + id + '" data-json="' + encodeURIComponent(JSON.stringify({ id: id, city: t.city, address: t.address })) + '">' + label + '</option>';
+					const pointData = { id: id, city: t.city, address: t.address };
+					if (t.lat != null) pointData.lat = t.lat;
+					if (t.lng != null) pointData.lng = t.lng;
+					if (t.lon != null) pointData.lng = t.lon;
+					return '<option value="' + id + '" data-json="' + encodeURIComponent(JSON.stringify(pointData)) + '">' + label + '</option>';
 				}).join('');
 				$('#terminalSelect').html(html);
 				$('#terminalHint').hide();
@@ -2310,17 +2326,30 @@ function renderServicesAndBind() {
 			// Default for existing receiver buttons (they pass data-target).
 			GK.state.terminalTarget = 'inPostReceiverPoint';
 		}
-		$('#terminalQuery').val('');
+		// Auto-fill search with address city + postcode
+		const isSenderModal = (GK.state.terminalTarget || '').toLowerCase().indexOf('sender') > -1;
+		const addrModal = isSenderModal ? GK.state.sender : GK.state.receiver;
+		const city = (addrModal && addrModal.city) || '';
+		const postCode = (addrModal && addrModal.postCode) || '';
+		const autoQuery = city && postCode ? city + ', ' + postCode : city || postCode;
+		$('#terminalQuery').val(autoQuery);
 		$('#terminalSelect').html('');
-		$('#terminalHint').show();
-		$('#terminalErrorBox').hide(); // Clear error on modal open
+		$('#terminalErrorBox').hide();
+		if (autoQuery) {
+			$('#terminalHint').hide();
+			fetchTerminals(autoQuery);
+		} else {
+			$('#terminalHint').show();
+		}
 		$('#terminalPickerModal').modal('show');
 	});
 
-	// search points
+	// search points — button click or Enter key
 	$(document).on('click', '#terminalSearchBtn', function(){
-		const q = $('#terminalQuery').val();
-		fetchTerminals(q);
+		fetchTerminals($('#terminalQuery').val());
+	});
+	$(document).on('keydown', '#terminalQuery', function(e){
+		if (e.which === 13) { e.preventDefault(); fetchTerminals($(this).val()); }
 	});
 
 	// save selected point

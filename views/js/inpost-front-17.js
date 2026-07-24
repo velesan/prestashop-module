@@ -88,9 +88,19 @@ $(function () {
     const maxMapInitRetries = 10;
     let markerClusterGroup = null;
     let selectedMarker = null;
-    let allCachedPoints = []; // All points loaded at startup
-    let autoSearchPerformed = false; // Flag whether automatic search was performed
+    let allCachedPoints = [];
+    let autoSearchPerformed = false;
     const _self = this;
+
+    // Maps JS service codes to GK API carrierName parameter for /points endpoint
+    const GK_CARRIER_NAME = {
+        'PACZKOMAT':      'inPost-Paczkomaty',
+        'ORLEN PACZKA':   'ORLEN Paczka',
+        'POCZTA POLSKA':  'Poczta Polska',
+        'DHL ParcelShop': 'DHL',
+        'DHL PARCEL':     'DHL',
+        'DPD PICKUP':     'DPD'
+    };
 
     if (mainContainer.length === 0 || searchTownInput.length === 0) {
         return;
@@ -139,11 +149,13 @@ $(function () {
         // Don't load points automatically - wait for user search
         // loadCachedPoints(serviceCode);
 
-        // Pre-fill search field with delivery city if available
+        // Pre-fill search field with delivery city and postcode
         setTimeout(function() {
             const deliveryCity = window.GlobKurier.get('address.city');
+            const deliveryPostcode = window.GlobKurier.get('address.postcode');
             if (deliveryCity) {
-                searchTownInput.val(deliveryCity);
+                const prefill = deliveryPostcode ? deliveryCity + ', ' + deliveryPostcode : deliveryCity;
+                searchTownInput.val(prefill);
             }
         }, 100);
     } else {
@@ -356,67 +368,36 @@ $(function () {
             return;
         }
 
-        // Parse input to separate city and postcode
-        let town = value;
-        let postcode = '';
-
-        if( value.indexOf(',') != -1 ){
-            let parts = value.split(',');
-            town = parts[0].trim();
-            postcode = parts[1] ? parts[1].trim() : '';
+        const productCode = searchTownInput.data("service-code");
+        const carrierName = GK_CARRIER_NAME[productCode];
+        if (!carrierName) {
+            console.error('Unknown service code:', productCode);
+            return;
         }
 
-        let url = baseApiUrl + 'points',
-            productCode = searchTownInput.data("service-code");
-
-        // If searching with delivery city, also include postcode for better results
-        // if (typeof window.delivery_city !== 'undefined' && town === window.delivery_city &&
-        //     typeof window.delivery_postcode !== 'undefined' && window.delivery_postcode && !postcode) {
-        //     postcode = window.delivery_postcode;
-        // }
+        const countryIso = (window.GlobKurier.get('address.countryIso') ||
+            (document.getElementById('pickup-terminal-container') || {}).getAttribute('data-gk-delivery-country-iso') || 'PL').toUpperCase();
 
         $('div.no_results').hide();
-        // $('img.ajax-loader').show();
         $('.pickup-result').hide();
         $('.pickup-loader .lds-ripple').show();
 
-        getProductId(productCode, function (err, productId) {
-            if (err) {
-                console.error('Error getting product ID:', err);
-                $('img.ajax-loader').hide();
-                $('.pickup-loader .lds-ripple').hide();
-                $('.pickup-result').show();
-                $('div.no_results').show();
-                $('select[name="pickup_point"]').html('<option value="0">Nie znaleziono punktów - ' + err + '</option>');
-                return;
-            }
-
-            // Build API parameters - use city/postCode instead of filter for better precision
-            let apiParams = {
-                productId: productId,
+        resolveGkCountryId(countryIso, function(err, countryId) {
+            const apiParams = {
+                carrierName: carrierName,
+                filter: value,
                 isCashOnDeliveryAddonSelected: isInpostCODCarrierSelected()
             };
-
-            if (town) {
-                apiParams.city = town;
-            }
-            if (postcode) {
-                apiParams.postCode = postcode;
+            if (countryId) {
+                apiParams.countryId = countryId;
             }
 
-            // Fallback to filter if no city specified
-            if (!town && !postcode) {
-                apiParams.filter = value;
-            }
-
-            $.getJSON(url, apiParams).done(function (r) {
-                 $('img.ajax-loader').hide();
-                 $('.pickup-loader .lds-ripple').hide();
-                 $('.pickup-result').show();
-                 updateTerminalPoints(r, town || value);
-             }).fail(function(xhr, status, error) {
+            $.getJSON(baseApiUrl + 'points', apiParams).done(function(r) {
+                $('.pickup-loader .lds-ripple').hide();
+                $('.pickup-result').show();
+                updateTerminalPoints(r, value);
+            }).fail(function(xhr, status, error) {
                 console.error('Error fetching points:', error);
-                $('img.ajax-loader').hide();
                 $('.pickup-loader .lds-ripple').hide();
                 $('.pickup-result').show();
                 $('div.no_results').show();
@@ -617,58 +598,27 @@ $(function () {
         });
     }
 
-    function getProductId(carrierType, callback)
-    {
-        if (carrierType == 'DPD') {
-            carrierType = 'DPD PICKUP';
-        }
-        if (carrierType == 'DHL ParcelShop') {
-            carrierType = 'DHL PARCEL';
-        }
-        if (['PACZKOMAT', 'ORLEN PACZKA', 'POCZTA POLSKA', 'DHL PARCEL', 'DPD PICKUP'].indexOf(carrierType) == -1) {
-            return callback("Invalid carrier type");
-        }
-        const url = baseApiUrl + 'products';
-        const dummyParams = {
-            length: 10,
-            width: 10,
-            height: 10,
-            weight: 2,
-            quantity: 1,
-            senderCountryId: 1,
-            receiverCountryId: 1,
-        };
-        $.getJSON(url, dummyParams).done(function (r) {
-            for (let i = r.standard.length - 1; i >= 0; i--) {
-                let product = r.standard[i],
-                    carrierName = product.carrierName.toUpperCase();
+    // Primary: countriesMap pre-loaded server-side (PHP) into window.GlobKurier.config.
+    // Fallback: fetch from GK public API when config map is missing (e.g. stale template cache).
+    function resolveGkCountryId(isoCode, callback) {
+        const iso = (isoCode || '').toUpperCase();
+        if (!iso) { return callback(null, null); }
 
-                if (carrierType == 'POCZTA POLSKA') {
-                    if (carrierName.indexOf(carrierType) != -1) {
-                        let productName = product.name.toUpperCase();
-                        // Check for both Polish and English product names
-                        if (productName.indexOf('DOSTAWA DO PUNKTU') != -1 || productName.indexOf('PUDO') != -1) {
-                            return callback(null, product.id);
-                        }
-                    }
-                } else if (carrierType == 'DPD PICKUP') {
-                    if (carrierName.indexOf('DPD') != -1) {
-                        let productName = product.name.toUpperCase();
-                        // Check for both Polish and English product names
-                        if (productName.indexOf('DPD PICKUP') != -1 || productName.indexOf('PICKUP') != -1) {
-                            return callback(null, product.id);
-                        }
-                    }
-                } else {
-                    if (carrierName.indexOf(carrierType) != -1) {
-                        return callback(null, product.id);
-                    }
-                }
+        const map = window.GlobKurier.get('countriesMap');
+        if (map && typeof map === 'object' && !Array.isArray(map) && map[iso]) {
+            return callback(null, map[iso]);
+        }
+
+        $.getJSON(baseApiUrl + 'countries').done(function(list) {
+            const fetched = {};
+            if (Array.isArray(list)) {
+                list.forEach(function(c) {
+                    if (c && c.isoCode) { fetched[c.isoCode.toUpperCase()] = c.id; }
+                });
             }
-            // If no product found, call callback with error
-            return callback("Product not found for carrier type: " + carrierType);
-        }).fail(function (r) {
-            return callback("API error: " + (r.statusText || "Unknown error"));
+            callback(null, fetched[iso] || null);
+        }).fail(function() {
+            callback(null, null);
         });
     }
 
@@ -1189,11 +1139,13 @@ $(function () {
             }
             $('.pickup-search span').text(all_text);
 
-            // Pre-fill search field with delivery city but don't auto-search
+            // Pre-fill search field with delivery city and postcode
             setTimeout(function() {
                 const deliveryCity = window.GlobKurier.get('address.city');
+                const deliveryPostcode = window.GlobKurier.get('address.postcode');
                 if (deliveryCity) {
-                    searchTownInput.val(deliveryCity);
+                    const prefill = deliveryPostcode ? deliveryCity + ', ' + deliveryPostcode : deliveryCity;
+                    searchTownInput.val(prefill);
                 }
             }, 50);
         }

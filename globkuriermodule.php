@@ -295,6 +295,8 @@ class Globkuriermodule extends Module
             'baseurl' => 'https://' . $this->context->shop->domain . $this->context->shop->physical_uri,
             'city' => $address->city,
             'postcode' => $address->postcode,
+            'country_iso' => \Country::getIsoById($address->id_country) ?: 'PL',
+            'countries_map_json' => json_encode($this->getGkCountriesMap($config)),
             'saved_pickup_type' => $savedPickup ? $savedPickup['type'] : null,
             'saved_pickup_code' => $savedPickup ? $savedPickup['code'] : null,
         ]);
@@ -604,6 +606,43 @@ class Globkuriermodule extends Module
      *
      * @return string
      */
+    /**
+     * Returns ISO -> GK country ID map, cached in a local JSON file for 7 days.
+     * The /countries endpoint is public (no auth required).
+     *
+     * @param Config $config
+     *
+     * @return array e.g. ['PL' => 1, 'DE' => 23, ...]
+     */
+    private function getGkCountriesMap(Config $config)
+    {
+        $cacheFile = _PS_MODULE_DIR_ . 'globkuriermodule/countries_map.json';
+        $ttl = 7 * 24 * 3600;
+
+        if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < $ttl) {
+            $map = json_decode(file_get_contents($cacheFile), true);
+            if (is_array($map) && count($map) > 0) {
+                return $map;
+            }
+        }
+
+        $api = new Globkuriermodule\Common\GlobkurierApi($config->login, $config->password, $config->apiKey);
+        $countries = $api->getCountries();
+
+        $map = [];
+        foreach ($countries as $c) {
+            if (!empty($c['isoCode']) && isset($c['id'])) {
+                $map[strtoupper($c['isoCode'])] = (int) $c['id'];
+            }
+        }
+
+        if ($map) {
+            @file_put_contents($cacheFile, json_encode($map));
+        }
+
+        return $map;
+    }
+
     private function encryptCartId($cartId)
     {
         // Use hash with salt for security

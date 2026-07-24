@@ -449,8 +449,8 @@
           </div>
           <div class="modal-body form-horizontal">
             <div class="form-group">
-              <label class="col-lg-4 control-label">{l s='City' mod='globkuriermodule'}</label>
-              <div class="col-lg-6"><input type="text" id="terminalQuery" class="form-control"></div>
+              <label class="col-lg-4 control-label">{l s='City, postcode' mod='globkuriermodule'}</label>
+              <div class="col-lg-6"><input type="text" id="terminalQuery" class="form-control" placeholder="e.g. Berlin, 12587"></div>
               <div class="col-lg-2"><button class="btn btn-primary btn-gk-primary" id="terminalSearchBtn">{l s='Search' mod='globkuriermodule'}</button></div>
             </div>
             <div class="form-group">
