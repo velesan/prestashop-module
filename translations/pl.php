@@ -251,6 +251,15 @@ $_MODULE['<{globkuriermodule}prestashop>carrier_list_17_1ace43ccc7e0af067b36c2d9
 $_MODULE['<{globkuriermodule}prestashop>carrier_list_17_5e408603ae11bdc576b14294ce20b230'] = 'Nie wybrano żadnego punktu odbioru!';
 $_MODULE['<{globkuriermodule}prestashop>carrier_list_17_827f7a0734724e854c6dd5ffba116511'] = 'Wybierz punkt odbioru, aby kontynuować';
 $_MODULE['<{globkuriermodule}prestashop>carrier_list_17_d55669822f1a8cf72ec1911e462a54eb'] = 'dla';
+$_MODULE['<{globkuriermodule}prestashop>carrier_extra_content_17_827f7a0734724e854c6dd5ffba116511'] = 'Wybierz punkt odbioru, aby kontynuować';
+$_MODULE['<{globkuriermodule}prestashop>carrier_extra_content_17_4cf75cad930efe07ca1d21ee143795ca'] = 'Nie znaleziono wyników dla:';
+$_MODULE['<{globkuriermodule}prestashop>carrier_extra_content_17_7c51308c9919827029230e313c0c2013'] = 'Wpisz nazwę swojego miasta i wybierz punkt odbioru najbliżej Ciebie';
+$_MODULE['<{globkuriermodule}prestashop>carrier_extra_content_17_13348442cc6a27032d2b4aa28b75a5d3'] = 'Szukaj';
+$_MODULE['<{globkuriermodule}prestashop>carrier_extra_content_17_e150ad0ce25b32cc393d6cb7c8be9e3f'] = 'Znalezione punkty odbioru';
+$_MODULE['<{globkuriermodule}prestashop>carrier_extra_content_17_94a3750f044c39365ddd987d31946002'] = 'Proszę użyć wyszukiwarki';
+$_MODULE['<{globkuriermodule}prestashop>carrier_extra_content_17_1ace43ccc7e0af067b36c2d9b34efe7a'] = 'Niestety nie znaleźliśmy żadnych punktów odbioru w tej miejscowości';
+$_MODULE['<{globkuriermodule}prestashop>carrier_extra_content_17_5e408603ae11bdc576b14294ce20b230'] = 'Nie wybrano żadnego punktu odbioru!';
+$_MODULE['<{globkuriermodule}prestashop>carrier_extra_content_17_d55669822f1a8cf72ec1911e462a54eb'] = 'dla';
 $_MODULE['<{globkuriermodule}prestashop>github_update_notification_aa8d2f8568f9f916a599935c0d2bd953'] = 'Dostępna jest nowa wersja';
 $_MODULE['<{globkuriermodule}prestashop>github_update_notification_8524a49944ae7ba2fa9d88067a7b0235'] = 'aktualna wersja';
 $_MODULE['<{globkuriermodule}prestashop>github_update_notification_e47d8362db025b4d036c772cd4907d33'] = 'Pobierz z GitHub';

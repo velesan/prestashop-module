@@ -31,5 +31,9 @@ function upgrade_module_3_3_6($module)
         $db->execute('ALTER TABLE `' . $table . '` ADD `tracking_number` varchar(255) NULL');
     }
 
-    return (bool) $module->registerHook('actionAdminOrdersTrackingNumberUpdate');
+    // displayAfterCarrier renders pickup widgets for all PS versions (1.7 / 8 / 9).
+    // displayCarrierExtraContent kept for DB compatibility (hook implementation returns '').
+    return (bool) $module->registerHook('actionAdminOrdersTrackingNumberUpdate')
+        && (bool) $module->registerHook('displayAfterCarrier')
+        && (bool) $module->registerHook('displayCarrierExtraContent');
 }

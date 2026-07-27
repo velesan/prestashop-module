@@ -85,6 +85,7 @@ class Globkuriermodule extends Module
             && $this->registerHook('displayAdminAfterHeader')
             && $this->registerHook('displayCarrierList')
             && $this->registerHook('displayAfterCarrier')
+            && $this->registerHook('displayCarrierExtraContent')
             && $this->registerHook('displayAdminOrderMainBottom')
             && $this->registerHook('actionUpdateCarrier')
             && $this->registerHook('actionAdminOrdersTrackingNumberUpdate');
@@ -275,6 +276,12 @@ class Globkuriermodule extends Module
      */
     public function hookDisplayCarrierList($params)
     {
+        // PS 1.7+ is handled by hookDisplayCarrierExtraContent (per-carrier widget)
+        if (version_compare(_PS_VERSION_, '1.7.0', '>=')) {
+            return '';
+        }
+
+        // PS 1.6 fallback
         $config = new Config();
         if (!$config->inPostEnabled && !$config->inPostCODEnabled && !$config->paczkaRuchEnabled && !$config->pocztex48owpEnabled) {
             return '';
@@ -284,14 +291,9 @@ class Globkuriermodule extends Module
         $savedPickup = $terminalPickupManager->getByCartId($params['cart']->id);
         $this->smarty->assign([
             'globConfig' => $config,
-            'inpost_carrier_id' => $config->inPostEnabled ? $config->inPostCarrier : null,
-            'inpost_cod_carrier_id' => $config->inPostCODEnabled ? $config->inPostCODCarrier : null,
-            'paczkaruch_carrier_id' => $config->paczkaRuchEnabled ? $config->paczkaRuchCarrier : null,
-            'pocztex48owp_carrier_id' => $config->pocztex48owpEnabled ? $config->pocztex48owpCarrier : null,
             'cart_id' => $params['cart']->id,
             'rest_endpoint' => $this->context->link->getModuleLink($this->name, 'restinterface', [], true),
             'gk_token' => $this->encryptCartId($params['cart']->id),
-            'address_all' => json_encode($params),
             'baseurl' => 'https://' . $this->context->shop->domain . $this->context->shop->physical_uri,
             'city' => $address->city,
             'postcode' => $address->postcode,
@@ -300,28 +302,133 @@ class Globkuriermodule extends Module
             'saved_pickup_type' => $savedPickup ? $savedPickup['type'] : null,
             'saved_pickup_code' => $savedPickup ? $savedPickup['code'] : null,
         ]);
-        if (version_compare(_PS_VERSION_, '8.0.0', '>=') === true) {
-            // PrestaShop 8.x and 9.x
-            return $this->display(__FILE__, 'views/templates/hooks/carrier_list_17.tpl');
-        } elseif (version_compare(_PS_VERSION_, '1.7.0', '>=') === true) {
-            // PrestaShop 1.7.x
-            return $this->display(__FILE__, 'views/templates/hooks/carrier_list_17.tpl');
-        }
 
-        // PrestaShop 1.6.x and older
         return $this->display(__FILE__, 'views/templates/hooks/carrier_list.tpl');
     }
 
     /**
-     * Alias for hookDisplayCarrierList used in PS1.7 version
+     * Renders all pickup widgets after the carrier list (all PS versions).
+     * displayCarrierExtraContent only fires for is_module=1 carriers — our carriers are not
+     * module carriers, so we use displayAfterCarrier which is called globally for all versions.
+     * All widgets are rendered hidden; JS shows the one matching the selected carrier.
      *
-     * @param $params
+     * @param array $params
      *
      * @return string
      */
-    public function hookDisplayAfterCarrier($params)
+    public function hookDisplayAfterCarrier($params): string
     {
-        return $this->hookDisplayCarrierList($params);
+        $config = new Config();
+        $cart = $this->context->cart;
+        $cartId = (int) ($cart ? $cart->id : 0);
+        if (!$cartId) {
+            return '';
+        }
+
+        $carrierMap = $this->buildPickupCarrierMap($config);
+        if (empty($carrierMap)) {
+            return '';
+        }
+
+        $address = new Address($cart->id_address_delivery);
+        $terminalPickupManager = new Globkuriermodule\TerminalPickup\TerminalPickupManager();
+        $savedPickup = $terminalPickupManager->getByCartId($cartId);
+
+        $output = '';
+        foreach ($carrierMap as $carrierId => $info) {
+            $output .= $this->renderPickupWidget($info, $carrierId, $cartId, $config, $address, $savedPickup ?: null, true);
+        }
+
+        return $output;
+    }
+
+    /**
+     * Registered for compatibility; returns empty because displayCarrierExtraContent
+     * only fires for is_module=1 carriers (not our carriers) in all supported PS versions.
+     * Pickup widgets are rendered via hookDisplayAfterCarrier instead.
+     *
+     * @param array $params
+     *
+     * @return string
+     */
+    public function hookDisplayCarrierExtraContent(array $params = []): string
+    {
+        return '';
+    }
+
+    /**
+     * Returns a map of configured pickup carrier IDs to their service info.
+     *
+     * @param Config $config
+     *
+     * @return array<int, array{serviceCode: string, type: string, isCod: bool}>
+     */
+    private function buildPickupCarrierMap(Config $config): array
+    {
+        $map = [];
+        if ($config->inPostEnabled && $config->inPostCarrier) {
+            $map[(int) $config->inPostCarrier] = ['serviceCode' => 'PACZKOMAT', 'type' => 'inpost', 'isCod' => false];
+        }
+        if ($config->inPostCODEnabled && $config->inPostCODCarrier) {
+            $map[(int) $config->inPostCODCarrier] = ['serviceCode' => 'PACZKOMAT', 'type' => 'inpost', 'isCod' => true];
+        }
+        if ($config->paczkaRuchEnabled && $config->paczkaRuchCarrier) {
+            $map[(int) $config->paczkaRuchCarrier] = ['serviceCode' => 'ORLEN PACZKA', 'type' => 'ruch', 'isCod' => false];
+        }
+        if ($config->pocztex48owpEnabled && $config->pocztex48owpCarrier) {
+            $map[(int) $config->pocztex48owpCarrier] = ['serviceCode' => 'POCZTA POLSKA', 'type' => 'pocztex48owp', 'isCod' => false];
+        }
+        if ($config->dhlparcelEnabled && $config->dhlparcelCarrier) {
+            $map[(int) $config->dhlparcelCarrier] = ['serviceCode' => 'DHL PARCEL', 'type' => 'dhlparcel', 'isCod' => false];
+        }
+        if ($config->dpdpickupEnabled && $config->dpdpickupCarrier) {
+            $map[(int) $config->dpdpickupCarrier] = ['serviceCode' => 'DPD PICKUP', 'type' => 'dpdpickup', 'isCod' => false];
+        }
+
+        return $map;
+    }
+
+    /**
+     * Assigns Smarty variables and renders the pickup widget template.
+     *
+     * @param array   $info        Service info (serviceCode, type, isCod)
+     * @param int     $carrierId   Carrier instance ID
+     * @param int     $cartId      Cart ID
+     * @param Config  $config      Module config
+     * @param Address $address     Delivery address
+     * @param array|null $savedPickup  Previously saved pickup point or null
+     * @param bool    $hiddenMode  True when rendered in displayAfterCarrier (JS controls visibility)
+     *
+     * @return string
+     */
+    private function renderPickupWidget(
+        array $info,
+        int $carrierId,
+        int $cartId,
+        Config $config,
+        Address $address,
+        ?array $savedPickup,
+        bool $hiddenMode
+    ): string {
+        $this->smarty->assign([
+            'gk_service_code' => $info['serviceCode'],
+            'gk_carrier_type' => $info['type'],
+            'gk_carrier_id' => $carrierId,
+            'gk_is_cod' => $info['isCod'] ? 'true' : 'false',
+            'gk_hidden_mode' => $hiddenMode,
+            'cart_id' => $cartId,
+            'rest_endpoint' => $this->context->link->getModuleLink($this->name, 'restinterface', [], true),
+            'gk_token' => $this->encryptCartId($cartId),
+            'baseurl' => 'https://' . $this->context->shop->domain . $this->context->shop->physical_uri,
+            'city' => $address->city,
+            'postcode' => $address->postcode,
+            'country_iso' => \Country::getIsoById($address->id_country) ?: 'PL',
+            'countries_map_json' => json_encode($this->getGkCountriesMap($config)),
+            'saved_pickup_type' => $savedPickup ? $savedPickup['type'] : null,
+            'saved_pickup_code' => $savedPickup ? $savedPickup['code'] : null,
+        ]);
+
+        return $this->display(__FILE__, 'views/templates/hooks/carrier_extra_content_17.tpl');
     }
 
     /**
@@ -456,12 +563,19 @@ class Globkuriermodule extends Module
             );
         } elseif (version_compare(_PS_VERSION_, '1.7.0', '>=') === true) {
             // PrestaShop 1.7.x
-            $this->context->controller->addCSS($this->_path . '/views/css/front.css', 'all');
-            $this->context->controller->addCSS('https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css', 'all');
             $this->context->controller->registerStylesheet(
                 'module-' . $this->name . '-style',
                 'modules/' . $this->name . '/views/css/front.css',
                 [
+                    'media' => 'all',
+                    'priority' => 200,
+                ]
+            );
+            $this->context->controller->registerStylesheet(
+                'module-' . $this->name . '-select2-style',
+                'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css',
+                [
+                    'server' => 'remote',
                     'media' => 'all',
                     'priority' => 200,
                 ]

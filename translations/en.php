@@ -129,6 +129,15 @@ $_MODULE['<{globkuriermodule}prestashop>carrier_list_17_94a3750f044c39365ddd987d
 $_MODULE['<{globkuriermodule}prestashop>carrier_list_17_1ace43ccc7e0af067b36c2d9b34efe7a'] = 'Unfortunately, we did not find any parcel machines in given city';
 $_MODULE['<{globkuriermodule}prestashop>carrier_list_17_5e408603ae11bdc576b14294ce20b230'] = 'Please pick parcel point';
 $_MODULE['<{globkuriermodule}prestashop>carrier_list_17_auto_search_info'] = 'We automatically search for points near your delivery address';
+$_MODULE['<{globkuriermodule}prestashop>carrier_extra_content_17_827f7a0734724e854c6dd5ffba116511'] = 'Select a pickup point before continuing';
+$_MODULE['<{globkuriermodule}prestashop>carrier_extra_content_17_4cf75cad930efe07ca1d21ee143795ca'] = 'No results found for:';
+$_MODULE['<{globkuriermodule}prestashop>carrier_extra_content_17_7c51308c9919827029230e313c0c2013'] = 'Type a name of your city and select parcel point closest to you';
+$_MODULE['<{globkuriermodule}prestashop>carrier_extra_content_17_13348442cc6a27032d2b4aa28b75a5d3'] = 'Search';
+$_MODULE['<{globkuriermodule}prestashop>carrier_extra_content_17_e150ad0ce25b32cc393d6cb7c8be9e3f'] = 'Found inPost parcel points';
+$_MODULE['<{globkuriermodule}prestashop>carrier_extra_content_17_94a3750f044c39365ddd987d31946002'] = 'Please use the search';
+$_MODULE['<{globkuriermodule}prestashop>carrier_extra_content_17_1ace43ccc7e0af067b36c2d9b34efe7a'] = 'Unfortunately, we did not find any parcel machines in given city';
+$_MODULE['<{globkuriermodule}prestashop>carrier_extra_content_17_5e408603ae11bdc576b14294ce20b230'] = 'Please pick parcel point';
+$_MODULE['<{globkuriermodule}prestashop>carrier_extra_content_17_d55669822f1a8cf72ec1911e462a54eb'] = 'for';
 $_MODULE['<{globkuriermodule}prestashop>order_details_page_v16_42537c6b0e91a45067148269bdd0de88'] = 'SHIP WITH GLOBKURIER';
 $_MODULE['<{globkuriermodule}prestashop>order_details_page_v16_170a094ce3123d9a518c0903164b4001'] = 'Parcel send with Globkurier';
 $_MODULE['<{globkuriermodule}prestashop>order_details_page_v16_6d9a83e9ff6b9d9eba96a7306a14e618'] = 'GK No';

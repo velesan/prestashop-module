@@ -1,4 +1,4 @@
-## [3.3.6] - 2026-07-17
+## [3.3.6] - 2026-07-27
 + Tracking code fetched automatically after order placement
 + Refactor Order history page
 + Pickup point selection restored when customer navigates back to delivery step in checkout
@@ -8,6 +8,10 @@
 + Address splitter improved with EU/US street patterns
 + Fixed: pickup point not required for all point-type carriers
 + Fixed: checkout submit button disabled by PrestaShop before pickup validation ran
++ Pickup widget now renders for all carrier types on PS 1.7, 8 and 9 (switched from displayCarrierExtraContent to displayAfterCarrier hook)
++ Pickup widget relocated into carrier row (above submit button) via JS DOM move
++ Fixed: Polish translations missing for pickup widget
++ Fixed: duplicate Select2 CSS asset loading removed
 
 ## [3.3.5] - 2026-04-17
 + block duplicate orders

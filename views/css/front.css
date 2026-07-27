@@ -26,48 +26,222 @@
 * to avoid any conflicts with others containers.
 */
 
-.pickup-search {
-    margin-bottom: 20px;
+.gk-pickup-widget {
+    margin: 0;
 }
-.pickup-search span {
+
+.gk-pickup-widget .pickup-search {
+    margin: 20px auto;
+}
+.gk-pickup-widget .pickup-search span {
     margin-bottom: 10px;
     display: block;
     width: 100%;
 }
-.pickup-search .input-group-btn .search-button {
+.gk-pickup-widget .pickup-search .input-group-btn .search-button {
     height: 100%;
     white-space: nowrap;
 }
-.pickup-result {
+.gk-pickup-widget .pickup-result {
     display: none;
 }
-.pickup-result span {
+.gk-pickup-widget .pickup-result span {
     margin-bottom: 10px;
     display: block;
     width: 100%;
 }
 
-.pickup-loader .lds-ripple {
+.gk-pickup-widget .pickup-loader .lds-ripple {
     display: none;
 }
 
-.lds-ripple {
+.gk-pickup-widget .lds-ripple {
     display: block;
     position: relative;
     width: 80px;
     height: 80px;
     margin: 0 auto;
 }
-.lds-ripple div {
+.gk-pickup-widget .lds-ripple div {
     position: absolute;
     border: 4px solid #000;
     opacity: 1;
     border-radius: 50%;
     animation: lds-ripple 1s cubic-bezier(0, 0.2, 0.8, 1) infinite;
 }
-.lds-ripple div:nth-child(2) {
+.gk-pickup-widget .lds-ripple div:nth-child(2) {
     animation-delay: -0.5s;
 }
+
+.gk-pickup-widget .pickup-point-selected p {
+    padding: 10px;
+    margin: 15px 0 0 0;
+}
+.gk-pickup-widget .marker-info-link {
+    cursor: pointer;
+    color: #fff !important;
+    margin-top: 10px;
+}
+.gk-pickup-widget div.marker-info {
+    padding: 15px 0 0;
+}
+.gk-pickup-widget div.marker-info p {
+    text-align: center;
+    margin: 0;
+    padding: 0;
+    color: #000 !important;
+}
+.gk-pickup-widget button.gm-ui-hover-effect {
+    padding: 5px;
+    right: 5px;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+/* Leaflet map container */
+.gk-pickup-widget .gk-map-container {
+    width: 100% !important;
+    height: 500px !important;
+    max-width: 100% !important;
+    position: relative !important;
+    z-index: 1 !important;
+    overflow: hidden !important;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-top: 15px;
+    margin-bottom: 15px;
+}
+
+/* Fix Leaflet container */
+.gk-pickup-widget .gk-map-container .leaflet-container {
+    width: 100% !important;
+    height: 100% !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+/* Fix Leaflet pane positioning */
+.gk-pickup-widget   .gk-map-container .leaflet-pane {
+    position: absolute !important;
+}
+
+.gk-pickup-widget .gk-map-container .leaflet-map-pane {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+}
+
+/* Fix Leaflet tiles */
+.gk-map-container .leaflet-tile-pane {
+    position: absolute !important;
+}
+
+.gk-pickup-widget .gk-map-container .leaflet-tile-container {
+    pointer-events: auto;
+    position: absolute !important;
+}
+
+.gk-pickup-widget .gk-map-container .leaflet-tile {
+    position: absolute !important;
+    width: 256px !important;
+    height: 256px !important;
+}
+
+/* Fix Leaflet controls */
+.gk-pickup-widget .gk-map-container .leaflet-control-container {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    pointer-events: none;
+}
+
+.gk-map-container .leaflet-control {
+    pointer-events: auto !important;
+}
+
+.gk-pickup-widget .gk-map-container .leaflet-top,
+.gk-map-container .leaflet-bottom {
+    position: absolute !important;
+    z-index: 1000 !important;
+    pointer-events: none;
+}
+
+.gk-pickup-widget .gk-map-container .leaflet-top {
+    top: 0 !important;
+}
+
+.gk-pickup-widget .gk-map-container .leaflet-bottom {
+    bottom: 0 !important;
+}
+
+.gk-pickup-widget .gk-map-container .leaflet-left {
+    left: 0 !important;
+}
+
+.gk-pickup-widget .gk-map-container .leaflet-right {
+    right: 0 !important;
+}
+
+/* Ensure Leaflet popup is properly styled */
+.gk-pickup-widget .gk-map-container .leaflet-popup-content-wrapper {
+    text-align: center;
+}
+
+.gk-pickup-widget .gk-map-container .leaflet-popup-content {
+    margin: 13px 19px;
+    min-width: 200px;
+}
+
+/* Reset any conflicting styles */
+.gk-pickup-widget .gk-map-container * {
+    box-sizing: border-box;
+}
+
+.gk-pickup-widget .gk-map-container img {
+    max-width: none !important;
+}
+
+.gk-pickup-widget .gk-pickup-error-banner {
+    display: none;
+    margin: 0 0 12px 0;
+    padding: 8px 12px;
+    background: #fdf2f0;
+    border: 1px solid #e4b9b3;
+    border-left: 4px solid #c0392b;
+    border-radius: 4px;
+    color: #922b21;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.gk-pickup-widget .gk-pickup-error-banner.is-visible {
+    display: block;
+}
+
+.gk-pickup-widget.gk-field-error .pickup-search {
+    border: 2px solid #c0392b;
+    border-radius: 4px;
+    padding: 8px;
+    animation: gk-shake 0.4s ease-in-out;
+}
+
+.gk-pickup-widget select[name="pickup_point"].gk-field-error {
+    border: 2px solid #c0392b !important;
+    box-shadow: 0 0 0 3px rgba(192, 57, 43, 0.15) !important;
+    animation: gk-shake 0.4s ease-in-out;
+}
+
+/* Pickup point validation */
+@keyframes gk-shake {
+    0%, 100% { transform: translateX(0); }
+    20%       { transform: translateX(-5px); }
+    40%       { transform: translateX(5px); }
+    60%       { transform: translateX(-3px); }
+    80%       { transform: translateX(3px); }
+}
+
 @keyframes lds-ripple {
     0% {
         top: 36px;
@@ -97,173 +271,4 @@
         height: 72px;
         opacity: 0;
     }
-}
-
-.pickup-point-selected p {
-    padding: 10px;
-    margin: 15px 0 0 0;
-}
-.marker-info-link {
-    cursor: pointer;
-    color: #fff !important;
-    margin-top: 10px;
-}
-div.marker-info {
-    padding: 15px 0 0;
-}
-div.marker-info p {
-    text-align: center;
-    margin: 0;
-    padding: 0;
-    color: #000 !important;
-}
-button.gm-ui-hover-effect {
-    padding: 5px;
-    right: 5px;
-    font-size: 14px;
-    font-weight: 700;
-}
-
-/* Leaflet map container */
-#containerForMapOfTerminals {
-    width: 100% !important;
-    height: 500px !important;
-    max-width: 100% !important;
-    position: relative !important;
-    z-index: 1 !important;
-    overflow: hidden !important;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    margin-top: 15px;
-    margin-bottom: 15px;
-}
-
-/* Fix Leaflet container */
-#containerForMapOfTerminals .leaflet-container {
-    width: 100% !important;
-    height: 100% !important;
-    position: relative !important;
-    overflow: hidden !important;
-}
-
-/* Fix Leaflet pane positioning */
-#containerForMapOfTerminals .leaflet-pane {
-    position: absolute !important;
-}
-
-#containerForMapOfTerminals .leaflet-map-pane {
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-}
-
-/* Fix Leaflet tiles */
-#containerForMapOfTerminals .leaflet-tile-pane {
-    position: absolute !important;
-}
-
-#containerForMapOfTerminals .leaflet-tile-container {
-    pointer-events: auto;
-    position: absolute !important;
-}
-
-#containerForMapOfTerminals .leaflet-tile {
-    position: absolute !important;
-    width: 256px !important;
-    height: 256px !important;
-}
-
-/* Fix Leaflet controls */
-#containerForMapOfTerminals .leaflet-control-container {
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    pointer-events: none;
-}
-
-#containerForMapOfTerminals .leaflet-control {
-    pointer-events: auto !important;
-}
-
-#containerForMapOfTerminals .leaflet-top,
-#containerForMapOfTerminals .leaflet-bottom {
-    position: absolute !important;
-    z-index: 1000 !important;
-    pointer-events: none;
-}
-
-#containerForMapOfTerminals .leaflet-top {
-    top: 0 !important;
-}
-
-#containerForMapOfTerminals .leaflet-bottom {
-    bottom: 0 !important;
-}
-
-#containerForMapOfTerminals .leaflet-left {
-    left: 0 !important;
-}
-
-#containerForMapOfTerminals .leaflet-right {
-    right: 0 !important;
-}
-
-/* Ensure Leaflet popup is properly styled */
-#containerForMapOfTerminals .leaflet-popup-content-wrapper {
-    text-align: center;
-}
-
-#containerForMapOfTerminals .leaflet-popup-content {
-    margin: 13px 19px;
-    min-width: 200px;
-}
-
-/* Reset any conflicting styles */
-#containerForMapOfTerminals * {
-    box-sizing: border-box;
-}
-
-#containerForMapOfTerminals img {
-    max-width: none !important;
-}
-
-/* Pickup point validation */
-@keyframes gk-shake {
-    0%, 100% { transform: translateX(0); }
-    20%       { transform: translateX(-5px); }
-    40%       { transform: translateX(5px); }
-    60%       { transform: translateX(-3px); }
-    80%       { transform: translateX(3px); }
-}
-
-.gk-pickup-error-banner {
-    display: none;
-    margin: 0 0 12px 0;
-    padding: 8px 12px;
-    background: #fdf2f0;
-    border: 1px solid #e4b9b3;
-    border-left: 4px solid #c0392b;
-    border-radius: 4px;
-    color: #922b21;
-    font-size: 13px;
-    font-weight: 500;
-}
-
-.gk-pickup-error-banner.is-visible {
-    display: block;
-}
-
-#pickup-terminal-container.gk-field-error .pickup-search {
-    border: 2px solid #c0392b;
-    border-radius: 4px;
-    padding: 8px;
-    animation: gk-shake 0.4s ease-in-out;
-}
-
-select[name="pickup_point"].gk-field-error {
-    border: 2px solid #c0392b !important;
-    box-shadow: 0 0 0 3px rgba(192, 57, 43, 0.15) !important;
-    animation: gk-shake 0.4s ease-in-out;
 }
