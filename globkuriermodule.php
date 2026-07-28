@@ -297,8 +297,8 @@ class Globkuriermodule extends Module
             'baseurl' => 'https://' . $this->context->shop->domain . $this->context->shop->physical_uri,
             'city' => $address->city,
             'postcode' => $address->postcode,
-            'country_iso' => \Country::getIsoById($address->id_country) ?: 'PL',
-            'countries_map_json' => json_encode($this->getGkCountriesMap($config)),
+            'country_iso' => Country::getIsoById($address->id_country) ?: 'PL',
+            'countries_map_json' => json_encode($this->getGkCountriesMap($config)) ?: '{}',
             'saved_pickup_type' => $savedPickup ? $savedPickup['type'] : null,
             'saved_pickup_code' => $savedPickup ? $savedPickup['code'] : null,
         ]);
@@ -389,27 +389,23 @@ class Globkuriermodule extends Module
     }
 
     /**
-     * Assigns Smarty variables and renders the pickup widget template.
-     *
-     * @param array   $info        Service info (serviceCode, type, isCod)
-     * @param int     $carrierId   Carrier instance ID
-     * @param int     $cartId      Cart ID
-     * @param Config  $config      Module config
-     * @param Address $address     Delivery address
-     * @param array|null $savedPickup  Previously saved pickup point or null
-     * @param bool    $hiddenMode  True when rendered in displayAfterCarrier (JS controls visibility)
-     *
-     * @return string
+     * @param array      $info        Service info (serviceCode, type, isCod)
+     * @param int        $carrierId   Carrier instance ID
+     * @param int        $cartId      Cart ID
+     * @param Config     $config      Module config
+     * @param Address    $address     Delivery address
+     * @param array|null $savedPickup Previously saved pickup point or null
+     * @param bool       $hiddenMode  True when rendered in displayAfterCarrier (JS controls visibility)
      */
-    private function renderPickupWidget(
+    public function renderPickupWidget(
         array $info,
         int $carrierId,
         int $cartId,
         Config $config,
         Address $address,
         ?array $savedPickup,
-        bool $hiddenMode
-    ): string {
+        bool $hiddenMode,
+    ) {
         $this->smarty->assign([
             'gk_service_code' => $info['serviceCode'],
             'gk_carrier_type' => $info['type'],
@@ -422,8 +418,8 @@ class Globkuriermodule extends Module
             'baseurl' => 'https://' . $this->context->shop->domain . $this->context->shop->physical_uri,
             'city' => $address->city,
             'postcode' => $address->postcode,
-            'country_iso' => \Country::getIsoById($address->id_country) ?: 'PL',
-            'countries_map_json' => json_encode($this->getGkCountriesMap($config)),
+            'country_iso' => Country::getIsoById($address->id_country) ?: 'PL',
+            'countries_map_json' => json_encode($this->getGkCountriesMap($config)) ?: '{}',
             'saved_pickup_type' => $savedPickup ? $savedPickup['type'] : null,
             'saved_pickup_code' => $savedPickup ? $savedPickup['code'] : null,
         ]);
@@ -478,7 +474,7 @@ class Globkuriermodule extends Module
                 [
                     'media' => 'all',
                     'priority' => 200,
-                ]
+                ],
             );
             $this->context->controller->registerStylesheet(
                 'module-' . $this->name . '-select2-style',
@@ -486,7 +482,7 @@ class Globkuriermodule extends Module
                 [
                     'media' => 'all',
                     'priority' => 200,
-                ]
+                ],
             );
 
             // Load Leaflet Maps CSS - high priority to load before other styles
@@ -497,7 +493,7 @@ class Globkuriermodule extends Module
                     'server' => 'remote',
                     'media' => 'all',
                     'priority' => 150,
-                ]
+                ],
             );
 
             $this->context->controller->registerStylesheet(
@@ -507,7 +503,7 @@ class Globkuriermodule extends Module
                     'server' => 'remote',
                     'media' => 'all',
                     'priority' => 150,
-                ]
+                ],
             );
 
             $this->context->controller->registerStylesheet(
@@ -517,7 +513,7 @@ class Globkuriermodule extends Module
                     'server' => 'remote',
                     'media' => 'all',
                     'priority' => 150,
-                ]
+                ],
             );
 
             // Load Leaflet Maps JavaScript
@@ -528,7 +524,7 @@ class Globkuriermodule extends Module
                     'server' => 'remote',
                     'position' => 'bottom',
                     'priority' => 180,
-                ]
+                ],
             );
             $this->context->controller->registerJavascript(
                 'leaflet-markercluster-js',
@@ -537,7 +533,7 @@ class Globkuriermodule extends Module
                     'server' => 'remote',
                     'position' => 'bottom',
                     'priority' => 185,
-                ]
+                ],
             );
 
             // Load Select2 JavaScript
@@ -549,7 +545,7 @@ class Globkuriermodule extends Module
                     'position' => 'bottom',
                     'priority' => 200,
                     'attribute' => 'defer',
-                ]
+                ],
             );
 
             // Load main module JavaScript
@@ -559,7 +555,7 @@ class Globkuriermodule extends Module
                 [
                     'position' => 'bottom',
                     'priority' => 250,
-                ]
+                ],
             );
         } elseif (version_compare(_PS_VERSION_, '1.7.0', '>=') === true) {
             // PrestaShop 1.7.x
@@ -569,7 +565,7 @@ class Globkuriermodule extends Module
                 [
                     'media' => 'all',
                     'priority' => 200,
-                ]
+                ],
             );
             $this->context->controller->registerStylesheet(
                 'module-' . $this->name . '-select2-style',
@@ -578,7 +574,7 @@ class Globkuriermodule extends Module
                     'server' => 'remote',
                     'media' => 'all',
                     'priority' => 200,
-                ]
+                ],
             );
 
             // Load Leaflet Maps CSS - high priority to load before other styles
@@ -589,7 +585,7 @@ class Globkuriermodule extends Module
                     'server' => 'remote',
                     'media' => 'all',
                     'priority' => 150,
-                ]
+                ],
             );
 
             $this->context->controller->registerStylesheet(
@@ -599,7 +595,7 @@ class Globkuriermodule extends Module
                     'server' => 'remote',
                     'media' => 'all',
                     'priority' => 150,
-                ]
+                ],
             );
 
             $this->context->controller->registerStylesheet(
@@ -609,7 +605,7 @@ class Globkuriermodule extends Module
                     'server' => 'remote',
                     'media' => 'all',
                     'priority' => 150,
-                ]
+                ],
             );
 
             // Load Leaflet Maps JavaScript
@@ -620,7 +616,7 @@ class Globkuriermodule extends Module
                     'server' => 'remote',
                     'position' => 'bottom',
                     'priority' => 180,
-                ]
+                ],
             );
 
             $this->context->controller->registerJavascript(
@@ -630,7 +626,7 @@ class Globkuriermodule extends Module
                     'server' => 'remote',
                     'position' => 'bottom',
                     'priority' => 185,
-                ]
+                ],
             );
 
             $this->context->controller->registerJavascript(
@@ -641,7 +637,7 @@ class Globkuriermodule extends Module
                     'position' => 'bottom',
                     'priority' => 200,
                     'attribute' => 'defer',
-                ]
+                ],
             );
             $this->context->controller->registerJavascript(
                 'modules-globkuriermodule',
@@ -649,7 +645,7 @@ class Globkuriermodule extends Module
                 [
                     'position' => 'bottom',
                     'priority' => 250,
-                ]
+                ],
             );
         } else {
             $this->context->controller->addCSS($this->_path . 'views/css/front.css', 'all');

@@ -28,12 +28,55 @@ function upgrade_module_3_3_6($module)
 
     $columns = $db->executeS('SHOW COLUMNS FROM `' . $table . '` LIKE "tracking_number"');
     if (empty($columns)) {
-        $db->execute('ALTER TABLE `' . $table . '` ADD `tracking_number` varchar(255) NULL');
+        if (!$db->execute('ALTER TABLE `' . $table . '` ADD `tracking_number` VARCHAR(255) NULL')) {
+            // Abort the upgrade if the schema change failed, instead of
+            // silently continuing with a missing column.
+            return false;
+        }
     }
 
+    // Register hooks first - registerHook() writes to ps_hook_module.
     // displayAfterCarrier renders pickup widgets for all PS versions (1.7 / 8 / 9).
     // displayCarrierExtraContent kept for DB compatibility (hook implementation returns '').
-    return (bool) $module->registerHook('actionAdminOrdersTrackingNumberUpdate')
+    $hooksRegistered = (bool) $module->registerHook('actionAdminOrdersTrackingNumberUpdate')
         && (bool) $module->registerHook('displayAfterCarrier')
         && (bool) $module->registerHook('displayCarrierExtraContent');
+
+    // Clear cache LAST, after all DB writes above, so nothing in between
+    // can repopulate a stale value.
+    //
+    // From PS 1.7.7+, back office pages are increasingly rendered via
+    // Symfony, so a full Tools::clearAllCache() (Smarty + XML + Symfony/Sf2
+    // + media cache) is needed. Below that, the legacy Smarty-only cache
+    // (Tools::clearSmartyCache()) is enough and cheaper.
+    if (Tools::version_compare(_PS_VERSION_, '1.7.7.0', '>=')) {
+        Tools::clearAllCache();
+    } else {
+        Tools::clearSmartyCache();
+    }
+
+    // IMPORTANT: none of the calls above clear PrestaShop's own key/value
+    // Cache layer (classes/Cache.php - file/APCu/Redis depending on
+    // Performance settings). Hook::getHookModuleList() caches the full
+    // hook<->module association list under the key 'hook_module_list' and
+    // reads it straight from Cache::retrieve() if present, so a freshly
+    // registerHook()'d hook (e.g. displayAfterCarrier for the paczkomat
+    // widget) can stay invisible on the front office until this is cleared
+    // - even though the row already exists in ps_hook_module. This is why
+    // a manual "Clear cache" in the BO fixes it but the calls above alone
+    // don't.
+    Cache::clean('*');
+
+    // CCC (Combine, Compress and Cache) cache - combined/minified CSS & JS
+    // files stored under themes/<theme>/cache/. Not touched by the calls
+    // above, so cleared explicitly here.
+    Media::clearCache();
+
+    // Invalidate OPcache for the module entry point so the server loads
+    // the updated PHP file immediately instead of serving stale bytecode.
+    if (function_exists('opcache_invalidate')) {
+        opcache_invalidate(dirname(__FILE__, 2) . '/globkuriermodule.php', true);
+    }
+
+    return $hooksRegistered;
 }

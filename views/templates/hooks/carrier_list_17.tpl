@@ -117,7 +117,7 @@
             postcode: '{$postcode|escape:'javascript':'UTF-8'}',
             countryIso: '{$country_iso|escape:'javascript':'UTF-8'}'
         },
-        countriesMap: {$countries_map_json|default:'{}'},
+        countriesMap: JSON.parse('{$countries_map_json|escape:'javascript':'UTF-8'}'),
         i18n: {
             mainText: '{l s='Type a name of your city and select parcel point closest to you' mod='globkuriermodule'}',
             mainText2: '{l s='for' mod='globkuriermodule'}'
