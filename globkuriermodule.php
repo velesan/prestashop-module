@@ -662,7 +662,7 @@ class Globkuriermodule extends Module
         Config $config,
         Address $address,
         ?array $savedPickup,
-        bool $hiddenMode,
+        bool $hiddenMode
     ) {
         $this->smarty->assign([
             'gk_service_code' => $info['serviceCode'],
