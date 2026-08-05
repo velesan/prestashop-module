@@ -46,7 +46,7 @@ $_MODULE['<{globkuriermodule}prestashop>config_page_v16_35b4b09d5d0686ec5c2e2cc9
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_a4b696b03ae8d5210f97e249846cdee7'] = 'Płatność online';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_db1b73ab06bd303c6dbc1ad332c16636'] = 'Prepaid';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_8fe7494a226a3c34665468ba6d40b24a'] = 'Płatność odroczona';
-$_MODULE['<{globkuriermodule}prestashop>config_page_v16_d4afce0395e03d4ea941e9febdf1a882'] = 'Cache points for whole country';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_d4afce0395e03d4ea941e9febdf1a882'] = 'Zaktualizuj cache punktów odbioru';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_4d3d769b812b6faa6b76e1a8abaece2d'] = 'Aktywny';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_2c9525eb0868ea1ac1876153a1589d76'] = 'Przewoźnik PrestaShop';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_701959db16bd50f3372f7215ace0fe07'] = 'Domyślny punkt nadania';
