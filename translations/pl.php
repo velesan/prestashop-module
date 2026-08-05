@@ -46,7 +46,7 @@ $_MODULE['<{globkuriermodule}prestashop>config_page_v16_35b4b09d5d0686ec5c2e2cc9
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_a4b696b03ae8d5210f97e249846cdee7'] = 'Płatność online';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_db1b73ab06bd303c6dbc1ad332c16636'] = 'Prepaid';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_8fe7494a226a3c34665468ba6d40b24a'] = 'Płatność odroczona';
-$_MODULE['<{globkuriermodule}prestashop>config_page_v16_d4afce0395e03d4ea941e9febdf1a882'] = 'Cache points for whole country';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_d4afce0395e03d4ea941e9febdf1a882'] = 'Zaktualizuj cache punktów odbioru';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_9de42a13d71ca327f0cd1f224cf92a1e'] = 'Włącz obsługę paczkomatów InPost';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_93cba07454f06a4a960172bbd6e2a435'] = 'Tak';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_bafd7322c6e97d25b6299b5d6fe8920b'] = 'Nie';
