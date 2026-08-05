@@ -232,7 +232,13 @@ class GlobkuriermoduleRestinterfaceModuleFrontController extends ModuleFrontCont
      */
     public function displayAjaxCachedTerminalPoints()
     {
-        $serviceCode = Tools::getValue('serviceCode');
+        $rawCode = (string) Tools::getValue('serviceCode');
+        $serviceCode = preg_match('/^[a-zA-Z0-9_-]{1,64}$/', $rawCode) ? $rawCode : '';
+        if (empty($serviceCode)) {
+            echo json_encode(['success' => false, 'message' => 'Invalid serviceCode', 'data' => []]);
+
+            return true;
+        }
         $fileContent = Tools::file_get_contents($this->pathForCachedPoints . '/' . $serviceCode . '.json');
         if ($fileContent == false) {
             $responseData = [
