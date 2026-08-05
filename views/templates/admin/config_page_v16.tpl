@@ -215,6 +215,13 @@
                     <div class="form-horizontal">
                         <h4 class="text-muted" style="margin:0 0 18px; font-size:13px; text-transform:uppercase; letter-spacing:.05em;">{l s='Pickup point operators' mod='globkuriermodule'}</h4>
 
+                        <div class="gk-operator-header">
+                            <span class="gk-operator-label"></span>
+                            <span class="gk-operator-col-head">{l s='Active' mod='globkuriermodule'}</span>
+                            <span class="gk-operator-col-head gk-operator-select">{l s='PrestaShop carrier' mod='globkuriermodule'}</span>
+                            <span class="gk-operator-col-head" style="min-width:200px">{l s='Default pickup point' mod='globkuriermodule'}</span>
+                        </div>
+
                         {* InPost *}
                         <div class="gk-operator-row">
                             <span class="gk-operator-label">InPost Paczkomat</span>
@@ -324,9 +331,12 @@
             <div class="row" style="margin-top:20px;">
                 <div class="col-lg-12">
                     <button type="button" id="updateCacheBtn" data-url="{html_entity_decode($getCachePointsLink|escape:'htmlall':'UTF-8')}" class="btn btn-default">
-                        {l s='Cache points for whole country' mod='globkuriermodule'}
+                        <i class="icon-refresh"></i> {l s='Refresh pickup point cache' mod='globkuriermodule'}
                     </button>
                     <span id="cacheLoading" style="display:none;"><i class="icon-cog icon-spin"></i></span>
+                    <p class="text-muted" style="margin-top:8px; font-size:12px;">
+                        {l s='Downloads and saves the list of pickup points for the entire country. Required for the pickup point selection map to work.' mod='globkuriermodule'}
+                    </p>
                 </div>
             </div>
         </div>

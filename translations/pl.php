@@ -47,6 +47,12 @@ $_MODULE['<{globkuriermodule}prestashop>config_page_v16_a4b696b03ae8d5210f97e249
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_db1b73ab06bd303c6dbc1ad332c16636'] = 'Prepaid';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_8fe7494a226a3c34665468ba6d40b24a'] = 'Płatność odroczona';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_d4afce0395e03d4ea941e9febdf1a882'] = 'Cache points for whole country';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_4d3d769b812b6faa6b76e1a8abaece2d'] = 'Aktywny';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_2c9525eb0868ea1ac1876153a1589d76'] = 'Przewoźnik PrestaShop';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_701959db16bd50f3372f7215ace0fe07'] = 'Domyślny punkt nadania';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_84871d5aceb19bf4a3d9f3c016bb3e45'] = 'Domyślny kod punktu nadania';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_2ae651781ad1c4562971ea8d30df4a89'] = 'Odśwież cache punktów odbioru';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_fc665c28199639e77ce0251931498d98'] = 'Pobiera i zapisuje listę punktów odbioru dla całego kraju. Wymagane do działania mapy wyboru punktu na stronie zamówienia.';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_9de42a13d71ca327f0cd1f224cf92a1e'] = 'Włącz obsługę paczkomatów InPost';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_93cba07454f06a4a960172bbd6e2a435'] = 'Tak';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_bafd7322c6e97d25b6299b5d6fe8920b'] = 'Nie';

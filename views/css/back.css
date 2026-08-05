@@ -58,6 +58,8 @@
 .gk-tmpl-subheading { font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:#8a9db0; margin:14px 0 8px; padding-bottom:4px; border-bottom:1px solid #edf2f7; }
 .gk-tmpl-add-btn { display:inline-flex; align-items:center; gap:6px; padding:4px 14px 4px 10px; font-size:13px; font-weight:600; border:none; cursor:pointer; }
 .gk-sync-info { font-size:11px; color:#8a9db0; }
+.gk-operator-header { display:flex; align-items:center; gap:14px; padding:0 0 8px; border-bottom:2px solid #d0dae4; margin-bottom:4px; }
+.gk-operator-col-head { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#8a9db0; }
 .gk-operator-row { display:flex; align-items:center; gap:14px; padding:12px 0; border-bottom:1px solid #edf2f7; }
 .gk-operator-row:last-child { border-bottom:none; }
 .gk-operator-label { font-size:13px; font-weight:600; color:#1a2840; min-width:180px; }
