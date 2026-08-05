@@ -271,6 +271,14 @@ class Globkuriermodule extends Module
                     $t->paymentType = $pay !== '' ? (int)$pay : null;
                     $t->isDefault   = Tools::getValue('is_default', 0) ? 1 : 0;
                     $t->psCarrierId = $car !== '' ? (int)$car : null;
+                    $sc = (string)Tools::getValue('sender_country', 'PL');
+                    $rc = (string)Tools::getValue('recipient_country', 'PL');
+                    $t->senderCountry    = preg_match('/^[A-Z]{2}$/', $sc) ? $sc : 'PL';
+                    $t->recipientCountry = preg_match('/^[A-Z]{2}$/', $rc) ? $rc : 'PL';
+                    $gpid = Tools::getValue('gk_product_id', '');
+                    $t->gkProductId = ($gpid !== '' && is_numeric($gpid)) ? (int)$gpid : null;
+                    $addonsJson = Tools::getValue('gk_addons', '');
+                    $t->gkAddons = ($addonsJson !== '') ? (string)$addonsJson : null;
                     $ok = $id ? $tm->update($t) : $tm->create($t);
                     echo json_encode(['success' => $ok, 'id_template' => $t->idTemplate]);
                     break;
@@ -296,6 +304,129 @@ class Globkuriermodule extends Module
                     $list = is_array($raw) ? $raw : [];
                     $stats = $tm->syncFromApi($list);
                     echo json_encode(['success' => true] + $stats);
+                    break;
+
+                case 'getProducts':
+                    $config = new Config();
+                    $api = new Globkuriermodule\Common\GlobkurierApi($config->login, $config->password, $config->apiKey);
+                    if (!$api->isUserAuthorized()) {
+                        echo json_encode(['success' => false, 'services' => []]);
+                        break;
+                    }
+                    $token       = $api->getToken();
+                    $senderIso   = strtoupper(preg_replace('/[^A-Za-z]/', '', (string)Tools::getValue('sender_country', 'PL')));
+                    $receiverIso = strtoupper(preg_replace('/[^A-Za-z]/', '', (string)Tools::getValue('recipient_country', 'PL')));
+                    $isoToId = $this->getGkCountriesMap($config);
+                    $senderCountryId   = isset($isoToId[$senderIso])   ? $isoToId[$senderIso]   : 1;
+                    $receiverCountryId = isset($isoToId[$receiverIso]) ? $isoToId[$receiverIso] : 1;
+                    $params = http_build_query([
+                        'senderCountryId'   => $senderCountryId,
+                        'receiverCountryId' => $receiverCountryId,
+                        'length'   => (float)Tools::getValue('length', 0),
+                        'width'    => (float)Tools::getValue('width', 0),
+                        'height'   => (float)Tools::getValue('height', 0),
+                        'weight'   => (float)Tools::getValue('weight', 0),
+                        'quantity' => 1,
+                    ]);
+                    $ch = curl_init('https://api.globkurier.pl/v1/products?' . $params);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, ['x-auth-token: ' . $token, 'accept-language: pl']);
+                    $resp = curl_exec($ch);
+                    curl_close($ch);
+                    $data = $resp ? json_decode($resp, true) : [];
+                    $services = [];
+                    if (!empty($data['standard']) && is_array($data['standard'])) {
+                        foreach ($data['standard'] as $p) {
+                            $services[] = [
+                                'id'          => $p['id'],
+                                'name'        => $p['name'],
+                                'carrierName' => $p['carrierName'],
+                                'price'       => isset($p['netPrice']) ? $p['netPrice'] : '',
+                            ];
+                        }
+                    }
+                    echo json_encode(['success' => true, 'services' => $services]);
+                    break;
+
+                case 'getAddons':
+                    $config = new Config();
+                    $api = new Globkuriermodule\Common\GlobkurierApi($config->login, $config->password, $config->apiKey);
+                    if (!$api->isUserAuthorized()) {
+                        echo json_encode(['success' => false, 'addons' => []]);
+                        break;
+                    }
+                    $token       = $api->getToken();
+                    $senderIso   = strtoupper(preg_replace('/[^A-Za-z]/', '', (string)Tools::getValue('sender_country', 'PL')));
+                    $receiverIso = strtoupper(preg_replace('/[^A-Za-z]/', '', (string)Tools::getValue('recipient_country', 'PL')));
+                    $isoToId = $this->getGkCountriesMap($config);
+                    $senderPostCode   = $config->defaultSenderPostCode ?: '01-001';
+                    $receiverPostCode = ($receiverIso === 'PL') ? '01-001' : '10000';
+                    $params = http_build_query([
+                        'productId'         => (int)Tools::getValue('product_id', 0),
+                        'senderCountryId'   => isset($isoToId[$senderIso])   ? $isoToId[$senderIso]   : 1,
+                        'receiverCountryId' => isset($isoToId[$receiverIso]) ? $isoToId[$receiverIso] : 1,
+                        'senderPostCode'    => $senderPostCode,
+                        'receiverPostCode'  => $receiverPostCode,
+                        'length'            => (float)Tools::getValue('length', 1),
+                        'width'             => (float)Tools::getValue('width', 1),
+                        'height'            => (float)Tools::getValue('height', 1),
+                        'weight'            => (float)Tools::getValue('weight', 1),
+                        'quantity'          => max(1, (int)Tools::getValue('quantity', 1)),
+                    ]);
+                    $ch = curl_init('https://api.globkurier.pl/v1/product/addons?' . $params);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, ['x-auth-token: ' . $token, 'accept-language: pl']);
+                    $resp     = curl_exec($ch);
+                    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    curl_close($ch);
+                    if ($resp === false || ($httpCode !== 0 && ($httpCode < 200 || $httpCode >= 300))) {
+                        echo json_encode(['success' => false, 'error' => 'GK API HTTP ' . $httpCode, 'addons' => []]);
+                        break;
+                    }
+                    $data = json_decode($resp, true);
+                    if (!is_array($data)) {
+                        echo json_encode(['success' => false, 'error' => 'GK API invalid JSON', 'addons' => []]);
+                        break;
+                    }
+                    $rawAddons = (isset($data['addons']) && is_array($data['addons'])) ? $data['addons'] : [];
+                    $addonsList = [];
+                    foreach ($rawAddons as $a) {
+                        $addonsList[] = [
+                            'id'         => $a['id'],
+                            'name'       => isset($a['addonName']) ? $a['addonName'] : (isset($a['name']) ? $a['name'] : ''),
+                            'price'      => isset($a['price']) ? $a['price'] : null,
+                            'isRequired' => !empty($a['isRequired']),
+                            'disabled'   => !empty($a['disabled']),
+                        ];
+                    }
+                    echo json_encode(['success' => true, 'addons' => $addonsList]);
+                    break;
+
+                case 'getContentList':
+                    $config = new Config();
+                    $api = new Globkuriermodule\Common\GlobkurierApi($config->login, $config->password, $config->apiKey);
+                    if (!$api->isUserAuthorized()) {
+                        echo json_encode(['success' => false, 'contents' => [], 'allowOtherContent' => true]);
+                        break;
+                    }
+                    $token       = $api->getToken();
+                    $senderIso   = strtoupper(preg_replace('/[^A-Za-z]/', '', (string)Tools::getValue('sender_country', 'PL')));
+                    $receiverIso = strtoupper(preg_replace('/[^A-Za-z]/', '', (string)Tools::getValue('recipient_country', 'PL')));
+                    $params = http_build_query([
+                        'productId'       => (int)Tools::getValue('product_id', 0),
+                        'senderCountry'   => $senderIso,
+                        'receiverCountry' => $receiverIso,
+                    ]);
+                    $ch = curl_init('https://api.globkurier.pl/v1/order/content?' . $params);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, ['x-auth-token: ' . $token, 'accept-language: pl']);
+                    $resp = curl_exec($ch);
+                    curl_close($ch);
+                    $data = $resp ? json_decode($resp, true) : ['contents' => [], 'allowOtherContent' => true];
+                    echo json_encode(
+                        ['success' => true] +
+                        (is_array($data) ? $data : ['contents' => [], 'allowOtherContent' => true])
+                    );
                     break;
 
                 default:

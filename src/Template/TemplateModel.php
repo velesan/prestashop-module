@@ -51,6 +51,12 @@ class TemplateModel
     /** @var string|null */
     public $contents;
 
+    /** @var string ISO 3166-1 alpha-2 sender country code */
+    public $senderCountry = 'PL';
+
+    /** @var string ISO 3166-1 alpha-2 recipient country code */
+    public $recipientCountry = 'PL';
+
     /** @var int|null ID produktu/usługi GlobKurier */
     public $gkProductId;
 
@@ -93,13 +99,15 @@ class TemplateModel
         $m->height       = isset($row['height'])         ? (float)$row['height']       : null;
         $m->weight       = isset($row['weight'])         ? (float)$row['weight']       : null;
         $m->quantity     = isset($row['quantity'])       ? (int)$row['quantity']       : 1;
-        $m->contents     = isset($row['contents'])       ? (string)$row['contents']    : null;
-        $m->gkProductId  = isset($row['gk_product_id']) && $row['gk_product_id'] ? (int)$row['gk_product_id'] : null;
+        $m->contents       = isset($row['contents'])          ? (string)$row['contents']          : null;
+        $m->senderCountry  = isset($row['sender_country'])    ? (string)$row['sender_country']    : 'PL';
+        $m->recipientCountry = isset($row['recipient_country']) ? (string)$row['recipient_country'] : 'PL';
+        $m->gkProductId    = isset($row['gk_product_id']) && $row['gk_product_id'] ? (int)$row['gk_product_id'] : null;
         $m->gkAddons     = isset($row['gk_addons'])     ? $row['gk_addons']           : null;
         $m->paymentType  = isset($row['payment_type'])  && $row['payment_type'] !== null ? (int)$row['payment_type'] : null;
         $m->isDefault    = isset($row['is_default'])    ? (int)$row['is_default']     : 0;
         $m->psCarrierId  = isset($row['ps_carrier_id']) && $row['ps_carrier_id'] ? (int)$row['ps_carrier_id'] : null;
-        $m->gkSyncAt     = isset($row['gk_sync_at'])    ? $row['gk_sync_at']          : null;
+        $m->gkSyncAt     = (isset($row['gk_sync_at']) && $row['gk_sync_at'] && $row['gk_sync_at'] !== '0000-00-00 00:00:00') ? $row['gk_sync_at'] : null;
         $m->dateAdd      = isset($row['date_add'])       ? $row['date_add']            : '';
         $m->dateUpd      = isset($row['date_upd'])       ? $row['date_upd']            : '';
         return $m;
@@ -122,8 +130,10 @@ class TemplateModel
             'height'         => $this->height,
             'weight'         => $this->weight,
             'quantity'       => $this->quantity,
-            'contents'       => $this->contents,
-            'gk_product_id'  => $this->gkProductId,
+            'contents'          => $this->contents,
+            'sender_country'    => $this->senderCountry,
+            'recipient_country' => $this->recipientCountry,
+            'gk_product_id'     => $this->gkProductId,
             'gk_addons'      => $this->gkAddons,
             'payment_type'   => $this->paymentType,
             'is_default'     => $this->isDefault,

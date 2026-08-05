@@ -66,7 +66,9 @@ function upgrade_module_3_4_0($module)
             `height`         DECIMAL(8,2)    DEFAULT NULL,
             `weight`         DECIMAL(8,2)    DEFAULT NULL,
             `quantity`       INT             NOT NULL DEFAULT 1,
-            `contents`       VARCHAR(255)    DEFAULT NULL,
+            `contents`          VARCHAR(255)    DEFAULT NULL,
+            `sender_country`    VARCHAR(2)      NOT NULL DEFAULT "PL",
+            `recipient_country` VARCHAR(2)      NOT NULL DEFAULT "PL",
             `gk_product_id`  INT             DEFAULT NULL
                 COMMENT "ID usługi/produktu GlobKurier",
             `gk_addons`      TEXT            DEFAULT NULL

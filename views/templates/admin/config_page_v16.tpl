@@ -12,62 +12,6 @@
  * @copyright 2007-2026 PrestaShop SA
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License 3.0 (AFL-3.0)
  *}
-<style type="text/css">
-/* ── GlobKurier config tabs — PS 1.7/8/9 compatible ── */
-.gk-tabs-nav { display:flex; border-bottom:2px solid #e8edf2; margin:0 0 24px; padding:0; list-style:none; overflow-x:auto; }
-.gk-tabs-nav li { flex-shrink:0; }
-.gk-tab-btn {
-    display:inline-block; padding:10px 20px; font-size:13px; font-weight:500;
-    color:#6c7a8d; background:none; border:none; border-bottom:2px solid transparent;
-    margin-bottom:-2px; cursor:pointer; white-space:nowrap; transition:color .15s,border-color .15s;
-    text-decoration:none;
-}
-.gk-tab-btn:hover { color:#333; }
-.gk-tabs-nav li.gk-tab-active .gk-tab-btn { color:#1db3d4; border-bottom-color:#1db3d4; font-weight:600; }
-.gk-badge-new {
-    display:inline-block; background:#10a87c; color:#fff; font-size:9px; font-weight:700;
-    letter-spacing:.04em; padding:1px 5px; border-radius:8px; margin-left:4px; vertical-align:middle;
-    text-transform:uppercase;
-}
-.gk-tab-pane { display:none; }
-.gk-tab-pane.gk-active { display:block; }
-
-/* ── Template tab layout ── */
-.gk-tmpl-layout { display:flex; gap:16px; min-height:360px; }
-.gk-tmpl-list { width:260px; flex-shrink:0; border:1px solid #e2e8f0; border-radius:4px; overflow:hidden; background:#fff; }
-.gk-tmpl-list-item {
-    padding:11px 14px; border-bottom:1px solid #edf2f7; cursor:pointer;
-    border-left:3px solid transparent; transition:background .12s,border-color .12s;
-}
-.gk-tmpl-list-item:last-child { border-bottom:none; }
-.gk-tmpl-list-item:hover { background:#f4f7fb; border-left-color:#b8c5d6; }
-.gk-tmpl-list-item.gk-active { background:#e6f7fb; border-left-color:#1db3d4; }
-.gk-tmpl-name { font-size:13px; font-weight:600; color:#1a2840; }
-.gk-tmpl-meta { font-size:11px; color:#8a9db0; margin-top:2px; }
-.gk-tmpl-star { color:#d97000; }
-.gk-tmpl-synced { display:inline-block; width:6px; height:6px; border-radius:50%; background:#10a87c; margin-left:4px; vertical-align:middle; }
-.gk-tmpl-editor { flex:1; border:1px solid #e2e8f0; border-radius:4px; background:#fff; display:flex; flex-direction:column; }
-.gk-tmpl-editor-head { padding:10px 16px; background:#f8f9fa; border-bottom:1px solid #e2e8f0; border-radius:4px 4px 0 0; display:flex; align-items:center; justify-content:space-between; }
-.gk-tmpl-editor-title { font-size:13px; font-weight:700; color:#1a2840; }
-.gk-tmpl-editor-body { padding:16px; flex:1; overflow-y:auto; }
-.gk-tmpl-editor-body .form-group { margin-bottom:12px; }
-.gk-tmpl-editor-footer { padding:10px 16px; border-top:1px solid #e2e8f0; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-.gk-tmpl-placeholder { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; padding:40px; text-align:center; color:#8a9db0; }
-.gk-tmpl-subheading { font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:#8a9db0; margin:14px 0 8px; padding-bottom:4px; border-bottom:1px solid #edf2f7; }
-.gk-tmpl-add-btn { display:inline-flex; align-items:center; gap:6px; padding:4px 14px 4px 10px; font-size:13px; font-weight:600; border:none; cursor:pointer; }
-.gk-sync-info { font-size:11px; color:#8a9db0; }
-
-/* ── Operator rows ── */
-.gk-operator-row { display:flex; align-items:center; gap:14px; padding:12px 0; border-bottom:1px solid #edf2f7; }
-.gk-operator-row:last-child { border-bottom:none; }
-.gk-operator-label { font-size:13px; font-weight:600; color:#1a2840; min-width:180px; }
-.gk-operator-select { flex:1; }
-
-/* ── Glob modal ── */
-.glob-product-block { text-align:center; padding:10px; }
-.glob-product-block:hover { background-color:#e1e1e1; }
-.modal-body.row { display:flex; flex-wrap:wrap; }
-</style>
 
 <form method="post" id="gk-config-form">
 <div class="panel" id="gk-config-app">
@@ -88,19 +32,17 @@
         {if isset($error_info)}
         <div class="alert alert-danger">{$error_info|escape:'htmlall':'UTF-8'}</div>
         {/if}
-        <div class="col-lg-12">
-            {if $gk_updateAvailable}
-            <div class="alert alert-warning">
-                {l s='Your current version of the module is' mod='globkuriermodule'}: <b>{$moduleVersion|escape:'htmlall':'UTF-8'}</b>.
-                ({l s='current version' mod='globkuriermodule'} <b>{$gk_latestVersion|escape:'htmlall':'UTF-8'}</b>).
-                &nbsp;<a href="{$gk_githubReleaseUrl|escape:'html':'UTF-8'}" target="_blank" rel="noopener noreferrer">{l s='Download from GitHub' mod='globkuriermodule'}</a>
-            </div>
-            {else}
-            <div class="alert alert-info">
-                {l s='Your current version of the module is' mod='globkuriermodule'}: <b>{$moduleVersion|escape:'htmlall':'UTF-8'}</b>
-            </div>
-            {/if}
+        {if $gk_updateAvailable}
+        <div class="alert alert-warning">
+            {l s='Your current version of the module is' mod='globkuriermodule'}: <b>{$moduleVersion|escape:'htmlall':'UTF-8'}</b>.
+            ({l s='current version' mod='globkuriermodule'} <b>{$gk_latestVersion|escape:'htmlall':'UTF-8'}</b>).
+            &nbsp;<a href="{$gk_githubReleaseUrl|escape:'html':'UTF-8'}" target="_blank" rel="noopener noreferrer">{l s='Download from GitHub' mod='globkuriermodule'}</a>
         </div>
+        {else}
+        <div class="alert alert-info">
+            {l s='Your current version of the module is' mod='globkuriermodule'}: <b>{$moduleVersion|escape:'htmlall':'UTF-8'}</b>
+        </div>
+        {/if}
 
         {* ── TAB NAVIGATION ── *}
         <ul class="gk-tabs-nav" role="tablist">
@@ -446,6 +388,27 @@
                                         <p class="help-block">{l s='Template selected automatically when this carrier is used in the order.' mod='globkuriermodule'}</p>
                                     </div>
                                 </div>
+                                <div class="gk-tmpl-subheading">{l s='Route' mod='globkuriermodule'}</div>
+                                <div class="form-group">
+                                    <label class="col-sm-4 control-label">{l s='Sender country' mod='globkuriermodule'}</label>
+                                    <div class="col-sm-8">
+                                        <select class="form-control" id="gk-f-sender-country">
+                                            {foreach from=$countries item=country}
+                                            <option value="{$country.isoCode|escape:'htmlall':'UTF-8'}">{$country.name|escape:'htmlall':'UTF-8'}</option>
+                                            {/foreach}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="col-sm-4 control-label">{l s='Recipient country' mod='globkuriermodule'}</label>
+                                    <div class="col-sm-8">
+                                        <select class="form-control" id="gk-f-recipient-country">
+                                            {foreach from=$countries item=country}
+                                            <option value="{$country.isoCode|escape:'htmlall':'UTF-8'}">{$country.name|escape:'htmlall':'UTF-8'}</option>
+                                            {/foreach}
+                                        </select>
+                                    </div>
+                                </div>
                                 <div class="gk-tmpl-subheading">{l s='Package dimensions' mod='globkuriermodule'}</div>
                                 <div class="form-group">
                                     <label class="col-sm-4 control-label">{l s='Length (cm)' mod='globkuriermodule'}</label>
@@ -463,10 +426,33 @@
                                     <label class="col-sm-4 control-label">{l s='Quantity' mod='globkuriermodule'}</label>
                                     <div class="col-sm-3"><input type="number" min="1" class="form-control" id="gk-f-quantity" value="1" /></div>
                                 </div>
+                                <div class="gk-tmpl-subheading">{l s='GlobKurier service' mod='globkuriermodule'}</div>
+                                <div class="form-group">
+                                    <label class="col-sm-4 control-label">{l s='Service' mod='globkuriermodule'}</label>
+                                    <div class="col-sm-8">
+                                        <select class="form-control" id="gk-f-product-select">
+                                            <option value="">{l s='-- fill in dimensions and country --' mod='globkuriermodule'}</option>
+                                        </select>
+                                        <small id="gk-f-product-spinner" class="text-muted" style="display:none;"><i class="icon-refresh icon-spin"></i> {l s='Loading services…' mod='globkuriermodule'}</small>
+                                        <input type="hidden" id="gk-f-product-id" />
+                                        <input type="hidden" id="gk-f-addons" />
+                                    </div>
+                                </div>
+                                <div id="gk-f-addons-wrap" style="display:none;">
+                                    <div class="gk-tmpl-subheading">{l s='Additional services' mod='globkuriermodule'}</div>
+                                    <div class="form-group">
+                                        <div class="col-sm-offset-4 col-sm-8" id="gk-f-addons-list"></div>
+                                    </div>
+                                </div>
                                 <div class="gk-tmpl-subheading">{l s='Content & payment' mod='globkuriermodule'}</div>
                                 <div class="form-group">
                                     <label class="col-sm-4 control-label">{l s='Content' mod='globkuriermodule'}</label>
-                                    <div class="col-sm-8"><input type="text" class="form-control" id="gk-f-contents" /></div>
+                                    <div class="col-sm-8">
+                                        <select class="form-control" id="gk-f-contents-select">
+                                            <option value="">{l s='-- select content --' mod='globkuriermodule'}</option>
+                                        </select>
+                                        <input type="text" class="form-control" id="gk-f-contents" style="margin-top:6px;display:none" placeholder="{l s='Enter custom content…' mod='globkuriermodule'}" />
+                                    </div>
                                 </div>
                                 <div class="form-group">
                                     <label class="col-sm-4 control-label">{l s='Payment type' mod='globkuriermodule'}</label>

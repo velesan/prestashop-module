@@ -359,10 +359,10 @@ class GlobkurierApi
     {
         $url = $this->baseApiUrl . 'order/productTemplate?limit=' . (int)$limit . '&offset=' . (int)$offset;
         $result = $this->sendJSONRequest($url, $this->token, [], 'GET');
-        if (is_array($result) && isset($result['data'])) {
-            return $result['data'];
+        if (is_array($result) && isset($result['results'])) {
+            return $result['results'];
         }
-        return is_array($result) ? $result : [];
+        return [];
     }
 
     /**

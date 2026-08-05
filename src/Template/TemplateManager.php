@@ -187,16 +187,15 @@ class TemplateManager
     }
 
     /**
-     * Synchronizuje listę szablonów z GlobKurier API.
-     * Istniejące (po gk_template_id) są aktualizowane, nowe tworzone.
+     * Imports templates from GlobKurier API — creates only missing ones (skips existing).
      *
-     * @param array $apiTemplates  tablica z odpowiedzi GET /v1/order/productTemplate
-     * @return array ['created' => int, 'updated' => int]
+     * @param array $apiTemplates  array from GET /v1/order/productTemplate results key
+     * @return array ['created' => int, 'skipped' => int]
      */
     public function syncFromApi(array $apiTemplates)
     {
         $created = 0;
-        $updated = 0;
+        $skipped = 0;
         $now = date('Y-m-d H:i:s');
 
         foreach ($apiTemplates as $apiTmpl) {
@@ -204,49 +203,34 @@ class TemplateManager
                 continue;
             }
             $gkId = (int)$apiTmpl['id'];
-            $existing = \Db::getInstance()->getRow(
-                'SELECT * FROM `' . _DB_PREFIX_ . self::TABLE . '`
+            $exists = (bool)\Db::getInstance()->getValue(
+                'SELECT `id_template` FROM `' . _DB_PREFIX_ . self::TABLE . '`
                  WHERE `gk_template_id` = ' . $gkId
             );
 
+            if ($exists) {
+                $skipped++;
+                continue;
+            }
+
             $shipment = isset($apiTmpl['shipment']) && is_array($apiTmpl['shipment']) ? $apiTmpl['shipment'] : [];
 
-            if ($existing) {
-                \Db::getInstance()->update(
-                    self::TABLE,
-                    [
-                        'name'           => pSQL(isset($apiTmpl['name']) ? $apiTmpl['name'] : ''),
-                        'length'         => isset($shipment['length'])   ? (float)$shipment['length']   : null,
-                        'width'          => isset($shipment['width'])    ? (float)$shipment['width']    : null,
-                        'height'         => isset($shipment['height'])   ? (float)$shipment['height']   : null,
-                        'weight'         => isset($shipment['weight'])   ? (float)$shipment['weight']   : null,
-                        'quantity'       => isset($shipment['quantity']) ? (int)$shipment['quantity']   : 1,
-                        'contents'       => pSQL(isset($apiTmpl['content']) ? $apiTmpl['content'] : ''),
-                        'gk_product_id'  => isset($shipment['productId']) ? (int)$shipment['productId'] : null,
-                        'gk_sync_at'     => pSQL($now),
-                        'date_upd'       => pSQL($now),
-                    ],
-                    '`id_template` = ' . (int)$existing['id_template']
-                );
-                $updated++;
-            } else {
-                $t = new TemplateModel();
-                $t->gkTemplateId = $gkId;
-                $t->name         = isset($apiTmpl['name']) ? (string)$apiTmpl['name'] : ('GK #' . $gkId);
-                $t->length       = isset($shipment['length'])    ? (float)$shipment['length']   : null;
-                $t->width        = isset($shipment['width'])     ? (float)$shipment['width']    : null;
-                $t->height       = isset($shipment['height'])    ? (float)$shipment['height']   : null;
-                $t->weight       = isset($shipment['weight'])    ? (float)$shipment['weight']   : null;
-                $t->quantity     = isset($shipment['quantity'])  ? (int)$shipment['quantity']   : 1;
-                $t->contents     = isset($apiTmpl['content'])   ? (string)$apiTmpl['content']  : null;
-                $t->gkProductId  = isset($shipment['productId'])? (int)$shipment['productId']  : null;
-                $t->gkSyncAt     = $now;
-                $this->create($t);
-                $created++;
-            }
+            $t = new TemplateModel();
+            $t->gkTemplateId = $gkId;
+            $t->name         = isset($apiTmpl['name']) ? (string)$apiTmpl['name'] : ('GK #' . $gkId);
+            $t->length       = isset($shipment['length'])     ? (float)$shipment['length']    : null;
+            $t->width        = isset($shipment['width'])      ? (float)$shipment['width']     : null;
+            $t->height       = isset($shipment['height'])     ? (float)$shipment['height']    : null;
+            $t->weight       = isset($shipment['weight'])     ? (float)$shipment['weight']    : null;
+            $t->quantity     = isset($shipment['quantity'])   ? (int)$shipment['quantity']    : 1;
+            $t->contents     = isset($apiTmpl['content'])     ? (string)$apiTmpl['content']   : null;
+            $t->gkProductId  = isset($shipment['productId'])  ? (int)$shipment['productId']   : null;
+            $t->gkSyncAt     = $now;
+            $this->create($t);
+            $created++;
         }
 
-        return ['created' => $created, 'updated' => $updated];
+        return ['created' => $created, 'skipped' => $skipped];
     }
 
     // ── private helpers ──────────────────────────────────────────────────────
@@ -262,8 +246,10 @@ class TemplateManager
             'height'         => $t->height  !== null ? (float)$t->height  : null,
             'weight'         => $t->weight  !== null ? (float)$t->weight  : null,
             'quantity'       => (int)$t->quantity,
-            'contents'       => $t->contents  !== null ? pSQL($t->contents)  : null,
-            'gk_product_id'  => $t->gkProductId  !== null ? (int)$t->gkProductId  : null,
+            'contents'          => $t->contents  !== null ? pSQL($t->contents)  : null,
+            'sender_country'    => pSQL($t->senderCountry ?: 'PL'),
+            'recipient_country' => pSQL($t->recipientCountry ?: 'PL'),
+            'gk_product_id'     => $t->gkProductId  !== null ? (int)$t->gkProductId  : null,
             'gk_addons'      => $t->gkAddons !== null ? pSQL($t->gkAddons) : null,
             'payment_type'   => $t->paymentType  !== null ? (int)$t->paymentType  : null,
             'is_default'     => (int)$t->isDefault,
