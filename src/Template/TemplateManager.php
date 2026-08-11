@@ -75,8 +75,7 @@ class TemplateManager
         }
         $row = \Db::getInstance()->getRow(
             'SELECT * FROM `' . _DB_PREFIX_ . self::TABLE . '`
-             WHERE `ps_carrier_id` = ' . (int)$carrierId . '
-             LIMIT 1'
+             WHERE `ps_carrier_id` = ' . (int)$carrierId
         );
         return $row ? TemplateModel::fromRow($row) : null;
     }
