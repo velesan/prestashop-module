@@ -103,7 +103,7 @@
                             <div class="col-lg-7">
                                 <select class="form-control" name="config_defaultCountryCode" required="required">
                                 {foreach from=$countries key=k item=country}
-                                <option value="{$country.isoCode|escape:'htmlall':'UTF-8'}" {if $config->defaultCountryCode == $country.isoCode}selected="true"{/if}>{$country.name|escape:'htmlall':'UTF-8'}</option>
+                                <option value="{$country.isoCode|escape:'htmlall':'UTF-8'}" {if $config->defaultCountryCode == $country.isoCode}selected="selected"{/if}>{$country.name|escape:'htmlall':'UTF-8'}</option>
                                 {/foreach}
                                 </select>
                             </div>
@@ -236,7 +236,7 @@
                                 <select class="form-control" name="config_inPostCarrier">
                                     <option value="0">-- {l s='None' mod='globkuriermodule'} --</option>
                                     {foreach from=$carriers item=carrier}
-                                    <option value="{$carrier['id_carrier']|escape:'htmlall':'UTF-8'}" {if $config->inPostCarrier == $carrier['id_carrier']}selected="true"{/if}>{$carrier['name']|escape:'htmlall':'UTF-8'}</option>
+                                    <option value="{$carrier['id_carrier']|escape:'htmlall':'UTF-8'}" {if $config->inPostCarrier|intval == $carrier['id_carrier']|intval}selected="selected"{/if}>{$carrier['name']|escape:'htmlall':'UTF-8'}</option>
                                     {/foreach}
                                 </select>
                             </div>
@@ -259,7 +259,7 @@
                                 <select class="form-control" name="config_inPostCODCarrier">
                                     <option value="0">-- {l s='None' mod='globkuriermodule'} --</option>
                                     {foreach from=$carriers item=carrier}
-                                    <option value="{$carrier['id_carrier']|escape:'htmlall':'UTF-8'}" {if $config->inPostCODCarrier == $carrier['id_carrier']}selected="true"{/if}>{$carrier['name']|escape:'htmlall':'UTF-8'}</option>
+                                    <option value="{$carrier['id_carrier']|escape:'htmlall':'UTF-8'}" {if $config->inPostCODCarrier|intval == $carrier['id_carrier']|intval}selected="selected"{/if}>{$carrier['name']|escape:'htmlall':'UTF-8'}</option>
                                     {/foreach}
                                 </select>
                             </div>
@@ -279,7 +279,7 @@
                                 <select class="form-control" name="config_paczkaRuchCarrier">
                                     <option value="0">-- {l s='None' mod='globkuriermodule'} --</option>
                                     {foreach from=$carriers item=carrier}
-                                    <option value="{$carrier['id_carrier']|escape:'htmlall':'UTF-8'}" {if $config->paczkaRuchCarrier == $carrier['id_carrier']}selected="true"{/if}>{$carrier['name']|escape:'htmlall':'UTF-8'}</option>
+                                    <option value="{$carrier['id_carrier']|escape:'htmlall':'UTF-8'}" {if $config->paczkaRuchCarrier|intval == $carrier['id_carrier']|intval}selected="selected"{/if}>{$carrier['name']|escape:'htmlall':'UTF-8'}</option>
                                     {/foreach}
                                 </select>
                             </div>
@@ -299,7 +299,7 @@
                                 <select class="form-control" name="config_pocztex48owpCarrier">
                                     <option value="0">-- {l s='None' mod='globkuriermodule'} --</option>
                                     {foreach from=$carriers item=carrier}
-                                    <option value="{$carrier['id_carrier']|escape:'htmlall':'UTF-8'}" {if $config->pocztex48owpCarrier == $carrier['id_carrier']}selected="true"{/if}>{$carrier['name']|escape:'htmlall':'UTF-8'}</option>
+                                    <option value="{$carrier['id_carrier']|escape:'htmlall':'UTF-8'}" {if $config->pocztex48owpCarrier|intval == $carrier['id_carrier']|intval}selected="selected"{/if}>{$carrier['name']|escape:'htmlall':'UTF-8'}</option>
                                     {/foreach}
                                 </select>
                             </div>
@@ -319,24 +319,13 @@
                                 <select class="form-control" name="config_dpdpickupCarrier">
                                     <option value="0">-- {l s='None' mod='globkuriermodule'} --</option>
                                     {foreach from=$carriers item=carrier}
-                                    <option value="{$carrier['id_carrier']|escape:'htmlall':'UTF-8'}" {if $config->dpdpickupCarrier == $carrier['id_carrier']}selected="true"{/if}>{$carrier['name']|escape:'htmlall':'UTF-8'}</option>
+                                    <option value="{$carrier['id_carrier']|escape:'htmlall':'UTF-8'}" {if $config->dpdpickupCarrier|intval == $carrier['id_carrier']|intval}selected="selected"{/if}>{$carrier['name']|escape:'htmlall':'UTF-8'}</option>
                                     {/foreach}
                                 </select>
                             </div>
                         </div>
 
                     </div>
-                </div>
-            </div>
-            <div class="row" style="margin-top:20px;">
-                <div class="col-lg-12">
-                    <button type="button" id="updateCacheBtn" data-url="{html_entity_decode($getCachePointsLink|escape:'htmlall':'UTF-8')}" class="btn btn-default">
-                        <i class="icon-refresh"></i> {l s='Refresh pickup point cache' mod='globkuriermodule'}
-                    </button>
-                    <span id="cacheLoading" style="display:none;"><i class="icon-cog icon-spin"></i></span>
-                    <p class="text-muted" style="margin-top:8px; font-size:12px;">
-                        {l s='Downloads and saves the list of pickup points for the entire country. Required for the pickup point selection map to work.' mod='globkuriermodule'}
-                    </p>
                 </div>
             </div>
         </div>
