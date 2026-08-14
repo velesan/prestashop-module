@@ -108,7 +108,7 @@ class Globkuriermodule extends Module
      */
     public function getContent()
     {
-        // AJAX handler dla operacji na szablonach (nie wymaga renderowania HTML)
+        // AJAX handler for template operations (does not require HTML rendering)
         $ajaxAction = Tools::getValue('ajax_action');
         if ($ajaxAction) {
             $this->handleTemplateAjax($ajaxAction);
@@ -231,8 +231,8 @@ class Globkuriermodule extends Module
     }
 
     /**
-     * Obsługuje żądania AJAX ze strony konfiguracji (szablony).
-     * Wysyła JSON i kończy wykonanie.
+     * Handles AJAX requests from the config page (templates).
+     * Sends JSON and terminates execution.
      *
      * @param string $action
      */
@@ -580,7 +580,7 @@ class Globkuriermodule extends Module
     }
 
     /**
-     * Wyświetla i ładuje skrypty związane z wyborem paczkomatów
+     * Displays and loads the scripts related to parcel locker selection
      *
      * @param $params
      *
@@ -740,13 +740,6 @@ class Globkuriermodule extends Module
     }
 
     /**
-     * aktualizuje id przewoźnika inPostu
-     *
-     * @param $params - parametry przewoźnika
-     *
-     * @return void
-     */
-    /**
      * Fires after admin saves a tracking number on the order page.
      * $params: ['order' => Order, 'carrier' => OrderCarrier, 'tracking_number' => string]
      * PS already wrote the number to ps_order_carrier before this hook fires.
@@ -756,6 +749,13 @@ class Globkuriermodule extends Module
         // Future: forward tracking to GlobKurier API or trigger status change
     }
 
+    /**
+     * Updates the InPost carrier id
+     *
+     * @param $params - carrier parameters
+     *
+     * @return void
+     */
     public function hookActionUpdateCarrier($params)
     {
         $id_carrier_old = (int) $params['id_carrier'];

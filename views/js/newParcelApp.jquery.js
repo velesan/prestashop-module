@@ -743,7 +743,6 @@ function initStateFromInitialValues() {
         try { preloadCountriesMap().then(ensureCountryIdsFromIso); } catch(e) { ensureCountryIdsFromIso(); }
 	}
 
-// Mapuje country.id po isoCode na podstawie listy z /countries (bez twardych wyjątków)
 // Maps country.id by isoCode using /countries list (no hardcoded exceptions)
 function ensureCountryIdsFromIso() {
     const s = GK.state;
@@ -1361,7 +1360,7 @@ function updatePickupMetaVisibility() {
     } else if ($ordered.is(':checked')) {
         $('#pickupMeta').hide();
     } else {
-        // Żadna opcja nie zaznaczona lub brak tych addonów — domyślnie pokaż
+        // No option checked, or these add-ons don't exist — show by default
         $('#pickupMeta').show();
     }
 }
@@ -1370,7 +1369,7 @@ function applyPickupMethodAddonLogic() {
     const sendingType = $('input[name=pickup_type]:checked').val();
     const $container = $('#pickupMethodAddons');
 
-    // Wyczyść stare elementy i przenieś świeże z #addonsList
+    // Clear old elements and move fresh ones in from #addonsList
     $container.empty();
     $('#addonsList .addon-checkbox[data-category="ORDERED_COURIER"]').closest('.col-lg-12').detach().appendTo($container);
     $('#addonsList .addon-checkbox[data-category="PAID_PICKUP"]').closest('.col-lg-12').detach().appendTo($container);
@@ -1395,7 +1394,7 @@ function applyPickupMethodAddonLogic() {
         });
     } else {
         $container.show();
-        // Domyślnie zaznacz PAID_PICKUP jeśli żadna opcja nie jest wybrana
+        // Default to checking PAID_PICKUP if no option is selected
         const $ordered = $container.find('.addon-checkbox[data-category="ORDERED_COURIER"]');
         const $paid = $container.find('.addon-checkbox[data-category="PAID_PICKUP"]');
         if (!$ordered.is(':checked') && !$paid.is(':checked') && $paid.length) {
@@ -1416,7 +1415,7 @@ function updateCarrierDependentUI() {
     $('.receiverAddressPointId').hide();
     $('.senderAddressPointId').hide();
     updatePickupMetaVisibility();
-    // Synchronizuj widoczność addonów odbioru kuriera (są w #pickupMethodAddons, nie w #addonsList)
+    // Sync visibility of courier pickup add-ons (they live in #pickupMethodAddons, not #addonsList)
     const $pma = $('#pickupMethodAddons');
     if ($pma.children().length) {
         if (sendingType === 'POINT') { $pma.hide(); } else { $pma.show(); }
@@ -2157,17 +2156,17 @@ function renderServicesAndBind() {
 			const $attrBox = $current.closest('.col-lg-12').find('.addon-attributes');
 			const isChecked = $current.is(':checked');
 
-			// Kategorie z ograniczeniem do jednego wyboru *w ramach danej kategorii*
-			// (CASH_ON_DELIVERY: tylko jedno COD, INSURANCE: tylko jedno, INSURANCE_CARGO: tylko jedno)
+			// Categories limited to a single choice *within that category*
+			// (CASH_ON_DELIVERY: only one COD, INSURANCE: only one, INSURANCE_CARGO: only one)
 			const singlePerCategory = ['CASH_ON_DELIVERY', 'INSURANCE', 'INSURANCE_CARGO'];
 
-			// Jeśli zaznaczamy opcję z jednej z ww. kategorii – odznacz inne z TEJ SAMEJ kategorii
+			// When checking an option from one of the categories above, uncheck others in THE SAME category
 			if (isChecked && singlePerCategory.indexOf(category) !== -1) {
 				$('.addon-checkbox').each(function(){
 					const $other = $(this);
 					if ($other[0] === $current[0]) return;
 					const otherCat = $other.data('category');
-					if (otherCat !== category) return; // tylko w obrębie tej samej kategorii
+					if (otherCat !== category) return; // only within the same category
 					if ($other.is(':checked')) {
 						const otherId = $other.data('id');
 						const $otherAttrBox = $other.closest('.col-lg-12').find('.addon-attributes');
@@ -2178,7 +2177,7 @@ function renderServicesAndBind() {
 				});
 			}
 
-			// ORDERED_COURIER i PAID_PICKUP wzajemnie się wykluczają
+			// ORDERED_COURIER and PAID_PICKUP are mutually exclusive
 			const pickupMethodPair = ['ORDERED_COURIER', 'PAID_PICKUP'];
 			if (isChecked && pickupMethodPair.indexOf(category) !== -1) {
 				$('.addon-checkbox').each(function(){

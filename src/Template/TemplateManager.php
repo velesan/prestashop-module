@@ -61,8 +61,8 @@ class TemplateManager
     }
 
     /**
-     * Znajduje szablon powiązany z danym id_carrier z PrestaShop.
-     * Jeśli nie znajdzie, zwraca null (wywołujący powinien sięgnąć po getDefault()).
+     * Finds the template linked to the given PrestaShop id_carrier.
+     * If not found, returns null (the caller should fall back to getDefault()).
      *
      * @param int $carrierId
      * @return TemplateModel|null
@@ -80,7 +80,7 @@ class TemplateManager
     }
 
     /**
-     * Zapisuje nowy szablon. Ustawia id_template po zapisie.
+     * Saves a new template. Sets id_template after saving.
      *
      * @param TemplateModel $t
      * @return bool
@@ -99,7 +99,7 @@ class TemplateManager
     }
 
     /**
-     * Aktualizuje istniejący szablon.
+     * Updates an existing template.
      *
      * @param TemplateModel $t
      * @return bool
@@ -122,7 +122,7 @@ class TemplateManager
     }
 
     /**
-     * Usuwa szablon po ID.
+     * Deletes a template by ID.
      *
      * @param int $id
      * @return bool
@@ -136,7 +136,7 @@ class TemplateManager
     }
 
     /**
-     * Ustawia dany szablon jako domyślny (zdejmuje flagę z pozostałych).
+     * Sets the given template as default (clears the flag from the others).
      *
      * @param int $id
      * @return bool
@@ -155,8 +155,8 @@ class TemplateManager
     }
 
     /**
-     * Tworzy domyślny szablon migracyjny z obecnej konfiguracji modułu.
-     * Wywoływane raz podczas upgradu, gdy tabela jest pusta.
+     * Creates a default migration template from the module's current configuration.
+     * Called once during upgrade, when the table is empty.
      *
      * @param \Globkuriermodule\Common\Config $config
      * @return bool

@@ -29,7 +29,7 @@ $(function(){
 
     $('img.ajax-loader').hide();
 
-    /** @type {Boolean} flaga, czy paczkomat został zapisany */
+    /** @type {Boolean} flag whether the parcel locker point has been saved */
     this.inpost_point_saved = false;
 
     if ($('#opc_payment_methods').length) {
@@ -165,7 +165,7 @@ $(function(){
     });
 
     /**
-     * Nasłuchuje, czy wybrano jakis punkt odbioru - jesli tak, to go zapisuje
+     * Listens for a pickup point being selected — if so, saves it
      */
     $(document).on('change', 'select[name="pickup_point"]', function () {
         const cartId = window.GlobKurier && window.GlobKurier.get ? window.GlobKurier.get('cart.id') : window.gk_cart_id;
@@ -203,7 +203,7 @@ $(function(){
                 return false;
             } else {
                 self.inpost_point_saved = true;
-                // Dodajemy wywołanie opcCheck() aby odblokować checkout
+                // Call opcCheck() to unblock the checkout
                 if (typeof opcCheck === 'function') {
                     opcCheck();
                 }

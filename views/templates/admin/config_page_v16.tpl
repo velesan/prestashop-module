@@ -60,7 +60,7 @@
                     </button>
                 </div>
 
-                {* Group: Konto *}
+                {* Group: Account *}
                 <div class="gk-sidebar-group">
                     <div class="gk-sidebar-label">{l s='Account' mod='globkuriermodule'}</div>
                     <ul class="gk-sidebar-nav">
@@ -76,7 +76,7 @@
                     </ul>
                 </div>
 
-                {* Group: Wysyłki *}
+                {* Group: Shipments *}
                 <div class="gk-sidebar-group">
                     <div class="gk-sidebar-label">{l s='Shipments' mod='globkuriermodule'}</div>
                     <ul class="gk-sidebar-nav">
@@ -96,7 +96,7 @@
                     </ul>
                 </div>
 
-                {* Group: Sklep *}
+                {* Group: Shop *}
                 <div class="gk-sidebar-group">
                     <div class="gk-sidebar-label">{l s='Shop' mod='globkuriermodule'}</div>
                     <ul class="gk-sidebar-nav">

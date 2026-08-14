@@ -110,8 +110,8 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
                     if (class_exists('Carrier')) {
                         $carrier = new Carrier($prestaCarrierId);
                         if (Validate::isLoadedObject($carrier)) {
-                            // PS tworzy nowy rekord przy każdej edycji przewoźnika — szukamy
-                            // aktualnej (nieskasowanej) wersji przez id_reference
+                            // PS creates a new record on every carrier edit — look up
+                            // the current (non-deleted) version via id_reference
                             $currentId = (int) Db::getInstance()->getValue(
                                 'SELECT id_carrier FROM ' . _DB_PREFIX_ . 'carrier
                                  WHERE id_reference = ' . (int) $carrier->id_reference . '
@@ -161,7 +161,7 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
                 ];
             }
 
-            // Dobierz szablon: najpierw wg PS carrier, potem domyślny
+            // Pick a template: first by PS carrier, then fall back to default
             $tmgr = new Globkuriermodule\Template\TemplateManager();
             $selectedTemplate = null;
             if ($prestaCarrierId) {
@@ -214,7 +214,7 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
                 'selected_template' => $selectedTemplate ? $selectedTemplate->toArray() : null,
             ]);
         } else {
-            // Brak zamówienia — użyj domyślnego szablonu (jeśli jest)
+            // No order — use the default template (if any)
             $tmgr = new Globkuriermodule\Template\TemplateManager();
             $selectedTemplate = $tmgr->getDefault();
 
@@ -249,12 +249,13 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
     }
 
     /**
-     * Probuje wydzielic z adresu numer ulicy/mieszkania. Bierze pod uwage rowniez
-     * pole address2, z tego wzgledu, ze niektore sklepy dziela adres na dwa pola
+     * Tries to split the street number/apartment number out of the address.
+     * Also considers the address2 field, since some shops split the address
+     * across two fields.
      *
-     * @param Address $address - intancja adresu
+     * @param Address $address - the address instance
      *
-     * @return AddressSplitter\AddressSplitter|null w przypadku nieudanego podzialu zwraca null
+     * @return AddressSplitter\AddressSplitter|null null if the split failed
      */
     private function getSplittedAddres(Address $address)
     {
@@ -271,7 +272,7 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
         return null;
     }
 
-    // strona z informacja, ze uzytkownik musi sie najpierw zalogowac
+    // page informing the user they must log in first
     private function displayAuthFail()
     {
         $this->context->smarty->assign([
@@ -292,14 +293,14 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
     }
 
     /**
-     * Szkielet metody do zapisywania logów z zamawianych przesyłek
-     * przykladowy adres: index.php?controller=AdminGlobkurierPlaceOrder&ajax=1&action=logXml
+     * Skeleton method for logging shipment order XML requests
+     * example URL: index.php?controller=AdminGlobkurierPlaceOrder&ajax=1&action=logXml
      *
-     * @return bool zwracana zmienna nie ma znaczenia
+     * @return bool the returned value is not significant
      */
     public function displayAjaxLogXml()
     {
-        // w zmiennej $xml docelowo bedzie cała zawartość pliku
+        // $xml ends up holding the full contents of the file
         $xml = Tools::getValue('xmlRequest', null);
 
         $data = [
@@ -314,10 +315,10 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
     }
 
     /**
-     * Szkielet metody do zapisywania logów z zamawianych przesyłek
-     * przykladowy adres: index.php?controller=AdminGlobkurierPlaceOrder&ajax=1&action=getLogs
+     * Skeleton method for retrieving shipment order logs
+     * example URL: index.php?controller=AdminGlobkurierPlaceOrder&ajax=1&action=getLogs
      *
-     * @return bool zwracana zmienna nie ma znaczenia
+     * @return bool the returned value is not significant
      */
     public function displayAjaxGetLogs()
     {
@@ -337,14 +338,14 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
     }
 
     /**
-     * Szkielet metody do zapisywania odpowiedzi z serwera
-     * przykladowy adres: index.php?controller=AdminGlobkurierPlaceOrder&ajax=1&action=logServerResponse
+     * Skeleton method for logging server responses
+     * example URL: index.php?controller=AdminGlobkurierPlaceOrder&ajax=1&action=logServerResponse
      *
-     * @return bool zwracana zmienna nie ma znaczenia
+     * @return bool the returned value is not significant
      */
     public function displayAjaxLogServerResponse()
     {
-        // w zmiennej $content docelowo bedzie cała zawartość pliku
+        // $content ends up holding the full contents of the file
         $content = Tools::getValue('serverResponse', null);
 
         $data = [
@@ -358,14 +359,14 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
     }
 
     /**
-     * Szkielet metody do zapisywania nowych zamówień kurierskich do bazy danych
-     * przykladowy adres: index.php?controller=AdminGlobkurierPlaceOrder&ajax=1&action=addNewGlobOrder
+     * Skeleton method for saving new courier orders to the database
+     * example URL: index.php?controller=AdminGlobkurierPlaceOrder&ajax=1&action=addNewGlobOrder
      *
-     * @return bool zwracana zmienna nie ma znaczenia
+     * @return bool the returned value is not significant
      */
     public function displayAjaxAddNewGlobOrder()
     {
-        // w zmiennej $data docelowo bedzie cała zawartość pliku
+        // $data ends up holding the full contents of the file
         $data = Tools::getValue('data', null);
         $decode = json_decode($data, true);
 
@@ -399,7 +400,7 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
                     $trackingNumber = $tn;
                 }
             } catch (Exception $e) {
-                // tracking niedostępny jeszcze — JS polling uzupełni
+                // tracking not available yet — JS polling will fill it in
             }
         }
 
@@ -415,8 +416,8 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
     }
 
     /**
-     * Zapisuje numer śledzenia przesyłki pobrany przez JS z /v1/order/tracking
-     * przykladowy adres: index.php?controller=AdminGlobkurierPlaceOrder&ajax=1&action=saveTrackingNumber
+     * Saves the shipment tracking number fetched by JS from /v1/order/tracking
+     * example URL: index.php?controller=AdminGlobkurierPlaceOrder&ajax=1&action=saveTrackingNumber
      */
     public function displayAjaxSaveTrackingNumber()
     {
@@ -434,9 +435,9 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
     }
 
     /**
-     * przykladowy adres: index.php?controller=AdminGlobkurierPlaceOrder&ajax=1&action=getAllPickupPoints
+     * example URL: index.php?controller=AdminGlobkurierPlaceOrder&ajax=1&action=getAllPickupPoints
      *
-     * @return bool zwracana zmienna nie ma znaczenia
+     * @return bool the returned value is not significant
      */
     public function displayAjaxGetAllPickupPoints()
     {

@@ -25,7 +25,7 @@ class Config
 {
     public const CONFIG_COLUMN_NAME = 'wk_globkurier_config';
 
-    /** Poniżej są dane kofiguracyjne, które można wykorzystać w formularzu */
+    /** Below are the configuration fields usable in the form */
     public $defaultSenderName;
 
     public $defaultSenderPersonName;

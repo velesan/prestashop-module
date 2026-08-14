@@ -192,14 +192,14 @@ class AdminGlobkurierHistoryController extends ModuleAdminController
     }
 
     /**
-     * Metoda do zwracania linku do listu przewozowego
-     * przykladowy adres: index.php?controller=AdminGlobkurierPlaceOrder&ajax=1&action=getWaybill&gknumber=xc123123
+     * Method for returning the waybill link
+     * example URL: index.php?controller=AdminGlobkurierPlaceOrder&ajax=1&action=getWaybill&gknumber=xc123123
      *
-     * @return bool zwracana zmienna nie ma znaczenia
+     * @return bool the returned value is not significant
      */
     public function displayAjaxGetWaybill()
     {
-        /** @var string numer przesylki dla ktorej chcemy pobrać list przewozowy */
+        /** @var string shipment number for which we want to download the waybill */
         $number = Tools::getValue('gknumber', null);
         $resData = [];
 

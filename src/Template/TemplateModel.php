@@ -24,7 +24,7 @@ class TemplateModel
     /** @var int|null */
     public $idTemplate;
 
-    /** @var int|null ID szablonu po stronie GlobKurier API (do synchronizacji) */
+    /** @var int|null Template ID on the GlobKurier API side (for syncing) */
     public $gkTemplateId;
 
     /** @var string */
@@ -57,19 +57,19 @@ class TemplateModel
     /** @var string ISO 3166-1 alpha-2 recipient country code */
     public $recipientCountry = 'PL';
 
-    /** @var int|null ID produktu/usługi GlobKurier */
+    /** @var int|null GlobKurier product/service ID */
     public $gkProductId;
 
-    /** @var string|null JSON: wybrane dodatki */
+    /** @var string|null JSON: selected add-ons */
     public $gkAddons;
 
-    /** @var int|null ID metody płatności GK; null = użyj globalnego default */
+    /** @var int|null GK payment method ID; null = use the global default */
     public $paymentType;
 
-    /** @var int 1 = szablon domyślny */
+    /** @var int 1 = default template */
     public $isDefault = 0;
 
-    /** @var int|null id_carrier z PrestaShop — powiązanie szablonu z metodą dostawy */
+    /** @var int|null PrestaShop id_carrier — links the template to a delivery method */
     public $psCarrierId;
 
     /** @var string|null Data ostatniej synchronizacji z GK API */
@@ -82,7 +82,7 @@ class TemplateModel
     public $dateUpd = '';
 
     /**
-     * Tworzy model z tablicy (np. wiersza z bazy danych).
+     * Creates a model from an array (e.g. a database row).
      *
      * @param array $row
      * @return self
@@ -114,7 +114,7 @@ class TemplateModel
     }
 
     /**
-     * Konwertuje do tablicy do wyeksportowania do JS/JSON.
+     * Converts to an array for exporting to JS/JSON.
      *
      * @return array
      */
