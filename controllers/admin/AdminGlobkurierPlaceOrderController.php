@@ -45,7 +45,8 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
     public function renderView()
     {
         $c = new Globkuriermodule\Common\Config();
-        $api = new Globkuriermodule\Common\GlobkurierApi($c->login, $c->password, $c->apiKey);
+        $gkApiEnv = isset($c->gkApiEnv) ? (int)$c->gkApiEnv : 1;
+        $api = new Globkuriermodule\Common\GlobkurierApi($c->login, $c->password, $c->apiKey, $gkApiEnv);
         $moduleApiUrl = $this->link->getAdminLink('AdminGlobkurierPlaceOrder');
         $country_name = '';
         $sender_country_iso = $c->defaultCountryCode ? $c->defaultCountryCode : 'PL';
@@ -55,8 +56,13 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
         }
 
         $this->context->controller->addJqueryUI('ui.datepicker');
-        // Angular removed; Vue/jQuery app will be added later
-        $this->context->controller->addJS($this->path . '/views/js/newParcelApp.jquery.js');
+        // Angular removed; Vue/jQuery app will be added later.
+        // Cache-busted with filemtime so browsers always pick up JS edits
+        // immediately instead of serving a stale cached copy.
+        $newParcelJsFile = _PS_MODULE_DIR_ . 'globkuriermodule/views/js/newParcelApp.jquery.js';
+        $this->context->controller->addJS(
+            $this->path . '/views/js/newParcelApp.jquery.js?v=' . (@filemtime($newParcelJsFile) ?: 1)
+        );
 
         if (!empty($c->defaultCountryCode)) {
             $sender_country_id = Country::getByIso($c->defaultCountryCode);
@@ -77,6 +83,8 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
             'config' => $c,
             'token' => $api->getToken(),
             'globClientId' => $api->getClientId(),
+            'gkApiBaseUrl' => $api->getBaseApiUrl(),
+            'gkApiEnvIsTest' => ($gkApiEnv === 0),
             'service' => 'PICKUP',
             'iso_code' => $lang->iso_code,
             'sender_country_iso' => $sender_country_iso,
@@ -381,7 +389,8 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
         if ($success && !empty($order->hash)) {
             try {
                 $c = new Globkuriermodule\Common\Config();
-                $api = new Globkuriermodule\Common\GlobkurierApi($c->login, $c->password, $c->apiKey);
+                $gkApiEnv = isset($c->gkApiEnv) ? (int)$c->gkApiEnv : 1;
+                $api = new Globkuriermodule\Common\GlobkurierApi($c->login, $c->password, $c->apiKey, $gkApiEnv);
                 $api->login();
                 $response = $api->getOrder($order->hash, $order->gkId);
                 $tn = isset($response['trackingNumber']) ? $response['trackingNumber'] : null;
@@ -432,7 +441,8 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
     public function displayAjaxGetAllPickupPoints()
     {
         $c = new Globkuriermodule\Common\Config();
-        $api = new Globkuriermodule\Common\GlobkurierApi($c->login, $c->password, $c->apiKey);
+        $gkApiEnv = isset($c->gkApiEnv) ? (int)$c->gkApiEnv : 1;
+        $api = new Globkuriermodule\Common\GlobkurierApi($c->login, $c->password, $c->apiKey, $gkApiEnv);
 
         $api->cacheInPostPoints();
         $api->cachePaczkaWRuchuPoints();

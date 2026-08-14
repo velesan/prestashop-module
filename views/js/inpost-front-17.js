@@ -49,7 +49,7 @@
 })();
 
 $(function () {
-    const baseApiUrl = 'https://api.globkurier.pl/v1/';
+    const baseApiUrl = window.gkApiBaseUrl;
 
     // Shared state — represents the currently active pickup widget
     let cachedPoints = [];

@@ -55,8 +55,7 @@ class TemplateManager
     {
         $row = \Db::getInstance()->getRow(
             'SELECT * FROM `' . _DB_PREFIX_ . self::TABLE . '`
-             WHERE `is_default` = 1
-             LIMIT 1'
+             WHERE `is_default` = 1'
         );
         return $row ? TemplateModel::fromRow($row) : null;
     }

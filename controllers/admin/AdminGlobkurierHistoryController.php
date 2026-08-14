@@ -116,7 +116,8 @@ class AdminGlobkurierHistoryController extends ModuleAdminController
         }
 
         $c = new Globkuriermodule\Common\Config();
-        $api = new Globkuriermodule\Common\GlobkurierApi($c->login, $c->password, $c->apiKey);
+        $gkApiEnv = isset($c->gkApiEnv) ? (int)$c->gkApiEnv : 1;
+        $api = new Globkuriermodule\Common\GlobkurierApi($c->login, $c->password, $c->apiKey, $gkApiEnv);
 
         try {
             $api->login();
@@ -204,7 +205,8 @@ class AdminGlobkurierHistoryController extends ModuleAdminController
 
         try {
             $c = new Globkuriermodule\Common\Config();
-            $api = new Globkuriermodule\Common\GlobkurierApi($c->login, $c->password, $c->apiKey);
+            $gkApiEnv = isset($c->gkApiEnv) ? (int)$c->gkApiEnv : 1;
+            $api = new Globkuriermodule\Common\GlobkurierApi($c->login, $c->password, $c->apiKey, $gkApiEnv);
             $url = $api->getWaybillUrl($number);
             $resData['success'] = true;
             $resData['url'] = $url;

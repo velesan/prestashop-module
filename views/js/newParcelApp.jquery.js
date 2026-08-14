@@ -27,6 +27,12 @@
 	'use strict';
 
 	const GK = window.GK || (window.GK = {});
+	// Resolved lazily (not as a top-level const) because addJS()-registered scripts
+	// execute in <head>, before window.InitialValues is set by the inline <script>
+	// block further down the page. Reading it eagerly here always saw it as undefined.
+	function gkApiBase() {
+		return window.InitialValues && window.InitialValues.apiBase;
+	}
 	GK.state = {
 		isProcessing: false,
 		orderPlaced: null,
@@ -178,7 +184,7 @@ function showOrderPlaced(order) {
 			$('#orderPlacedTrackingTimeout').show();
 			return;
 		}
-		fetch('https://api.globkurier.pl/v1/order?hash=' + encodeURIComponent(hash), { headers: buildHeaders() })
+		fetch(gkApiBase() + 'order?hash=' + encodeURIComponent(hash), { headers: buildHeaders() })
 			.then(function(r){ return r.json(); })
 			.then(function(resp){
 				var tracking = (resp && resp.trackingNumber) ? resp.trackingNumber : null;
@@ -595,7 +601,7 @@ function showOrderErrors(obj) {
 			'x-auth-token': token || ''
 		};
 
-		fetch('https://api.globkurier.pl/v1/order/validate', {
+		fetch(gkApiBase() + 'order/validate', {
 			method: 'POST',
 			headers: reqHeaders,
 			body: JSON.stringify(orderData)
@@ -603,7 +609,7 @@ function showOrderErrors(obj) {
 			if (validateResp.status !== 204) {
 				return validateResp.json().then(function(body) { throw body || {}; });
 			}
-			return fetch('https://api.globkurier.pl/v1/order', {
+			return fetch(gkApiBase() + 'order', {
 				method: 'POST',
 				headers: reqHeaders,
 				body: JSON.stringify(orderData)
@@ -651,7 +657,7 @@ function showOrderErrors(obj) {
 			var order = GK.state.orderPlaced;
 			if (!order || !order.hash) return;
 			fetch(
-				'https://api.globkurier.pl/v1/order/labels?orderHashes[0]=' + encodeURIComponent(order.hash),
+				gkApiBase() + 'order/labels?orderHashes[0]=' + encodeURIComponent(order.hash),
 				{ headers: buildHeaders() }
 			).then(function(r){ return r.blob(); }).then(function(blob){
 				var url = URL.createObjectURL(blob);
@@ -770,7 +776,7 @@ function ensureCountryIdsFromIso() {
 function preloadCountriesMap() {
     if (!window.GK) window.GK = {};
     if (window.GK.countriesMapLoaded) return Promise.resolve(window.GK.countriesMap || {});
-    const url = 'https://api.globkurier.pl/v1/countries';
+    const url = gkApiBase() + 'countries';
     return fetch(url, { headers: buildHeaders() })
         .then(function(r){ return r.json(); })
         .then(function(list){
@@ -1051,7 +1057,7 @@ function fetchProducts() {
     const showAllFromDom = $('#service_filters_on').is(':checked');
     GK.state.showAllCarriers = !!showAllFromDom;
     const terminalType = GK.state.terminalType || (window.InitialValues && window.InitialValues.terminalType) || null;
-		const url = 'https://api.globkurier.pl/v1/products?' + new URLSearchParams(params).toString();
+		const url = gkApiBase() + 'products?' + new URLSearchParams(params).toString();
 		$('#servicesModalList').html('<div class="col-lg-12 text-center"><i class="icon-cog icon-spin"></i></div>');
 		$('#servicesContainer').addClass('loading');
 		const $btn = $('#getServicesBtn');
@@ -1181,7 +1187,7 @@ function renderServiceOptionsContainer() {
 		if (!s.pickedService) return;
 		const senderIso = (s.sender && s.sender.country && s.sender.country.isoCode) || (window.InitialValues && window.InitialValues.sender && window.InitialValues.sender.countryCode) || 'PL';
 		const receiverIso = (s.receiver && s.receiver.country && s.receiver.country.isoCode) || (window.InitialValues && window.InitialValues.receiver && window.InitialValues.receiver.countryCode) || 'PL';
-		const url = 'https://api.globkurier.pl/v1/order/content?' + new URLSearchParams({ productId: s.pickedService.id, senderCountry: senderIso, receiverCountry: receiverIso }).toString();
+		const url = gkApiBase() + 'order/content?' + new URLSearchParams({ productId: s.pickedService.id, senderCountry: senderIso, receiverCountry: receiverIso }).toString();
 		const defaultContent = (window.InitialValues && window.InitialValues.defaultPackageInfo && window.InitialValues.defaultPackageInfo.content) || '';
 		const currentCustom = (GK.state.packageInfo && GK.state.packageInfo.content) || '';
 		fetch(url, { headers: buildHeaders() })
@@ -1246,7 +1252,7 @@ function renderServiceOptionsContainer() {
 		$('#addonsListContainer').hide();
 		const params = buildProductsParams();
 		params.productId = s.pickedService.id;
-		const addonsUrl = 'https://api.globkurier.pl/v1/product/addons?' + new URLSearchParams(params).toString();
+		const addonsUrl = gkApiBase() + 'product/addons?' + new URLSearchParams(params).toString();
 		fetch(addonsUrl, { headers: buildHeaders() })
 			.then(function(r){ return r.json(); })
 			.then(function(data){
@@ -1522,7 +1528,7 @@ function updateChosenServiceUI() {
 		if (!s.pickedService) return Promise.resolve();
 		const params = buildProductsParams();
 		params.productId = s.pickedService.id;
-		const addonsUrl = 'https://api.globkurier.pl/v1/product/addons?' + new URLSearchParams(params).toString();
+		const addonsUrl = gkApiBase() + 'product/addons?' + new URLSearchParams(params).toString();
 		$('#addonsList').empty();
 		$('#addonsListContainer').hide();
 		return fetch(addonsUrl, { headers: buildHeaders() })
@@ -1578,7 +1584,7 @@ function updateChosenServiceUI() {
 		const payParams = { productId: s.pickedService.id, isFreightForwardAddonSelected: false };
 		const gross = computeGrossPrice();
 		if (gross != null) payParams.grossOrderPrice = gross.toFixed(2);
-		const paymentsUrl = 'https://api.globkurier.pl/v1/order/payments?' + new URLSearchParams(payParams).toString();
+		const paymentsUrl = gkApiBase() + 'order/payments?' + new URLSearchParams(payParams).toString();
 		const prev = s.additionalInfo && s.additionalInfo.paymentType ? (s.additionalInfo.paymentType + '') : '';
 		return fetch(paymentsUrl, { headers: buildHeaders() })
 			.then(function(r){ return r.json(); })
@@ -1676,7 +1682,7 @@ function updateChosenServiceUI() {
 		if (s.sender && s.sender.postalCode) params.senderPostCode = s.sender.postalCode;
 		if (s.receiver && s.receiver.postalCode) params.receiverPostCode = s.receiver.postalCode;
 
-		const url = 'https://api.globkurier.pl/v1/order/pickupTimeRanges?' + new URLSearchParams(params).toString();
+		const url = gkApiBase() + 'order/pickupTimeRanges?' + new URLSearchParams(params).toString();
 		return fetch(url, { headers: buildHeaders() })
 			.then(function(r){ return r.json(); })
 			.then(function(data){
@@ -1708,7 +1714,7 @@ function updateChosenServiceUI() {
 	if (s.receiver && s.receiver.country && s.receiver.country.id) params.receiverCountryId = s.receiver.country.id;
 	if (s.sender && s.sender.postalCode) params.senderPostCode = s.sender.postalCode;
 	if (s.receiver && s.receiver.postalCode) params.receiverPostCode = s.receiver.postalCode;
-		const url = 'https://api.globkurier.pl/v1/order/pickupTimeRanges?' + new URLSearchParams(params).toString();
+		const url = gkApiBase() + 'order/pickupTimeRanges?' + new URLSearchParams(params).toString();
 		return fetch(url, { headers: buildHeaders() })
 			.then(function(r){ return r.json(); })
 			.then(function(data){
@@ -1742,7 +1748,7 @@ function fetchStates(countryId, opts) {
     const targetGroup = opts.targetGroup || '#statesGroup';
     const targetSelect = opts.targetSelect || '#statesSelect';
     if (!countryId) { $(targetGroup).hide(); return Promise.resolve([]); }
-    const url = 'https://api.globkurier.pl/v1/states?countryId=' + encodeURIComponent(countryId);
+    const url = gkApiBase() + 'states?countryId=' + encodeURIComponent(countryId);
     return fetch(url, { headers: buildHeaders() })
         .then(function(r){ return r.json(); })
         .then(function(list){
@@ -1765,7 +1771,7 @@ function fetchStates(countryId, opts) {
 		const receiverCountryId = s.receiver && s.receiver.country && s.receiver.country.id;
 		const senderCountryId = s.sender && s.sender.country && s.sender.country.id;
 		if (!receiverCountryId || !senderCountryId) return;
-		const url = 'https://api.globkurier.pl/v1/order/customRequiredFields?' + new URLSearchParams({
+		const url = gkApiBase() + 'order/customRequiredFields?' + new URLSearchParams({
 			productId: s.pickedService.id,
 			senderCountryId: senderCountryId,
 			receiverCountryId: receiverCountryId,
@@ -1909,7 +1915,7 @@ function renderSummaryContainer() {
 		if (s.additionalInfo && s.additionalInfo.codAmount) usp.append('cashOnDeliveryValue', s.additionalInfo.codAmount);
 		if (s.discountCode) usp.append('discountCode', s.discountCode);
 
-		const url = 'https://api.globkurier.pl/v1/order/price?' + usp.toString();
+		const url = gkApiBase() + 'order/price?' + usp.toString();
 		$('#priceErrorBox').hide().text('');
 		return fetch(url, { headers: buildHeaders() })
 			.then(function(r){ return r.json(); })
@@ -1980,7 +1986,7 @@ function renderSummaryContainer() {
 						try {
 							const usp2 = new URLSearchParams(usp.toString());
 							usp2.delete('discountCode');
-							const url2 = 'https://api.globkurier.pl/v1/order/price?' + usp2.toString();
+							const url2 = gkApiBase() + 'order/price?' + usp2.toString();
 							return fetch(url2, { headers: buildHeaders() })
 								.then(function(r){ return r.json(); })
 								.then(function(r2){
@@ -2256,7 +2262,7 @@ function renderServicesAndBind() {
 			params.countryId = resolvedCountryId;
 		}
 
-		const url = 'https://api.globkurier.pl/v1/points?' + new URLSearchParams(params).toString();
+		const url = gkApiBase() + 'points?' + new URLSearchParams(params).toString();
 		return fetch(url, { headers: buildHeaders() })
 			.then(function(r){ return r.json(); })
 			.then(function(resp){

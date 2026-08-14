@@ -56,7 +56,7 @@
 		if (typeof window.tokenAPI !== 'undefined' && window.tokenAPI) {
 			headers['x-auth-token'] = window.tokenAPI;
 		}
-		var url = 'https://api.globkurier.pl/v1/products?' + new URLSearchParams(params).toString();
+		var url = window.gkApiBaseUrl + 'products?' + new URLSearchParams(params).toString();
 		return fetch(url, { headers: headers })
 			.then(function(r) { return r.json(); })
 			.then(function(data) {
@@ -104,7 +104,7 @@
 })();
 
 /* ─────────────────────────────────────────
-   TAB SYSTEM — PS 1.7 / 8 / 9 compatible
+   SIDEBAR TAB SYSTEM — PS 1.7 / 8 / 9
 ───────────────────────────────────────── */
 (function () {
 	'use strict';
@@ -112,28 +112,107 @@
 	var STORAGE_KEY = 'gk_config_tab';
 
 	function activateTab(tabId) {
-		$('.gk-tab-item').removeClass('gk-tab-active');
-		$('.gk-tab-item[data-tab="' + tabId + '"]').addClass('gk-tab-active');
+		var $btn = $('.gk-sidebar-btn[data-tab="' + tabId + '"]');
+		$('.gk-sidebar-btn').removeClass('is-active');
+		$btn.addClass('is-active');
 		$('.gk-tab-pane').removeClass('gk-active');
 		$('#' + tabId).addClass('gk-active');
+		var title = $btn.data('title') || '';
+		$('#gkSidebarCrumb').text(title);
 		try { sessionStorage.setItem(STORAGE_KEY, tabId); } catch(e) {}
 	}
 
-	function initTabs() {
-		$('.gk-tab-item').on('click', function () {
+	function closeSidebar() {
+		$('#gkSidebar').removeClass('is-open');
+		$('#gkSidebarOverlay').hide();
+	}
+
+	function initSidebar() {
+		$('.gk-sidebar-btn').on('click', function () {
 			activateTab($(this).data('tab'));
+			closeSidebar();
 		});
 
+		$('#gkHamburger').on('click', function () {
+			$('#gkSidebar').addClass('is-open');
+			$('#gkSidebarOverlay').show();
+		});
+
+		$('#gkSidebarClose, #gkSidebarOverlay').on('click', function () {
+			closeSidebar();
+		});
+
+		var defaultTab = (typeof gkIsAuthenticated !== 'undefined' && !gkIsAuthenticated) ? 'tab-konto' : null;
 		var saved = null;
 		try { saved = sessionStorage.getItem(STORAGE_KEY); } catch(e) {}
 		var hash = window.location.hash ? window.location.hash.replace('#', '') : null;
-		var target = hash || saved;
-		if (target && $('#' + target).length) {
+		var target = hash || saved || defaultTab || 'tab-konto';
+		if ($('#' + target).length) {
 			activateTab(target);
+		} else {
+			activateTab('tab-konto');
 		}
 	}
 
-	$(initTabs);
+	function initLogout() {
+		$(document).on('click', '#gkLogoutBtn', function () {
+			if (!confirm('Czy na pewno chcesz wylogować się z GlobKurier?')) { return; }
+			var $btn = $(this);
+			$btn.prop('disabled', true).text('Wylogowywanie…');
+
+			var url = (typeof gkConfigAjaxUrl !== 'undefined') ? gkConfigAjaxUrl : window.gkConfigAjaxUrl;
+			$.post(url + '&ajax_action=gkLogout', {})
+				.done(function (res) {
+					if (res && res.success) {
+						window.location.reload();
+					} else {
+						alert('Błąd wylogowania. Spróbuj ponownie.');
+						$btn.prop('disabled', false).text('Wyloguj się');
+					}
+				})
+				.fail(function () {
+					alert('Błąd połączenia z serwerem.');
+					$btn.prop('disabled', false).text('Wyloguj się');
+				});
+		});
+	}
+
+	function initApiEnvSwitch() {
+		$(document).on('change', 'input[name="config_gkApiEnv"]', function () {
+			var $switch = $('#gkApiEnvSwitch');
+			var $inputs = $switch.find('input[name="config_gkApiEnv"]');
+			var $savedMsg = $('#gkApiEnvSavedMsg');
+			var $host = $('#gkApiEnvHost');
+			var newVal = $(this).val();
+
+			var url = (typeof gkConfigAjaxUrl !== 'undefined') ? gkConfigAjaxUrl : window.gkConfigAjaxUrl;
+			$inputs.prop('disabled', true);
+			$savedMsg.hide();
+
+			$.post(url + '&ajax_action=setApiEnv', { config_gkApiEnv: newVal })
+				.done(function (res) {
+					if (res && res.success) {
+						window.gkApiBaseUrl = res.baseUrl;
+						$host.text(res.baseUrl);
+						$savedMsg.stop(true).show().delay(1500).fadeOut();
+					} else {
+						alert('Nie udało się zapisać środowiska API. Spróbuj ponownie.');
+					}
+				})
+				.fail(function () {
+					alert('Błąd połączenia z serwerem.');
+				})
+				.always(function () {
+					$inputs.prop('disabled', false);
+				});
+		});
+	}
+
+	$(function () {
+		initSidebar();
+		initLogout();
+		initApiEnvSwitch();
+	});
 })();
 
 /* ─────────────────────────────────────────
@@ -488,7 +567,7 @@
 				for (var i = 0; i < addons.length; i++) {
 					var a = addons[i];
 					var checked = (savedAddons.indexOf(a.id) !== -1 || savedAddons.indexOf(String(a.id)) !== -1) ? ' checked' : '';
-					html += '<div class="col-xs-6"><div class="checkbox"><label>' +
+					html += '<div class="col-xs-12 col-sm-6"><div class="checkbox"><label>' +
 						'<input type="checkbox" class="gk-tmpl-addon" value="' + a.id + '"' + checked + '> ' +
 						GkTmpl.esc(a.name || 'Dodatek ' + a.id) +
 						'</label></div></div>';

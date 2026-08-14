@@ -80,13 +80,19 @@ class Config
 
     public $defaultInPostPoint;
 
+    public $defaultInPostCODPoint;
+
     public $paczkaRuchEnabled;
 
     public $paczkaRuchCarrier;
 
+    public $defaultPaczkaRuchPoint;
+
     public $pocztex48owpEnabled;
 
     public $pocztex48owpCarrier;
+
+    public $defaultPocztex48owpPoint;
 
     public $dhlparcelEnabled;
 
@@ -96,6 +102,8 @@ class Config
 
     public $dpdpickupCarrier;
 
+    public $defaultDpdpickupPoint;
+
     public $globboxEnabled;
 
     public $login;
@@ -103,6 +111,18 @@ class Config
     public $password;
 
     public $apiKey;
+
+    public $gkApiEnv;
+
+    public $defaultEoriNumber;
+
+    public $defaultDutyPayerNumber;
+
+    public $labelFormat;
+
+    public $orderStatusAfterCreation;
+
+    public $orderStatusAfterDelivery;
 
     /** @deprecated No longer used - replaced with Leaflet maps */
     public $googleMapsApiKey;
@@ -178,6 +198,10 @@ class Config
         foreach (array_keys(get_object_vars($this)) as $key) {
             $v = \Tools::getValue('config_' . $key);
             if ($v !== false) {
+                // Keep existing password when submitted empty (user left field blank)
+                if ($key === 'password' && $v === '') {
+                    continue;
+                }
                 $this->$key = $v;
             }
         }

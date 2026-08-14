@@ -44,6 +44,11 @@
     <div class="panel-heading">
         <i class="icon-cogs"></i> {l s='Ship parcel with Globkurier' mod='globkuriermodule'}
         {if $orderId}{l s='Based on order' mod='globkuriermodule'} #{$orderId|escape:'htmlall':'UTF-8'}{/if}
+        {if $gkApiEnvIsTest}
+        <span class="label label-warning" style="margin-left:8px; vertical-align:middle;" title="{l s='GlobKurier API environment is set to Test. Switch to Production in module settings before shipping real parcels.' mod='globkuriermodule'}">
+            {l s='TEST MODE' mod='globkuriermodule'}
+        </span>
+        {/if}
     </div>
 
     {if $gk_all_templates_json && $gk_all_templates_json != '[]'}
@@ -609,6 +614,7 @@
             moduleName : 'globkuriermodule',
             partialsPath : '../modules/globkuriermodule/views/templates/partials/',
             moduleApiUrl : '{$moduleApiUrl|escape:'javascript':'UTF-8'}',
+            apiBase : '{$gkApiBaseUrl|escape:'javascript':'UTF-8'}',
             login : '{$config->login|escape:'javascript':'UTF-8'}',
             password : '{$config->password|escape:'javascript':'UTF-8'}',
             apiKey : '{$config->apiKey|escape:'javascript':'UTF-8'}',

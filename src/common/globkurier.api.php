@@ -31,7 +31,10 @@ if (!defined('_PS_VERSION_')) {
 }
 class GlobkurierApi
 {
-    private $baseApiUrl = 'https://api.globkurier.pl/v1/';
+    const API_BASE_PROD = 'https://api.globkurier.pl/v1/';
+    const API_BASE_TEST = 'https://test.api.globkurier.pl/v1/';
+
+    private $baseApiUrl;
 
     /** @var string user login in globkurier.pl */
     private $login;
@@ -51,12 +54,18 @@ class GlobkurierApi
     /** @var string */
     private $pathForCachedPointsCalledFromAdmin;
 
-    public function __construct($login = null, $password = null, $apiKey = null)
+    public function __construct($login = null, $password = null, $apiKey = null, $env = 1)
     {
         $this->login = $login;
         $this->password = $password;
         $this->apiKey = $apiKey;
+        $this->baseApiUrl = ((int)$env === 0) ? self::API_BASE_TEST : self::API_BASE_PROD;
         $this->pathForCachedPointsCalledFromAdmin = _PS_MODULE_DIR_ . 'globkuriermodule/';
+    }
+
+    public function getBaseApiUrl()
+    {
+        return $this->baseApiUrl;
     }
 
     /**

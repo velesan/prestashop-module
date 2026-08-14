@@ -139,43 +139,47 @@ class Globkuriermodule extends Module
                 ]);
             }
         }
+        $gkApiEnv = isset($config->gkApiEnv) ? (int)$config->gkApiEnv : 1;
+        $api = new Globkuriermodule\Common\GlobkurierApi($config->login, $config->password, $config->apiKey, $gkApiEnv);
+        $gkIsAuthenticated = $api->isUserAuthorized();
+
         $this->context->smarty->assign([
-            'config' => $config,
-            'submited' => Tools::getValue('action') == 'updateConfig' ? true : false,
+            'config'            => $config,
+            'submited'          => Tools::getValue('action') == 'updateConfig' ? true : false,
             'newParcelPageLink' => $this->link->getAdminLink('AdminGlobkurierPlaceOrder'),
-            'getCachePointsLink' => $this->link->getAdminLink('AdminGlobkurierPlaceOrder') . '&ajax=1&action=getAllPickupPoints',
-            'baseurl' => $this->_path,
+            'getCachePointsLink'=> $this->link->getAdminLink('AdminGlobkurierPlaceOrder') . '&ajax=1&action=getAllPickupPoints',
+            'baseurl'           => $this->_path,
+            'gkIsAuthenticated' => $gkIsAuthenticated,
         ]);
-        $api = new Globkuriermodule\Common\GlobkurierApi($config->login, $config->password, $config->apiKey);
-        if (!$api->isUserAuthorized()) {
-            if (version_compare(_PS_VERSION_, '1.6.0', '>=') === true) {
-                return $this->display(__FILE__, 'views/templates/admin/login_page_v16.tpl');
-            }
 
-            return $this->display(__FILE__, 'views/templates/admin/login_page_v15.tpl');
-        }
-        $carriers = Carrier::getCarriers($this->context->language->id);
-        $countries = $api->getCountries();
-        $latestVersion = $this->getLatestGithubVersion();
-
+        $carriers = [];
+        $countries = [];
         $gkPayments = [];
+        $latestVersion = null;
+        $currentPaymentId = 0;
 
-        try {
-            $raw = $api->getPayments();
-            if (is_array($raw)) {
-                foreach ($raw as $p) {
-                    if (isset($p['id']) && isset($p['enabled']) && $p['enabled']) {
-                        $gkPayments[] = $p;
+        if ($gkIsAuthenticated) {
+            $carriers = Carrier::getCarriers($this->context->language->id);
+            $countries = $api->getCountries();
+            $latestVersion = $this->getLatestGithubVersion();
+
+            try {
+                $raw = $api->getPayments();
+                if (is_array($raw)) {
+                    foreach ($raw as $p) {
+                        if (isset($p['id']) && isset($p['enabled']) && $p['enabled']) {
+                            $gkPayments[] = $p;
+                        }
                     }
                 }
+            } catch (Exception $e) {
             }
-        } catch (Exception $e) {
-        }
 
-        $legacyPaymentMap = ['T' => 1, 'O' => 2, 'P' => 9, 'D' => 4, 'COD' => 6];
-        $currentPaymentId = $config->defaultPaymentType;
-        if (isset($legacyPaymentMap[$currentPaymentId])) {
-            $currentPaymentId = $legacyPaymentMap[$currentPaymentId];
+            $legacyPaymentMap = ['T' => 1, 'O' => 2, 'P' => 9, 'D' => 4, 'COD' => 6];
+            $currentPaymentId = $config->defaultPaymentType;
+            if (isset($legacyPaymentMap[$currentPaymentId])) {
+                $currentPaymentId = $legacyPaymentMap[$currentPaymentId];
+            }
         }
 
         $gkTemplatesArr = [];
@@ -185,8 +189,10 @@ class Globkuriermodule extends Module
                 $gkTemplatesArr[] = $tmpl->toArray();
             }
         } catch (\Exception $e) {
-            // Tabela jeszcze nie istnieje — uruchom upgrade przez panel PS
+            // Table doesn't exist yet — run upgrade via PS panel
         }
+
+        $orderStatuses = OrderState::getOrderStates($this->context->language->id);
 
         $configAjaxUrl = $this->context->link->getAdminLink('AdminModules')
             . '&configure=' . $this->name
@@ -196,6 +202,9 @@ class Globkuriermodule extends Module
             'countries'           => $countries,
             'carriers'            => $carriers,
             'tokenAPI'            => $api->getToken(),
+            'gkApiBaseUrl'        => $api->getBaseApiUrl(),
+            'gkApiBaseUrlProd'    => Globkuriermodule\Common\GlobkurierApi::API_BASE_PROD,
+            'gkApiBaseUrlTest'    => Globkuriermodule\Common\GlobkurierApi::API_BASE_TEST,
             'moduleVersion'       => $this->version,
             'gk_latestVersion'    => $latestVersion,
             'gk_updateAvailable'  => $latestVersion && version_compare($latestVersion, $this->version, '>'),
@@ -205,9 +214,15 @@ class Globkuriermodule extends Module
             'gk_templates_json'   => json_encode($gkTemplatesArr),
             'gk_template_count'   => count($gkTemplatesArr),
             'configAjaxUrl'       => $configAjaxUrl,
+            'orderStatuses'       => $orderStatuses,
         ]);
-        // Load jQuery-based config page script (Angular removed)
-        $this->context->controller->addJS($this->_path . '/views/js/configApp.jquery.js');
+        // Load jQuery-based config page script (Angular removed).
+        // Cache-busted with filemtime so browsers always pick up JS edits
+        // immediately instead of serving a stale cached copy.
+        $configJsFile = _PS_MODULE_DIR_ . 'globkuriermodule/views/js/configApp.jquery.js';
+        $this->context->controller->addJS(
+            $this->_path . '/views/js/configApp.jquery.js?v=' . (@filemtime($configJsFile) ?: $this->version)
+        );
         if (version_compare(_PS_VERSION_, '1.6.0', '>=') === true) {
             return $this->display(__FILE__, 'views/templates/admin/config_page_v16.tpl');
         }
@@ -293,9 +308,45 @@ class Globkuriermodule extends Module
                     echo json_encode(['success' => $id ? $tm->setDefault($id) : false]);
                     break;
 
+                case 'gkLogout':
+                    $config = new Config();
+                    $config->login = '';
+                    $config->password = '';
+                    $ok = $config->update(false);
+                    echo json_encode(['success' => $ok]);
+                    break;
+
+                case 'setApiEnv':
+                    $envValue = Tools::getValue('config_gkApiEnv');
+                    if ($envValue !== '0' && $envValue !== '1') {
+                        echo json_encode(['success' => false, 'error' => 'Invalid environment value']);
+                        break;
+                    }
+                    $config = new Config();
+                    $config->gkApiEnv = $envValue;
+                    $ok = $config->update(false);
+
+                    // Country ID reference data is fetched per-environment and cached
+                    // to a file with a 7-day TTL (see getGkCountriesMap()). Test and
+                    // production may map ISO codes to different internal IDs, so the
+                    // stale cache must not survive an environment switch.
+                    $countriesMapFile = _PS_MODULE_DIR_ . 'globkuriermodule/countries_map.json';
+                    if (file_exists($countriesMapFile)) {
+                        @unlink($countriesMapFile);
+                    }
+
+                    $envApi = new Globkuriermodule\Common\GlobkurierApi($config->login, $config->password, $config->apiKey, (int)$envValue);
+                    echo json_encode([
+                        'success' => $ok,
+                        'env' => (int)$envValue,
+                        'baseUrl' => $envApi->getBaseApiUrl(),
+                    ]);
+                    break;
+
                 case 'syncTemplates':
                     $config = new Config();
-                    $api = new Globkuriermodule\Common\GlobkurierApi($config->login, $config->password, $config->apiKey);
+                    $gkApiEnvSync = isset($config->gkApiEnv) ? (int)$config->gkApiEnv : 1;
+                    $api = new Globkuriermodule\Common\GlobkurierApi($config->login, $config->password, $config->apiKey, $gkApiEnvSync);
                     if (!$api->isUserAuthorized()) {
                         echo json_encode(['success' => false, 'error' => 'Błąd autoryzacji']);
                         break;
@@ -308,7 +359,8 @@ class Globkuriermodule extends Module
 
                 case 'getProducts':
                     $config = new Config();
-                    $api = new Globkuriermodule\Common\GlobkurierApi($config->login, $config->password, $config->apiKey);
+                    $gkApiEnvProd = isset($config->gkApiEnv) ? (int)$config->gkApiEnv : 1;
+                    $api = new Globkuriermodule\Common\GlobkurierApi($config->login, $config->password, $config->apiKey, $gkApiEnvProd);
                     if (!$api->isUserAuthorized()) {
                         echo json_encode(['success' => false, 'services' => []]);
                         break;
@@ -328,7 +380,7 @@ class Globkuriermodule extends Module
                         'weight'   => (float)Tools::getValue('weight', 0),
                         'quantity' => 1,
                     ]);
-                    $ch = curl_init('https://api.globkurier.pl/v1/products?' . $params);
+                    $ch = curl_init($api->getBaseApiUrl() . 'products?' . $params);
                     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                     curl_setopt($ch, CURLOPT_HTTPHEADER, ['x-auth-token: ' . $token, 'accept-language: pl']);
                     $resp = curl_exec($ch);
@@ -350,7 +402,8 @@ class Globkuriermodule extends Module
 
                 case 'getAddons':
                     $config = new Config();
-                    $api = new Globkuriermodule\Common\GlobkurierApi($config->login, $config->password, $config->apiKey);
+                    $gkApiEnvAddons = isset($config->gkApiEnv) ? (int)$config->gkApiEnv : 1;
+                    $api = new Globkuriermodule\Common\GlobkurierApi($config->login, $config->password, $config->apiKey, $gkApiEnvAddons);
                     if (!$api->isUserAuthorized()) {
                         echo json_encode(['success' => false, 'addons' => []]);
                         break;
@@ -373,7 +426,7 @@ class Globkuriermodule extends Module
                         'weight'            => (float)Tools::getValue('weight', 1),
                         'quantity'          => max(1, (int)Tools::getValue('quantity', 1)),
                     ]);
-                    $ch = curl_init('https://api.globkurier.pl/v1/product/addons?' . $params);
+                    $ch = curl_init($api->getBaseApiUrl() . 'product/addons?' . $params);
                     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                     curl_setopt($ch, CURLOPT_HTTPHEADER, ['x-auth-token: ' . $token, 'accept-language: pl']);
                     $resp     = curl_exec($ch);
@@ -404,7 +457,8 @@ class Globkuriermodule extends Module
 
                 case 'getContentList':
                     $config = new Config();
-                    $api = new Globkuriermodule\Common\GlobkurierApi($config->login, $config->password, $config->apiKey);
+                    $gkApiEnvContent = isset($config->gkApiEnv) ? (int)$config->gkApiEnv : 1;
+                    $api = new Globkuriermodule\Common\GlobkurierApi($config->login, $config->password, $config->apiKey, $gkApiEnvContent);
                     if (!$api->isUserAuthorized()) {
                         echo json_encode(['success' => false, 'contents' => [], 'allowOtherContent' => true]);
                         break;
@@ -417,7 +471,7 @@ class Globkuriermodule extends Module
                         'senderCountry'   => $senderIso,
                         'receiverCountry' => $receiverIso,
                     ]);
-                    $ch = curl_init('https://api.globkurier.pl/v1/order/content?' . $params);
+                    $ch = curl_init($api->getBaseApiUrl() . 'order/content?' . $params);
                     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                     curl_setopt($ch, CURLOPT_HTTPHEADER, ['x-auth-token: ' . $token, 'accept-language: pl']);
                     $resp = curl_exec($ch);
@@ -724,6 +778,12 @@ class Globkuriermodule extends Module
         if ($code != 'order' && $code != 'order-opc') {
             return;
         }
+
+        // Media::addJsDef() renders before registered/addJS'd script files,
+        // so inpost-front(-17).js can read window.gkApiBaseUrl at load time.
+        $frontGkApiEnv = isset($config->gkApiEnv) ? (int)$config->gkApiEnv : 1;
+        $frontApi = new Globkuriermodule\Common\GlobkurierApi($config->login, $config->password, $config->apiKey, $frontGkApiEnv);
+        Media::addJsDef(['gkApiBaseUrl' => $frontApi->getBaseApiUrl()]);
         if (version_compare(_PS_VERSION_, '8.0.0', '>=') === true) {
             // PrestaShop 8.x and 9.x - use modern asset management
             $this->context->controller->registerStylesheet(
@@ -994,7 +1054,8 @@ class Globkuriermodule extends Module
             }
         }
 
-        $api = new Globkuriermodule\Common\GlobkurierApi($config->login, $config->password, $config->apiKey);
+        $gkApiEnvMap = isset($config->gkApiEnv) ? (int)$config->gkApiEnv : 1;
+        $api = new Globkuriermodule\Common\GlobkurierApi($config->login, $config->password, $config->apiKey, $gkApiEnvMap);
         $countries = $api->getCountries();
 
         $map = [];

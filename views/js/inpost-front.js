@@ -25,8 +25,7 @@
 $(function(){
 
     const self = this;
-    // const baseApiUrl = 'http://test.api.globkurier.pl/v1/';
-    const baseApiUrl = 'https://api.globkurier.pl/v1/';
+    const baseApiUrl = window.gkApiBaseUrl;
 
     $('img.ajax-loader').hide();
 
