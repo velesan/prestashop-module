@@ -250,20 +250,20 @@
                                 <div class="form-horizontal">
                                     <h4 class="text-muted" style="margin:0 0 18px; font-size:13px; text-transform:uppercase; letter-spacing:.05em;">{l s='Default parcel parameters' mod='globkuriermodule'}</h4>
                                     <div class="form-group">
-                                        <label class="col-lg-4 control-label">{l s='Weight (kg)' mod='globkuriermodule'}:<sup>*</sup></label>
-                                        <div class="col-lg-3"><input class="form-control" type="number" step="0.01" name="config_defaultWeight" value="{$config->defaultWeight|escape:'htmlall':'UTF-8'}" required="required" /></div>
+                                        <label class="col-lg-4 control-label">{l s='Length (cm)' mod='globkuriermodule'}:<sup>*</sup></label>
+                                        <div class="col-lg-3"><input class="form-control" type="number" name="config_defaultDepth" value="{$config->defaultDepth|escape:'htmlall':'UTF-8'}" required="required" /></div>
                                     </div>
                                     <div class="form-group">
-                                        <label class="col-lg-4 control-label">{l s='Width' mod='globkuriermodule'} [cm]:<sup>*</sup></label>
+                                        <label class="col-lg-4 control-label">{l s='Width (cm)' mod='globkuriermodule'}:<sup>*</sup></label>
                                         <div class="col-lg-3"><input class="form-control" type="number" name="config_defaultWidth" value="{$config->defaultWidth|escape:'htmlall':'UTF-8'}" required="required" /></div>
                                     </div>
                                     <div class="form-group">
-                                        <label class="col-lg-4 control-label">{l s='Height' mod='globkuriermodule'} [cm]:<sup>*</sup></label>
+                                        <label class="col-lg-4 control-label">{l s='Height (cm)' mod='globkuriermodule'}:<sup>*</sup></label>
                                         <div class="col-lg-3"><input class="form-control" type="number" name="config_defaultHeight" value="{$config->defaultHeight|escape:'htmlall':'UTF-8'}" required="required" /></div>
                                     </div>
                                     <div class="form-group">
-                                        <label class="col-lg-4 control-label">{l s='Depth' mod='globkuriermodule'} [cm]:<sup>*</sup></label>
-                                        <div class="col-lg-3"><input class="form-control" type="number" name="config_defaultDepth" value="{$config->defaultDepth|escape:'htmlall':'UTF-8'}" required="required" /></div>
+                                        <label class="col-lg-4 control-label">{l s='Weight (kg)' mod='globkuriermodule'}:<sup>*</sup></label>
+                                        <div class="col-lg-3"><input class="form-control" type="number" step="0.01" name="config_defaultWeight" value="{$config->defaultWeight|escape:'htmlall':'UTF-8'}" required="required" /></div>
                                     </div>
                                     <div class="form-group">
                                         <label class="col-lg-4 control-label">{l s='Content' mod='globkuriermodule'}:<sup>*</sup></label>
@@ -520,7 +520,7 @@
                                             <div class="form-group">
                                                 <label class="col-sm-4 control-label">{l s='Length (cm)' mod='globkuriermodule'}</label>
                                                 <div class="col-sm-3"><input type="number" step="0.1" class="form-control" id="gk-f-length" /></div>
-                                                <label class="col-sm-2 control-label">{l s='Width' mod='globkuriermodule'}</label>
+                                                <label class="col-sm-2 control-label">{l s='Width (cm)' mod='globkuriermodule'}</label>
                                                 <div class="col-sm-3"><input type="number" step="0.1" class="form-control" id="gk-f-width" /></div>
                                             </div>
                                             <div class="form-group">

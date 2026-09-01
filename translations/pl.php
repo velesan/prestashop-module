@@ -370,3 +370,4 @@ $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_88299e7c23ef1a0571459f5b
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_a3224c57449eee5e74c8025e25ea92e0'] = 'Środowisko API GlobKurier jest ustawione na Testowe. Przełącz na Produkcyjne w ustawieniach modułu przed nadaniem prawdziwych przesyłek.';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_248336101b461380a4b2391a7625493d'] = 'Zapisano';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_266d7dbacfb7e268ceff723f54b8c371'] = 'Przełącznik środowiska działa natychmiast — nie trzeba zapisywać formularza ani logować się ponownie.';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_3d0ed3e9145be53d081d10fe37c93290'] = 'Szerokość (cm)';
