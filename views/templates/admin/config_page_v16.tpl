@@ -497,6 +497,37 @@
                                             </div>
                                             <div class="gk-tmpl-subheading">{l s='Route' mod='globkuriermodule'}</div>
                                             <div class="form-group">
+                                                <label class="col-sm-4 control-label">{l s='Package type' mod='globkuriermodule'}</label>
+                                                <div class="col-sm-8">
+                                                    <select class="form-control" id="gk-f-package-list">
+                                                        <option value="PARCEL">{l s='Parcel' mod='globkuriermodule'}</option>
+                                                        <option value="DOX">{l s='Envelope' mod='globkuriermodule'}</option>
+                                                        <option value="LONG_PARCEL">{l s='Long parcel' mod='globkuriermodule'}</option>
+                                                        <option value="PALLET">{l s='Pallet' mod='globkuriermodule'}</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="col-sm-4 control-label">{l s='Sending method' mod='globkuriermodule'}</label>
+                                                <div class="col-sm-8">
+                                                    <select class="form-control" id="gk-f-collection-type">
+                                                        <option value="">{l s='-- no preference --' mod='globkuriermodule'}</option>
+                                                        <option value="PICKUP">{l s='Courier pickup' mod='globkuriermodule'}</option>
+                                                        <option value="POINT">{l s='Drop off at a point' mod='globkuriermodule'}</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="col-sm-4 control-label">{l s='Delivery method' mod='globkuriermodule'}</label>
+                                                <div class="col-sm-8">
+                                                    <select class="form-control" id="gk-f-delivery-type">
+                                                        <option value="">{l s='-- no preference --' mod='globkuriermodule'}</option>
+                                                        <option value="PICKUP">{l s='Door delivery' mod='globkuriermodule'}</option>
+                                                        <option value="POINT">{l s='Delivery to a point' mod='globkuriermodule'}</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="form-group">
                                                 <label class="col-sm-4 control-label">{l s='Sender country' mod='globkuriermodule'}</label>
                                                 <div class="col-sm-8">
                                                     <select class="form-control" id="gk-f-sender-country">

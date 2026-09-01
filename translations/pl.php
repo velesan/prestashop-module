@@ -371,3 +371,15 @@ $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_a3224c57449eee5e74c8025e
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_248336101b461380a4b2391a7625493d'] = 'Zapisano';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_266d7dbacfb7e268ceff723f54b8c371'] = 'Przełącznik środowiska działa natychmiast — nie trzeba zapisywać formularza ani logować się ponownie.';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_3d0ed3e9145be53d081d10fe37c93290'] = 'Szerokość (cm)';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_519044510c97365906cb7e8370ee07db'] = 'Rodzaj przesyłki';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_f38e9081d395bb971dd1bf81f65f22e6'] = 'Paczka';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_5a4d5cecd9f32db458479b6d7b281b79'] = 'Koperta';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_f5896e44f7831d6e6a0172479e267036'] = 'Paczka dłużycowa';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_fe78f3efbfa84d8485d589031596c5b8'] = 'Paleta';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_e6061a00556adac7cc6b2cdba8f63c1c'] = 'Sposób nadania';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_c3ad212b4825afa3f359a539b25a8ae9'] = '-- bez preferencji --';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_761e10575e150338f291facc28683073'] = 'Podjazd kuriera';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_ec5e2ce5eea13bed310cb1b56a78be54'] = 'Nadam w punkcie';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_6310f29293c902c64db619c29179d99a'] = 'Sposób odbioru';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_0c86cbb55f8e0a758b64008d1359feb3'] = 'Dostawa do drzwi';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_166f08a7fadaddc1b804f1b73d8b1ca4'] = 'Dostawa do punktu';

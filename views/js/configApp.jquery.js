@@ -297,6 +297,9 @@
 			$('#gk-f-contents').val(t.contents || '');
 			$('#gk-f-payment').val(t.payment_type || '');
 			$('#gk-f-default').prop('checked', !!t.is_default);
+			$('#gk-f-package-list').val(t.package_list || 'PARCEL');
+			$('#gk-f-collection-type').val(t.collection_type || '');
+			$('#gk-f-delivery-type').val(t.delivery_type || '');
 			$('#gk-f-sender-country').val(t.sender_country || 'PL');
 			$('#gk-f-recipient-country').val(t.recipient_country || 'PL');
 			$('#gk-f-product-id').val(t.gk_product_id || '');
@@ -339,6 +342,9 @@
 			$('#gk-f-payment').val('');
 			$('#gk-f-default').prop('checked', false);
 			$('#gk-f-sync-info').hide();
+			$('#gk-f-package-list').val('PARCEL');
+			$('#gk-f-collection-type').val('');
+			$('#gk-f-delivery-type').val('');
 			$('#gk-f-sender-country').val('PL');
 			$('#gk-f-recipient-country').val('PL');
 			$('#gk-f-product-id').val('');
@@ -380,6 +386,9 @@
 				contents:          contentsVal,
 				payment_type:      $('#gk-f-payment').val() || '',
 				is_default:        $('#gk-f-default').is(':checked') ? 1 : 0,
+				package_list:      $('#gk-f-package-list').val() || 'PARCEL',
+				collection_type:   $('#gk-f-collection-type').val() || '',
+				delivery_type:     $('#gk-f-delivery-type').val() || '',
 				sender_country:    $('#gk-f-sender-country').val() || 'PL',
 				recipient_country: $('#gk-f-recipient-country').val() || 'PL',
 				gk_product_id:     $('#gk-f-product-select').val() || '',

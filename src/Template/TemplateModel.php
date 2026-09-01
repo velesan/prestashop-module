@@ -57,6 +57,12 @@ class TemplateModel
     /** @var string ISO 3166-1 alpha-2 recipient country code */
     public $recipientCountry = 'PL';
 
+    /** @var string|null PICKUP|POINT; null = no preference */
+    public $collectionType;
+
+    /** @var string|null PICKUP|POINT; null = no preference */
+    public $deliveryType;
+
     /** @var int|null GlobKurier product/service ID */
     public $gkProductId;
 
@@ -72,7 +78,7 @@ class TemplateModel
     /** @var int|null PrestaShop id_carrier — links the template to a delivery method */
     public $psCarrierId;
 
-    /** @var string|null Data ostatniej synchronizacji z GK API */
+    /** @var string|null Date of the last sync with the GK API */
     public $gkSyncAt;
 
     /** @var string */
@@ -102,6 +108,8 @@ class TemplateModel
         $m->contents       = isset($row['contents'])          ? (string)$row['contents']          : null;
         $m->senderCountry  = isset($row['sender_country'])    ? (string)$row['sender_country']    : 'PL';
         $m->recipientCountry = isset($row['recipient_country']) ? (string)$row['recipient_country'] : 'PL';
+        $m->collectionType = !empty($row['collection_type']) ? (string)$row['collection_type'] : null;
+        $m->deliveryType   = !empty($row['delivery_type'])   ? (string)$row['delivery_type']   : null;
         $m->gkProductId    = isset($row['gk_product_id']) && $row['gk_product_id'] ? (int)$row['gk_product_id'] : null;
         $m->gkAddons     = isset($row['gk_addons'])     ? $row['gk_addons']           : null;
         $m->paymentType  = isset($row['payment_type'])  && $row['payment_type'] !== null ? (int)$row['payment_type'] : null;
@@ -133,6 +141,8 @@ class TemplateModel
             'contents'          => $this->contents,
             'sender_country'    => $this->senderCountry,
             'recipient_country' => $this->recipientCountry,
+            'collection_type'   => $this->collectionType,
+            'delivery_type'     => $this->deliveryType,
             'gk_product_id'     => $this->gkProductId,
             'gk_addons'      => $this->gkAddons,
             'payment_type'   => $this->paymentType,

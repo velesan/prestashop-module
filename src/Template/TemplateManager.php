@@ -247,6 +247,8 @@ class TemplateManager
             'contents'          => $t->contents  !== null ? pSQL($t->contents)  : null,
             'sender_country'    => pSQL($t->senderCountry ?: 'PL'),
             'recipient_country' => pSQL($t->recipientCountry ?: 'PL'),
+            'collection_type'   => $t->collectionType !== null ? pSQL($t->collectionType) : null,
+            'delivery_type'     => $t->deliveryType   !== null ? pSQL($t->deliveryType)   : null,
             'gk_product_id'     => $t->gkProductId  !== null ? (int)$t->gkProductId  : null,
             'gk_addons'      => $t->gkAddons !== null ? pSQL($t->gkAddons) : null,
             'payment_type'   => $t->paymentType  !== null ? (int)$t->paymentType  : null,

@@ -274,8 +274,13 @@ class Globkuriermodule extends Module
                     $wei = Tools::getValue('weight', '');
                     $pay = Tools::getValue('payment_type', '');
                     $car = Tools::getValue('ps_carrier_id', '');
+                    $pkgList = (string)Tools::getValue('package_list', 'PARCEL');
+                    $collType = (string)Tools::getValue('collection_type', '');
+                    $delType  = (string)Tools::getValue('delivery_type', '');
                     $t->name        = $name;
-                    $t->packageList = 'PARCEL';
+                    $t->packageList = in_array($pkgList, ['PARCEL', 'DOX', 'LONG_PARCEL', 'PALLET'], true) ? $pkgList : 'PARCEL';
+                    $t->collectionType = in_array($collType, ['PICKUP', 'POINT'], true) ? $collType : null;
+                    $t->deliveryType   = in_array($delType, ['PICKUP', 'POINT'], true) ? $delType : null;
                     $t->length      = $len !== '' ? (float)$len : null;
                     $t->width       = $wid !== '' ? (float)$wid : null;
                     $t->height      = $hei !== '' ? (float)$hei : null;

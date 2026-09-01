@@ -252,8 +252,8 @@
                     <div class="panel-heading">{l s='Shipping' mod='globkuriermodule'}</div>
                     <div class="panel-body form-horizontal" id="serviceOptionsBody" style="margin-left:20px;">
                         <div class="form-group deliverySending">
-                            <label class="radio"><input type="radio" name="pickup_type" id="pickup" value="PICKUP" checked> {l s='The parcel will be picked up by a courier' mod='globkuriermodule'}</label>
-                            <label class="radio"><input type="radio" name="pickup_type" id="point" value="POINT"> {l s='I will send the shipment at the terminal' mod='globkuriermodule'}</label>
+                            <label class="radio"><input type="radio" name="pickup_type" id="pickup" value="PICKUP" {if !($selected_template && $selected_template.collection_type == 'POINT')}checked{/if}> {l s='The parcel will be picked up by a courier' mod='globkuriermodule'}</label>
+                            <label class="radio"><input type="radio" name="pickup_type" id="point" value="POINT" {if $selected_template && $selected_template.collection_type == 'POINT'}checked{/if}> {l s='I will send the shipment at the terminal' mod='globkuriermodule'}</label>
                         </div>
                         <div id="pickupMethodAddons" style="display:none; margin-top:4px;"></div>
                     </div>

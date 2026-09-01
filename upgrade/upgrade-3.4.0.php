@@ -69,6 +69,10 @@ function upgrade_module_3_4_0($module)
             `contents`          VARCHAR(255)    DEFAULT NULL,
             `sender_country`    VARCHAR(2)      NOT NULL DEFAULT "PL",
             `recipient_country` VARCHAR(2)      NOT NULL DEFAULT "PL",
+            `collection_type` VARCHAR(20)     DEFAULT NULL
+                COMMENT "PICKUP | POINT; null = no preference",
+            `delivery_type`   VARCHAR(20)     DEFAULT NULL
+                COMMENT "PICKUP | POINT; null = no preference",
             `gk_product_id`  INT             DEFAULT NULL
                 COMMENT "ID usługi/produktu GlobKurier",
             `gk_addons`      TEXT            DEFAULT NULL
@@ -89,6 +93,21 @@ function upgrade_module_3_4_0($module)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ')) {
         return false;
+    }
+
+    /* ── 2b. Add collection_type/delivery_type if globkurier_template pre-dates them ── */
+    foreach (['collection_type', 'delivery_type'] as $col) {
+        $colExists = $db->executeS(
+            'SHOW COLUMNS FROM `' . $prefix . 'globkurier_template` LIKE \'' . $col . '\''
+        );
+        if (empty($colExists)) {
+            if (!$db->execute(
+                'ALTER TABLE `' . $prefix . 'globkurier_template`
+                 ADD COLUMN `' . $col . '` VARCHAR(20) DEFAULT NULL'
+            )) {
+                return false;
+            }
+        }
     }
 
     /* ── 3. One-time migration: config → default template ── */
