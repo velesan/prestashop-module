@@ -201,21 +201,21 @@
                         <hr/>
                         <div class="row">
                             <div class="col-lg-4">
-                                <div class="form-group"><label>{l s='Height (cm)' mod='globkuriermodule'}</label><input id="pkg-height" type="number" step="1" class="form-control"></div>
-                            </div>
-                            <div class="col-lg-4">
                                 <div class="form-group"><label>{l s='Length (cm)' mod='globkuriermodule'}</label><input id="pkg-length" type="number" step="1" class="form-control"></div>
                             </div>
                             <div class="col-lg-4">
                                 <div class="form-group"><label>{l s='Width (cm)' mod='globkuriermodule'}</label><input id="pkg-width" type="number" step="1" class="form-control"></div>
                             </div>
+                            <div class="col-lg-4">
+                                <div class="form-group"><label>{l s='Height (cm)' mod='globkuriermodule'}</label><input id="pkg-height" type="number" step="1" class="form-control"></div>
+                            </div>
                         </div>
                         <div class="row">
                             <div class="col-lg-6">
-                                <div class="form-group"><label>{l s='Quantity' mod='globkuriermodule'}</label><input id="pkg-count" type="number" step="1" class="form-control" value="1"></div>
+                                <div class="form-group"><label>{l s='Weight (kg)' mod='globkuriermodule'}</label><input id="pkg-weight" type="number" step="0.01" class="form-control"></div>
                             </div>
                             <div class="col-lg-6">
-                                <div class="form-group"><label>{l s='Weight (kg)' mod='globkuriermodule'}</label><input id="pkg-weight" type="number" step="0.01" class="form-control"></div>
+                                <div class="form-group"><label>{l s='Quantity' mod='globkuriermodule'}</label><input id="pkg-count" type="number" step="1" class="form-control" value="1"></div>
                             </div>
                         </div>
                         {if isset($order_products_weight) && ($order_products_weight > 0 || (isset($catalog_products_weight) && $catalog_products_weight > 0))}
