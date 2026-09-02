@@ -124,7 +124,11 @@ $_MODULE['<{globkuriermodule}prestashop>config_page_v16_f2a6c498fb90ee345d997f88
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_e92a1a225f6598ff33242d282f077679'] = 'Płatność i pobranie';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_c453a4b8e8d98e82f35b67f433e3b4da'] = 'Płatność';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_21b20788e66f7fae8b584a39e0f3341c'] = '-- brak (wybór ręczny) --';
-$_MODULE['<{globkuriermodule}prestashop>config_page_v16_a89413c0770bd9e3ce183439eb5c2edf'] = 'Automatycznie wybierany podczas nadania. Nadpisywany przez szablon.';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_a0d9ac96ee7106064dcc17b00fe7bcb8'] = 'Konto pre-paid (faktura zbiorcza)';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_9b924212953977a8e5b056fa63ea2df7'] = 'Faktura zbiorcza – przelew bankowy (odroczony termin)';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_30a56b02f36a1b8b68c7d573368154d7'] = 'Saldo pre-paid';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_674568ba5f29865a932410bd0fd2f207'] = 'Sposób rozliczenia kosztów przesyłek z GlobKurierem: płatność z góry z salda pre-paid albo faktura zbiorcza z odroczonym terminem płatności.';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_45ca46f5aed13cae259f619fc59281cb'] = 'Doładuj w panelu GlobKurier.';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_3a3bcc9ff32227babfa1f03ea8836209'] = 'Kod SWIFT/BIC do pobrania';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_a74e6f14aa0e3c36d7dd66c46325e15f'] = 'Opcjonalne dla polskiego konta. Wymagane przez bank, gdy konto nie jest polskie.';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_8c1f70894aa14147004a08de13ac2dc4'] = 'Numer konta bankowego do pobrań';

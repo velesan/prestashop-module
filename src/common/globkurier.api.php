@@ -367,16 +367,17 @@ class GlobkurierApi
     }
 
     /**
-     * Fetches the account's available payment methods (no product context).
+     * Fetches account stats, including the pre-paid balance (prepaidBalance.value/currency).
      *
      * @return array
      */
-    public function getPayments()
+    public function getUserStats()
     {
-        $url = $this->baseApiUrl . 'order/payments';
+        $url = $this->baseApiUrl . 'user/stats';
 
         return $this->sendJSONRequest($url, $this->token, [], 'GET');
     }
+
 
     /**
      * Fetches order data from the GlobKurier API — including the trackingNumber from the carrier.

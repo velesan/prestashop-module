@@ -187,10 +187,16 @@ class TemplateManager
     /**
      * Imports templates from GlobKurier API — creates only missing ones (skips existing).
      *
-     * @param array $apiTemplates  array from GET /v1/order/productTemplate results key
+     * @param array $apiTemplates  array from GET /v1/order/productTemplate results key —
+     *   a flat object per template (length/width/height/weight/quantity/content/productId/
+     *   senderCountryId/receiverCountryId/addons live at the top level, there is no nested
+     *   "shipment" key)
+     * @param array $countryIdToIso  GlobKurier numeric country id => ISO code, to resolve
+     *   senderCountryId/receiverCountryId. Countries fall back to the model's 'PL' default
+     *   when omitted or the id isn't in the map.
      * @return array ['created' => int, 'skipped' => int]
      */
-    public function syncFromApi(array $apiTemplates)
+    public function syncFromApi(array $apiTemplates, array $countryIdToIso = [])
     {
         $created = 0;
         $skipped = 0;
@@ -211,18 +217,38 @@ class TemplateManager
                 continue;
             }
 
-            $shipment = isset($apiTmpl['shipment']) && is_array($apiTmpl['shipment']) ? $apiTmpl['shipment'] : [];
-
             $t = new TemplateModel();
             $t->gkTemplateId = $gkId;
             $t->name         = isset($apiTmpl['name']) ? (string)$apiTmpl['name'] : ('GK #' . $gkId);
-            $t->length       = isset($shipment['length'])     ? (float)$shipment['length']    : null;
-            $t->width        = isset($shipment['width'])      ? (float)$shipment['width']     : null;
-            $t->height       = isset($shipment['height'])     ? (float)$shipment['height']    : null;
-            $t->weight       = isset($shipment['weight'])     ? (float)$shipment['weight']    : null;
-            $t->quantity     = isset($shipment['quantity'])   ? (int)$shipment['quantity']    : 1;
-            $t->contents     = isset($apiTmpl['content'])     ? (string)$apiTmpl['content']   : null;
-            $t->gkProductId  = isset($shipment['productId'])  ? (int)$shipment['productId']   : null;
+            $t->length       = isset($apiTmpl['length'])     ? (float)$apiTmpl['length']    : null;
+            $t->width        = isset($apiTmpl['width'])      ? (float)$apiTmpl['width']     : null;
+            $t->height       = isset($apiTmpl['height'])     ? (float)$apiTmpl['height']    : null;
+            $t->weight       = isset($apiTmpl['weight'])     ? (float)$apiTmpl['weight']    : null;
+            $t->quantity     = isset($apiTmpl['quantity'])   ? (int)$apiTmpl['quantity']    : 1;
+            $t->contents     = isset($apiTmpl['content'])    ? (string)$apiTmpl['content']  : null;
+            $t->gkProductId  = isset($apiTmpl['productId'])  ? (int)$apiTmpl['productId']   : null;
+
+            if (isset($apiTmpl['senderCountryId'], $countryIdToIso[(int)$apiTmpl['senderCountryId']])) {
+                $t->senderCountry = $countryIdToIso[(int)$apiTmpl['senderCountryId']];
+            }
+            if (isset($apiTmpl['receiverCountryId'], $countryIdToIso[(int)$apiTmpl['receiverCountryId']])) {
+                $t->recipientCountry = $countryIdToIso[(int)$apiTmpl['receiverCountryId']];
+            }
+
+            if (!empty($apiTmpl['addons']) && is_array($apiTmpl['addons'])) {
+                $categories = [];
+                foreach ($apiTmpl['addons'] as $addon) {
+                    if (is_array($addon) && !empty($addon['category'])) {
+                        $categories[] = (string)$addon['category'];
+                    } elseif (is_string($addon) && $addon !== '') {
+                        $categories[] = $addon;
+                    }
+                }
+                if ($categories) {
+                    $t->gkAddons = json_encode(array_values(array_unique($categories)));
+                }
+            }
+
             $t->gkSyncAt     = $now;
             $this->create($t);
             $created++;

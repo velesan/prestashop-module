@@ -178,7 +178,11 @@ $_MODULE['<{globkuriermodule}prestashop>config_page_v16_e8d08ef976a014140312d018
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_b206011be1eb8c6c0ed864e0d9ceafce'] = 'Shipment templates';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_8fe66999024be6ccff5e80e0a487da6f'] = 'Saves tabs: Sender, Shipment settings, Operators.';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_e92a1a225f6598ff33242d282f077679'] = 'Payment & COD';
-$_MODULE['<{globkuriermodule}prestashop>config_page_v16_a89413c0770bd9e3ce183439eb5c2edf'] = 'Auto-selected during shipment. Overridden by template setting.';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_a0d9ac96ee7106064dcc17b00fe7bcb8'] = 'Pre-paid account (summary invoice)';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_9b924212953977a8e5b056fa63ea2df7'] = 'Summary invoice (bank transfer - deferred payment)';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_30a56b02f36a1b8b68c7d573368154d7'] = 'Pre-paid balance';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_674568ba5f29865a932410bd0fd2f207'] = 'How you settle shipping costs with GlobKurier: pay upfront from your pre-paid balance, or get a collective invoice with deferred payment.';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_45ca46f5aed13cae259f619fc59281cb'] = 'Top up from your GlobKurier panel.';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_89553e5c188b296a7730908259413e39'] = 'Pickup point operators';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_d39e1498c3bd289bb7ed63f790adfb0d'] = 'Length (cm)';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_20fbaa7c1bf32aa91ed46514737a0687'] = 'Height (cm)';

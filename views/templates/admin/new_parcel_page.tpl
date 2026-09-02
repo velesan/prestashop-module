@@ -607,7 +607,7 @@
                 weight : {if $effective_products_weight > 0}{$effective_products_weight|floatval}{elseif $selected_template && $selected_template.weight}{$selected_template.weight|floatval}{elseif $config->defaultWeight}{$config->defaultWeight|escape:'javascript':'UTF-8'}{else}null{/if},
                 count  : {if $selected_template && $selected_template.quantity}{$selected_template.quantity|intval}{else}1{/if},
             },
-            defaultPaymentType : '{if $selected_template && $selected_template.payment_type}{$selected_template.payment_type|intval}{else}{$config->defaultPaymentType|escape:'javascript':'UTF-8'}{/if}',
+            defaultPaymentType : '{if $selected_template && $selected_template.payment_type}{$selected_template.payment_type|intval}{else}{$default_payment_type|escape:'javascript':'UTF-8'}{/if}',
             defaultCodSwiftCode : '{$config->defaultCodSwiftCode|escape:'javascript':'UTF-8'}',
             defaultCodAccount : '{$config->defaultCodAccount|escape:'javascript':'UTF-8'}',
             defaultCodAccountHolderName : '{$config->defaultCodAccountHolderName|escape:'javascript':'UTF-8'}',

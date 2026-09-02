@@ -212,6 +212,7 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
                 'catalog_products_weight' => $catalogProductsWeight,
                 'effective_products_weight' => max($orderProductsWeight, $catalogProductsWeight),
                 'selected_template' => $selectedTemplate ? $selectedTemplate->toArray() : null,
+                'default_payment_type' => Globkuriermodule\Common\Config::normalizeLegacyPaymentType($c->defaultPaymentType),
             ]);
         } else {
             // No order — use the default template (if any)
@@ -233,6 +234,7 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
                 'catalog_products_weight' => 0,
                 'effective_products_weight' => 0,
                 'selected_template' => $selectedTemplate ? $selectedTemplate->toArray() : null,
+                'default_payment_type' => Globkuriermodule\Common\Config::normalizeLegacyPaymentType($c->defaultPaymentType),
             ]);
         }
 

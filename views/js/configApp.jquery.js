@@ -208,10 +208,22 @@
 		});
 	}
 
+	function initPrepaidBalanceToggle() {
+		const $select = $('select[name="config_defaultPaymentType"]');
+		const $balanceBox = $('#gk-saldo');
+
+		function togglePrepaidBox() {
+			$balanceBox.toggle($select.val() === '9');
+		}
+		$select.on('change', togglePrepaidBox);
+		togglePrepaidBox();
+	}
+
 	$(function () {
 		initSidebar();
 		initLogout();
 		initApiEnvSwitch();
+		initPrepaidBalanceToggle();
 	});
 })();
 
@@ -295,7 +307,6 @@
 			$('#gk-f-weight').val(t.weight || '');
 			$('#gk-f-quantity').val(t.quantity || 1);
 			$('#gk-f-contents').val(t.contents || '');
-			$('#gk-f-payment').val(t.payment_type || '');
 			$('#gk-f-default').prop('checked', !!t.is_default);
 			$('#gk-f-package-list').val(t.package_list || 'PARCEL');
 			$('#gk-f-collection-type').val(t.collection_type || '');
@@ -339,7 +350,6 @@
 			$('#gk-f-weight').val('');
 			$('#gk-f-quantity').val(1);
 			$('#gk-f-contents').val('').hide();
-			$('#gk-f-payment').val('');
 			$('#gk-f-default').prop('checked', false);
 			$('#gk-f-sync-info').hide();
 			$('#gk-f-package-list').val('PARCEL');
@@ -384,7 +394,6 @@
 				weight:            $('#gk-f-weight').val() || '',
 				quantity:          $('#gk-f-quantity').val() || 1,
 				contents:          contentsVal,
-				payment_type:      $('#gk-f-payment').val() || '',
 				is_default:        $('#gk-f-default').is(':checked') ? 1 : 0,
 				package_list:      $('#gk-f-package-list').val() || 'PARCEL',
 				collection_type:   $('#gk-f-collection-type').val() || '',

@@ -1655,7 +1655,10 @@ function updateChosenServiceUI() {
 			.then(function(r){ return r.json(); })
 			.then(function(data){
 				const list = Array.isArray(data) ? data : (data && Array.isArray(data.payments) ? data.payments : []);
-				GK.state.availablePayments = list.filter(function(p){ return p.enabled !== false; });
+				// Bank transfer (1) and Online payment (2) are excluded here — the merchant
+				// settles shipping costs with GlobKurier via pre-paid balance or collective
+				// invoice instead (see the config page's Payments tab).
+				GK.state.availablePayments = list.filter(function(p){ return p.enabled !== false && p.id !== 1 && p.id !== 2; });
 				const html = '<option value="">-- wybierz --</option>' + GK.state.availablePayments.map(function(p){
 					return '<option value="' + p.id + '">' + (p.name || ('ID ' + p.id)) + '</option>';
 				}).join('');

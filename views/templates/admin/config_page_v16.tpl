@@ -595,25 +595,6 @@
                                                 </div>
                                             </div>
                                             <div class="form-group">
-                                                <label class="col-sm-4 control-label">{l s='Payment type' mod='globkuriermodule'}</label>
-                                                <div class="col-sm-8">
-                                                    <select class="form-control" id="gk-f-payment">
-                                                        <option value="">{l s='-- use global default --' mod='globkuriermodule'}</option>
-                                                        {if isset($gk_payments) && $gk_payments}
-                                                            {foreach from=$gk_payments item=gkp}
-                                                            <option value="{$gkp.id|intval}">{$gkp.name|escape:'htmlall':'UTF-8'}</option>
-                                                            {/foreach}
-                                                        {else}
-                                                            <option value="1">{l s='Bank transfer' mod='globkuriermodule'}</option>
-                                                            <option value="2">{l s='Online payment' mod='globkuriermodule'}</option>
-                                                            <option value="4">{l s='Collective invoice (delayed)' mod='globkuriermodule'}</option>
-                                                            <option value="9">{l s='Pre-paid account' mod='globkuriermodule'}</option>
-                                                            <option value="6">{l s='Cash on delivery' mod='globkuriermodule'}</option>
-                                                        {/if}
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div class="form-group">
                                                 <div class="col-sm-offset-4 col-sm-8">
                                                     <div class="checkbox">
                                                         <label><input type="checkbox" id="gk-f-default"> {l s='Set as default template' mod='globkuriermodule'}</label>
@@ -646,26 +627,26 @@
                             <div class="col-lg-7">
                                 <div class="form-horizontal">
                                     <h4 class="text-muted" style="margin:0 0 18px; font-size:13px; text-transform:uppercase; letter-spacing:.05em;">{l s='Payment & COD' mod='globkuriermodule'}</h4>
+                                    {* This is how the merchant settles shipping costs with GlobKurier itself
+                                       (pre-paid balance vs. deferred collective invoice) — not the per-shipment
+                                       payment method (bank transfer/online/COD) shown on the order form, which
+                                       depends on the picked courier product and is fetched live there. *}
                                     <div class="form-group">
                                         <label class="col-lg-4 control-label">{l s='Payment' mod='globkuriermodule'}:</label>
                                         <div class="col-lg-7">
                                             <select class="form-control" name="config_defaultPaymentType">
                                                 <option value="">{l s='-- none (manual selection) --' mod='globkuriermodule'}</option>
-                                                {if isset($gk_payments) && $gk_payments}
-                                                    {foreach from=$gk_payments item=gkp}
-                                                    <option value="{$gkp.id|intval}" {if $gk_currentPaymentId == $gkp.id}selected="selected"{/if}>
-                                                        {$gkp.name|escape:'htmlall':'UTF-8'}{if $gkp.price} (+{$gkp.price|floatval}){/if}
-                                                    </option>
-                                                    {/foreach}
-                                                {else}
-                                                    <option value="1" {if $gk_currentPaymentId == 1}selected="selected"{/if}>{l s='Bank transfer' mod='globkuriermodule'}</option>
-                                                    <option value="2" {if $gk_currentPaymentId == 2}selected="selected"{/if}>{l s='Online payment' mod='globkuriermodule'}</option>
-                                                    <option value="4" {if $gk_currentPaymentId == 4}selected="selected"{/if}>{l s='Collective invoice (delayed)' mod='globkuriermodule'}</option>
-                                                    <option value="9" {if $gk_currentPaymentId == 9}selected="selected"{/if}>{l s='Pre-paid account' mod='globkuriermodule'}</option>
-                                                    <option value="6" {if $gk_currentPaymentId == 6}selected="selected"{/if}>{l s='Cash on delivery' mod='globkuriermodule'}</option>
-                                                {/if}
+                                                <option value="9" {if $gk_currentPaymentId == 9}selected="selected"{/if}>{l s='Pre-paid account (summary invoice)' mod='globkuriermodule'}</option>
+                                                <option value="4" {if $gk_currentPaymentId == 4}selected="selected"{/if}>{l s='Summary invoice (bank transfer - deferred payment)' mod='globkuriermodule'}</option>
                                             </select>
-                                            <p class="help-block">{l s='Auto-selected during shipment. Overridden by template setting.' mod='globkuriermodule'}</p>
+                                            <p class="help-block">{l s='How you settle shipping costs with GlobKurier: pay upfront from your pre-paid balance, or get a collective invoice with deferred payment.' mod='globkuriermodule'}</p>
+                                        </div>
+                                    </div>
+                                    <div class="form-group" id="gk-saldo" {if $gk_currentPaymentId != 9}style="display:none;"{/if}>
+                                        <label class="col-lg-4 control-label">{l s='Pre-paid balance' mod='globkuriermodule'}:</label>
+                                        <div class="col-lg-7">
+                                            <strong id="gkPrepaidBalanceValue">{if $gk_prepaidBalance}{$gk_prepaidBalance|escape:'htmlall':'UTF-8'}{else}—{/if}</strong>
+                                            <p class="help-block">{l s='Top up from your GlobKurier panel.' mod='globkuriermodule'}</p>
                                         </div>
                                     </div>
                                     <div class="form-group">

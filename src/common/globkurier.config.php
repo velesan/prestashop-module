@@ -208,4 +208,20 @@ class Config
             }
         }
     }
+
+    /**
+     * Very old installs stored defaultPaymentType as a letter code (T/O/P/D/COD)
+     * instead of the numeric GlobKurier payment method id used everywhere else
+     * (config page pre-selection, the order form). Shared here so both call
+     * sites normalize identically instead of drifting out of sync.
+     *
+     * @param mixed $value
+     * @return mixed the numeric id if $value was a known legacy code, unchanged otherwise
+     */
+    public static function normalizeLegacyPaymentType($value)
+    {
+        $legacyPaymentMap = ['T' => 1, 'O' => 2, 'P' => 9, 'D' => 4, 'COD' => 6];
+
+        return isset($legacyPaymentMap[$value]) ? $legacyPaymentMap[$value] : $value;
+    }
 }

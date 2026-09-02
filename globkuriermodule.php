@@ -154,31 +154,26 @@ class Globkuriermodule extends Module
 
         $carriers = [];
         $countries = [];
-        $gkPayments = [];
         $latestVersion = null;
         $currentPaymentId = 0;
+        $gkPrepaidBalance = null;
 
         if ($gkIsAuthenticated) {
             $carriers = Carrier::getCarriers($this->context->language->id);
             $countries = $api->getCountries();
             $latestVersion = $this->getLatestGithubVersion();
+            $currentPaymentId = Config::normalizeLegacyPaymentType($config->defaultPaymentType);
 
+            // Default payment type here means how the merchant settles shipping costs
+            // with GlobKurier (pre-paid balance vs. deferred collective invoice) — not
+            // the per-shipment payment methods shown on the order form. So we show the
+            // account's actual pre-paid balance right next to that choice.
             try {
-                $raw = $api->getPayments();
-                if (is_array($raw)) {
-                    foreach ($raw as $p) {
-                        if (isset($p['id']) && isset($p['enabled']) && $p['enabled']) {
-                            $gkPayments[] = $p;
-                        }
-                    }
+                $stats = $api->getUserStats();
+                if (isset($stats['prepaidBalance']['value'])) {
+                    $gkPrepaidBalance = $stats['prepaidBalance']['value'] . ' ' . $stats['prepaidBalance']['currency'];
                 }
             } catch (Exception $e) {
-            }
-
-            $legacyPaymentMap = ['T' => 1, 'O' => 2, 'P' => 9, 'D' => 4, 'COD' => 6];
-            $currentPaymentId = $config->defaultPaymentType;
-            if (isset($legacyPaymentMap[$currentPaymentId])) {
-                $currentPaymentId = $legacyPaymentMap[$currentPaymentId];
             }
         }
 
@@ -209,8 +204,8 @@ class Globkuriermodule extends Module
             'gk_latestVersion'    => $latestVersion,
             'gk_updateAvailable'  => $latestVersion && version_compare($latestVersion, $this->version, '>'),
             'gk_githubReleaseUrl' => 'https://github.com/globkurier/prestashop-module/releases/latest',
-            'gk_payments'         => $gkPayments,
             'gk_currentPaymentId' => $currentPaymentId,
+            'gk_prepaidBalance'   => $gkPrepaidBalance,
             'gk_templates_json'   => json_encode($gkTemplatesArr),
             'gk_template_count'   => count($gkTemplatesArr),
             'configAjaxUrl'       => $configAjaxUrl,
@@ -272,7 +267,6 @@ class Globkuriermodule extends Module
                     $wid = Tools::getValue('width', '');
                     $hei = Tools::getValue('height', '');
                     $wei = Tools::getValue('weight', '');
-                    $pay = Tools::getValue('payment_type', '');
                     $car = Tools::getValue('ps_carrier_id', '');
                     $pkgList = (string)Tools::getValue('package_list', 'PARCEL');
                     $collType = (string)Tools::getValue('collection_type', '');
@@ -288,7 +282,9 @@ class Globkuriermodule extends Module
                     $t->quantity    = max(1, (int)Tools::getValue('quantity', 1));
                     $cont           = Tools::getValue('contents', '');
                     $t->contents    = $cont !== '' ? (string)$cont : null;
-                    $t->paymentType = $pay !== '' ? (int)$pay : null;
+                    // No UI control for this anymore — the Payments tab's global
+                    // default is enough (see new_parcel_page.tpl's fallback chain).
+                    // Existing templates keep whatever value they already had.
                     $t->isDefault   = Tools::getValue('is_default', 0) ? 1 : 0;
                     $t->psCarrierId = $car !== '' ? (int)$car : null;
                     $sc = (string)Tools::getValue('sender_country', 'PL');
@@ -356,9 +352,11 @@ class Globkuriermodule extends Module
                         echo json_encode(['success' => false, 'error' => 'Błąd autoryzacji']);
                         break;
                     }
+                    $isoToIdSync = $this->getGkCountriesMap($config);
+                    $idToIsoSync = array_flip($isoToIdSync);
                     $raw = $api->getTemplates();
                     $list = is_array($raw) ? $raw : [];
-                    $stats = $tm->syncFromApi($list);
+                    $stats = $tm->syncFromApi($list, $idToIsoSync);
                     echo json_encode(['success' => true] + $stats);
                     break;
 
