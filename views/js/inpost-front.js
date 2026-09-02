@@ -149,7 +149,11 @@ $(function(){
                         $('select[name="pickup_point"]').append(optionHtml);
                     });
 
-                    $('select[name="pickup_point"]').select2();
+                    const $pickupSelect = $('select[name="pickup_point"]');
+                    if ($pickupSelect.hasClass('select2-hidden-accessible')) {
+                        $pickupSelect.select2('destroy');
+                    }
+                    $pickupSelect.select2();
 
                     $('select[name="pickup_point"]').val("0");
                 } else {
