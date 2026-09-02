@@ -376,7 +376,7 @@ class Globkuriermodule extends Module
                     $isoToId = $this->getGkCountriesMap($config);
                     $senderCountryId   = isset($isoToId[$senderIso])   ? $isoToId[$senderIso]   : 1;
                     $receiverCountryId = isset($isoToId[$receiverIso]) ? $isoToId[$receiverIso] : 1;
-                    $params = http_build_query([
+                    $queryParams = [
                         'senderCountryId'   => $senderCountryId,
                         'receiverCountryId' => $receiverCountryId,
                         'length'   => (float)Tools::getValue('length', 0),
@@ -384,7 +384,25 @@ class Globkuriermodule extends Module
                         'height'   => (float)Tools::getValue('height', 0),
                         'weight'   => (float)Tools::getValue('weight', 0),
                         'quantity' => 1,
-                    ]);
+                    ];
+                    $pkgType = (string)Tools::getValue('package_list', '');
+                    if (in_array($pkgType, ['PARCEL', 'DOX', 'LONG_PARCEL', 'PALLET'], true)) {
+                        $queryParams['packageType'] = $pkgType;
+                    }
+                    $params = http_build_query($queryParams);
+
+                    // GlobKurier expects the array-style query keys
+                    // collectionTypes[]=X / deliveryTypes[]=X (see
+                    // developer.globkurier.pl), which http_build_query cannot
+                    // produce for a single-value array, so append them manually.
+                    $collType = (string)Tools::getValue('collection_type', '');
+                    if (in_array($collType, ['PICKUP', 'POINT', 'CROSSBORDER'], true)) {
+                        $params .= '&collectionTypes[]=' . rawurlencode($collType);
+                    }
+                    $delType = (string)Tools::getValue('delivery_type', '');
+                    if (in_array($delType, ['PICKUP', 'POINT', 'CROSSBORDER'], true)) {
+                        $params .= '&deliveryTypes[]=' . rawurlencode($delType);
+                    }
                     $ch = curl_init($api->getBaseApiUrl() . 'products?' . $params);
                     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                     curl_setopt($ch, CURLOPT_HTTPHEADER, ['x-auth-token: ' . $token, 'accept-language: pl']);
@@ -453,6 +471,7 @@ class Globkuriermodule extends Module
                             'id'         => $a['id'],
                             'name'       => isset($a['addonName']) ? $a['addonName'] : (isset($a['name']) ? $a['name'] : ''),
                             'price'      => isset($a['price']) ? $a['price'] : null,
+                            'category'   => isset($a['category']) ? $a['category'] : null,
                             'isRequired' => !empty($a['isRequired']),
                             'disabled'   => !empty($a['disabled']),
                         ];

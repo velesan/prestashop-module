@@ -21,7 +21,7 @@ if (!defined('_PS_VERSION_')) {
 
 class TemplateManager
 {
-    const TABLE = 'globkurier_template';
+    const TABLE = 'gk_template';
 
     /** @return TemplateModel[] */
     public function getAll()

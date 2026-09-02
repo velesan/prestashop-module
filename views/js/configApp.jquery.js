@@ -27,8 +27,8 @@
 	'use strict';
 
 	function buildServiceCard(product) {
-		var logo = product.carrierLogoLink ? '<img src="' + product.carrierLogoLink + '" alt="' + (product.carrierName || '') + '" />' : '';
-		var price = (product.netPrice != null) ? (product.netPrice + ' zł netto') : '';
+		const logo = product.carrierLogoLink ? '<img src="' + product.carrierLogoLink + '" alt="' + (product.carrierName || '') + '" />' : '';
+		const price = (product.netPrice != null) ? (product.netPrice + ' zł netto') : '';
 		return (
 			'<div class="col-lg-4 glob-product-block">' +
 				logo + '<br/>' +
@@ -43,7 +43,7 @@
 	}
 
 	function fetchServices() {
-		var params = {
+		const params = {
 			length: $('input[name=config_defaultDepth]').val(),
 			width: $('input[name=config_defaultWidth]').val(),
 			height: $('input[name=config_defaultHeight]').val(),
@@ -52,19 +52,19 @@
 			senderCountryId: 1,
 			receiverCountryId: 1
 		};
-		var headers = {};
+		const headers = {};
 		if (typeof window.tokenAPI !== 'undefined' && window.tokenAPI) {
 			headers['x-auth-token'] = window.tokenAPI;
 		}
-		var url = window.gkApiBaseUrl + 'products?' + new URLSearchParams(params).toString();
+		const url = window.gkApiBaseUrl + 'products?' + new URLSearchParams(params).toString();
 		return fetch(url, { headers: headers })
 			.then(function(r) { return r.json(); })
 			.then(function(data) {
-				var list = [];
+				let list = [];
 				if (data && Array.isArray(data.standard)) {
 					list = data.standard;
 				}
-				var html = list.map(buildServiceCard).join('');
+				const html = list.map(buildServiceCard).join('');
 				$('#servicesList').html(html || '<div class="col-lg-12 text-center">Brak usług</div>');
 				$('#servicesModal').modal('show');
 			});
@@ -79,8 +79,8 @@
 		});
 
 		$(document).on('click', '.pick-service', function() {
-			var id = $(this).data('id');
-			var name = $(this).data('name');
+			const id = $(this).data('id');
+			const name = $(this).data('name');
 			$('input[name=config_defaultServiceCode]').val(id);
 			$('input[name=config_defaultServiceName]').val(name);
 			$('#selectedServiceName').text(name || '');
@@ -88,8 +88,8 @@
 		});
 
 		$(document).on('click', '#updateCacheBtn', function() {
-			var $btn = $(this);
-			var url = $btn.data('url');
+			const $btn = $(this);
+			const url = $btn.data('url');
 			$btn.prop('disabled', true);
 			$('#cacheLoading').show();
 			fetch(url)
@@ -109,15 +109,15 @@
 (function () {
 	'use strict';
 
-	var STORAGE_KEY = 'gk_config_tab';
+	const STORAGE_KEY = 'gk_config_tab';
 
 	function activateTab(tabId) {
-		var $btn = $('.gk-sidebar-btn[data-tab="' + tabId + '"]');
+		const $btn = $('.gk-sidebar-btn[data-tab="' + tabId + '"]');
 		$('.gk-sidebar-btn').removeClass('is-active');
 		$btn.addClass('is-active');
 		$('.gk-tab-pane').removeClass('gk-active');
 		$('#' + tabId).addClass('gk-active');
-		var title = $btn.data('title') || '';
+		const title = $btn.data('title') || '';
 		$('#gkSidebarCrumb').text(title);
 		try { sessionStorage.setItem(STORAGE_KEY, tabId); } catch(e) {}
 	}
@@ -142,11 +142,11 @@
 			closeSidebar();
 		});
 
-		var defaultTab = (typeof gkIsAuthenticated !== 'undefined' && !gkIsAuthenticated) ? 'tab-konto' : null;
-		var saved = null;
+		const defaultTab = (typeof gkIsAuthenticated !== 'undefined' && !gkIsAuthenticated) ? 'tab-konto' : null;
+		let saved = null;
 		try { saved = sessionStorage.getItem(STORAGE_KEY); } catch(e) {}
-		var hash = window.location.hash ? window.location.hash.replace('#', '') : null;
-		var target = hash || saved || defaultTab || 'tab-konto';
+		const hash = window.location.hash ? window.location.hash.replace('#', '') : null;
+		const target = hash || saved || defaultTab || 'tab-konto';
 		if ($('#' + target).length) {
 			activateTab(target);
 		} else {
@@ -157,10 +157,10 @@
 	function initLogout() {
 		$(document).on('click', '#gkLogoutBtn', function () {
 			if (!confirm('Czy na pewno chcesz wylogować się z GlobKurier?')) { return; }
-			var $btn = $(this);
+			const $btn = $(this);
 			$btn.prop('disabled', true).text('Wylogowywanie…');
 
-			var url = (typeof gkConfigAjaxUrl !== 'undefined') ? gkConfigAjaxUrl : window.gkConfigAjaxUrl;
+			const url = (typeof gkConfigAjaxUrl !== 'undefined') ? gkConfigAjaxUrl : window.gkConfigAjaxUrl;
 			$.post(url + '&ajax_action=gkLogout', {})
 				.done(function (res) {
 					if (res && res.success) {
@@ -179,13 +179,13 @@
 
 	function initApiEnvSwitch() {
 		$(document).on('change', 'input[name="config_gkApiEnv"]', function () {
-			var $switch = $('#gkApiEnvSwitch');
-			var $inputs = $switch.find('input[name="config_gkApiEnv"]');
-			var $savedMsg = $('#gkApiEnvSavedMsg');
-			var $host = $('#gkApiEnvHost');
-			var newVal = $(this).val();
+			const $switch = $('#gkApiEnvSwitch');
+			const $inputs = $switch.find('input[name="config_gkApiEnv"]');
+			const $savedMsg = $('#gkApiEnvSavedMsg');
+			const $host = $('#gkApiEnvHost');
+			const newVal = $(this).val();
 
-			var url = (typeof gkConfigAjaxUrl !== 'undefined') ? gkConfigAjaxUrl : window.gkConfigAjaxUrl;
+			const url = (typeof gkConfigAjaxUrl !== 'undefined') ? gkConfigAjaxUrl : window.gkConfigAjaxUrl;
 			$inputs.prop('disabled', true);
 			$savedMsg.hide();
 
@@ -221,7 +221,7 @@
 (function () {
 	'use strict';
 
-	var GkTmpl = {
+	const GkTmpl = {
 		ajaxUrl: null,
 		templates: [],
 		currentId: null,   // null = new, number = existing
@@ -237,8 +237,8 @@
 
 		/* ── LIST ── */
 		renderList: function () {
-			var $list = $('#gk-tmpl-list');
-			var $empty = $('#gk-tmpl-empty');
+			const $list = $('#gk-tmpl-list');
+			const $empty = $('#gk-tmpl-empty');
 			$list.find('.gk-tmpl-list-item').remove();
 
 			if (!GkTmpl.templates.length) {
@@ -248,19 +248,19 @@
 			}
 			$empty.hide();
 
-			var count = GkTmpl.templates.length;
+			const count = GkTmpl.templates.length;
 			$('#gk-tmpl-count-label').text(count + (count === 1 ? ' szablon' : count < 5 ? ' szablony' : ' szablonów'));
 
-			for (var i = 0; i < GkTmpl.templates.length; i++) {
-				var t = GkTmpl.templates[i];
-				var star = t.is_default ? '<span class="gk-tmpl-star">★</span> ' : '';
-				var synced = t.gk_template_id ? '<span class="gk-tmpl-synced" title="Zsynchronizowany z GlobKurier"></span>' : '';
-				var meta = [];
+			for (let i = 0; i < GkTmpl.templates.length; i++) {
+				const t = GkTmpl.templates[i];
+				const star = t.is_default ? '<span class="gk-tmpl-star">★</span> ' : '';
+				const synced = t.gk_template_id ? '<span class="gk-tmpl-synced" title="Zsynchronizowany z GlobKurier"></span>' : '';
+				const meta = [];
 				if (t.length && t.width && t.height) {
 					meta.push(t.length + '×' + t.width + '×' + t.height + ' cm');
 				}
 				if (t.weight) { meta.push(t.weight + ' kg'); }
-				var $item = $('<div class="gk-tmpl-list-item" data-id="' + t.id_template + '">' +
+				const $item = $('<div class="gk-tmpl-list-item" data-id="' + t.id_template + '">' +
 					'<div class="gk-tmpl-name">' + star + GkTmpl.esc(t.name) + synced + '</div>' +
 					(meta.length ? '<div class="gk-tmpl-meta">' + meta.join(' / ') + '</div>' : '') +
 					'</div>');
@@ -273,8 +273,8 @@
 
 		/* ── EDITOR: open existing ── */
 		openTemplate: function (id) {
-			var t = null;
-			for (var i = 0; i < GkTmpl.templates.length; i++) {
+			let t = null;
+			for (let i = 0; i < GkTmpl.templates.length; i++) {
 				if (GkTmpl.templates[i].id_template === id) { t = GkTmpl.templates[i]; break; }
 			}
 			if (!t) { return; }
@@ -309,7 +309,7 @@
 			$('#gk-f-contents-select').html('<option value="">-- wybierz zawartość --</option>');
 			GkTmpl.fetchProducts();
 
-			var syncAt = (t.gk_sync_at && t.gk_sync_at !== '0000-00-00 00:00:00') ? t.gk_sync_at : null;
+			const syncAt = (t.gk_sync_at && t.gk_sync_at !== '0000-00-00 00:00:00') ? t.gk_sync_at : null;
 			if (syncAt) {
 				$('#gk-f-sync-info').show();
 				$('#gk-f-sync-date').text(syncAt);
@@ -359,22 +359,22 @@
 
 		/* ── AJAX: save ── */
 		saveTemplate: function () {
-			var name = $.trim($('#gk-f-name').val());
+			const name = $.trim($('#gk-f-name').val());
 			if (!name) {
 				alert('Podaj nazwę szablonu.');
 				$('#gk-f-name').focus();
 				return;
 			}
 			GkTmpl.collectAddons();
-			var $btn = $('#gk-tmpl-save-btn');
+			const $btn = $('#gk-tmpl-save-btn');
 			$btn.prop('disabled', true).text('Zapisuję…');
 
-			var contentsVal = $('#gk-f-contents-select').val();
+			let contentsVal = $('#gk-f-contents-select').val();
 			if (contentsVal === '__custom__' || !contentsVal) {
 				contentsVal = $('#gk-f-contents').val() || '';
 			}
 
-			var payload = {
+			const payload = {
 				id_template:       $('#gk-f-id').val() || '',
 				name:              name,
 				ps_carrier_id:     $('#gk-f-carrier').val() || '',
@@ -442,13 +442,13 @@
 
 		/* ── AJAX: sync from GK ── */
 		syncFromGK: function () {
-			var $btn = $('#gk-tmpl-sync-btn');
+			const $btn = $('#gk-tmpl-sync-btn');
 			$btn.prop('disabled', true).html('<i class="icon-refresh icon-spin"></i> Importuję…');
 
 			$.post(GkTmpl.ajaxUrl + '&ajax_action=syncTemplates', {})
 				.done(function (res) {
 					if (res && res.success) {
-						var msg = 'Synchronizacja zakończona.';
+						let msg = 'Synchronizacja zakończona.';
 						if (typeof res.created !== 'undefined' || typeof res.skipped !== 'undefined') {
 							msg += ' Dodano: ' + (res.created || 0) + ', pominięto istniejące: ' + (res.skipped || 0) + '.';
 						}
@@ -466,15 +466,15 @@
 
 		/* ── reload list from server via AJAX ── */
 		reloadFromServer: function () {
-			var prevId = GkTmpl.currentId;
+			const prevId = GkTmpl.currentId;
 			$.get(GkTmpl.ajaxUrl + '&ajax_action=getTemplates')
 				.done(function (res) {
 					if (res && Array.isArray(res.templates)) {
 						GkTmpl.templates = res.templates;
 						GkTmpl.renderList();
 						if (prevId) {
-							var found = false;
-							for (var i = 0; i < GkTmpl.templates.length; i++) {
+							let found = false;
+							for (let i = 0; i < GkTmpl.templates.length; i++) {
 								if (GkTmpl.templates[i].id_template === prevId) { found = true; break; }
 							}
 							if (found) {
@@ -491,13 +491,16 @@
 
 		/* ── fetch products from GK API ── */
 		fetchProducts: function () {
-			var len    = $('#gk-f-length').val();
-			var width  = $('#gk-f-width').val();
-			var height = $('#gk-f-height').val();
-			var weight = $('#gk-f-weight').val();
-			var sc     = $('#gk-f-sender-country').val() || 'PL';
-			var rc     = $('#gk-f-recipient-country').val() || 'PL';
-			var $sel   = $('#gk-f-product-select');
+			const len    = $('#gk-f-length').val();
+			const width  = $('#gk-f-width').val();
+			const height = $('#gk-f-height').val();
+			const weight = $('#gk-f-weight').val();
+			const sc     = $('#gk-f-sender-country').val() || 'PL';
+			const rc     = $('#gk-f-recipient-country').val() || 'PL';
+			const pkg    = $('#gk-f-package-list').val() || '';
+			const collType = $('#gk-f-collection-type').val() || '';
+			const delType  = $('#gk-f-delivery-type').val() || '';
+			const $sel   = $('#gk-f-product-select');
 
 			if (!len || !width || !height || !weight) {
 				$sel.html('<option value="">-- podaj wymiary i kraj --</option>');
@@ -511,25 +514,26 @@
 
 			$.post(GkTmpl.ajaxUrl + '&ajax_action=getProducts', {
 				length: len, width: width, height: height, weight: weight,
-				sender_country: sc, recipient_country: rc
+				sender_country: sc, recipient_country: rc,
+				package_list: pkg, collection_type: collType, delivery_type: delType
 			}).done(function (res) {
 				$('#gk-f-product-spinner').hide();
 				$sel.prop('disabled', false);
-				var services = (res && res.success && Array.isArray(res.services)) ? res.services : [];
+				const services = (res && res.success && Array.isArray(res.services)) ? res.services : [];
 				if (!services.length) {
 					$sel.html('<option value="">Brak dostępnych usług</option>');
 					$('#gk-f-addons-wrap').hide();
 					return;
 				}
-				var html = '<option value="">-- wybierz usługę --</option>';
-				for (var i = 0; i < services.length; i++) {
-					var s = services[i];
-					var label = (s.carrierName ? s.carrierName + ' – ' : '') + (s.name || 'Usługa ' + s.id);
+				let html = '<option value="">-- wybierz usługę --</option>';
+				for (let i = 0; i < services.length; i++) {
+					const s = services[i];
+					let label = (s.carrierName ? s.carrierName + ' – ' : '') + (s.name || 'Usługa ' + s.id);
 					if (s.price) { label += ' (' + s.price + ')'; }
 					html += '<option value="' + s.id + '">' + GkTmpl.esc(label) + '</option>';
 				}
 				$sel.html(html);
-				var savedId = $('#gk-f-product-id').val();
+				const savedId = $('#gk-f-product-id').val();
 				if (savedId) { $sel.val(savedId); }
 				GkTmpl.fetchAddons();
 				GkTmpl.fetchContentList();
@@ -541,14 +545,14 @@
 
 		/* ── fetch addons for selected product ── */
 		fetchAddons: function () {
-			var productId = $('#gk-f-product-select').val();
+			const productId = $('#gk-f-product-select').val();
 			if (!productId) {
 				$('#gk-f-addons-wrap').hide();
 				$('#gk-f-addons-list').empty();
 				return;
 			}
-			var sc = $('#gk-f-sender-country').val() || 'PL';
-			var rc = $('#gk-f-recipient-country').val() || 'PL';
+			const sc = $('#gk-f-sender-country').val() || 'PL';
+			const rc = $('#gk-f-recipient-country').val() || 'PL';
 
 			$('#gk-f-addons-list').html('<p class="text-muted gk-tmpl-loading"><i class="icon-refresh icon-spin"></i> Pobieranie dodatków…</p>');
 			$('#gk-f-addons-wrap').show();
@@ -563,21 +567,31 @@
 				weight:           $('#gk-f-weight').val() || 1,
 				quantity:         $('#gk-f-quantity').val() || 1
 			}).done(function (res) {
-				var addons = (res && res.success && Array.isArray(res.addons)) ? res.addons : [];
-				var $list  = $('#gk-f-addons-list');
+				const rawAddons = (res && res.success && Array.isArray(res.addons)) ? res.addons : [];
+				// Amount-dependent categories don't make sense as a template default —
+				// there's no order context here to attach a value (COD amount, insured
+				// value, declared value) to, so they're excluded from this list entirely.
+				const amountDependentCategories = ['INSURANCE', 'INSURANCE_CARGO', 'CASH_ON_DELIVERY', 'DECLARED_VALUE'];
+				const addons = rawAddons.filter(function (a) {
+					return amountDependentCategories.indexOf(a.category) === -1;
+				});
+				const $list  = $('#gk-f-addons-list');
 				if (!addons.length) {
 					$list.empty();
 					$('#gk-f-addons-wrap').hide();
 					return;
 				}
-				var savedAddons = [];
-				try { savedAddons = JSON.parse($('#gk-f-addons').val() || '[]'); } catch (e) {}
-				var html = '<div class="row">';
-				for (var i = 0; i < addons.length; i++) {
-					var a = addons[i];
-					var checked = (savedAddons.indexOf(a.id) !== -1 || savedAddons.indexOf(String(a.id)) !== -1) ? ' checked' : '';
+				// Matched by category, not id: the same conceptual addon (e.g. COD)
+				// gets a different numeric id per product/route from the GK API,
+				// but its category (CASH_ON_DELIVERY, DECLARED_VALUE, ...) is stable.
+				let savedCategories = [];
+				try { savedCategories = JSON.parse($('#gk-f-addons').val() || '[]'); } catch (e) {}
+				let html = '<div class="row">';
+				for (let i = 0; i < addons.length; i++) {
+					const a = addons[i];
+					const checked = (a.category && savedCategories.indexOf(a.category) !== -1) ? ' checked' : '';
 					html += '<div class="col-xs-12 col-sm-6"><div class="checkbox"><label>' +
-						'<input type="checkbox" class="gk-tmpl-addon" value="' + a.id + '"' + checked + '> ' +
+						'<input type="checkbox" class="gk-tmpl-addon" value="' + a.id + '" data-category="' + (a.category || '') + '"' + checked + '> ' +
 						GkTmpl.esc(a.name || 'Dodatek ' + a.id) +
 						'</label></div></div>';
 				}
@@ -591,15 +605,15 @@
 
 		/* ── fetch content list for selected product ── */
 		fetchContentList: function () {
-			var productId = $('#gk-f-product-select').val();
-			var $sel      = $('#gk-f-contents-select');
+			const productId = $('#gk-f-product-select').val();
+			const $sel      = $('#gk-f-contents-select');
 			if (!productId) {
 				$sel.html('<option value="">-- wybierz najpierw usługę --</option>');
 				$('#gk-f-contents').hide().val('');
 				return;
 			}
-			var sc = $('#gk-f-sender-country').val() || 'PL';
-			var rc = $('#gk-f-recipient-country').val() || 'PL';
+			const sc = $('#gk-f-sender-country').val() || 'PL';
+			const rc = $('#gk-f-recipient-country').val() || 'PL';
 
 			$sel.html('<option value="">-- pobieranie zawartości --</option>').prop('disabled', true);
 
@@ -607,11 +621,11 @@
 				product_id: productId, sender_country: sc, recipient_country: rc
 			}).done(function (res) {
 				$sel.prop('disabled', false);
-				var contents    = (res && res.success && Array.isArray(res.contents)) ? res.contents : [];
-				var allowOther  = !!(res && res.allowOtherContent);
-				var currentVal  = $('#gk-f-contents').val() || '';
-				var html        = '<option value="">-- wybierz zawartość --</option>';
-				for (var i = 0; i < contents.length; i++) {
+				const contents  = (res && res.success && Array.isArray(res.contents)) ? res.contents : [];
+				const allowOther = !!(res && res.allowOtherContent);
+				const currentVal = $('#gk-f-contents').val() || '';
+				let html        = '<option value="">-- wybierz zawartość --</option>';
+				for (let i = 0; i < contents.length; i++) {
 					html += '<option value="' + GkTmpl.esc(contents[i]) + '">' + GkTmpl.esc(contents[i]) + '</option>';
 				}
 				if (allowOther) {
@@ -639,7 +653,7 @@
 
 		/* ── contents select change ── */
 		onContentsSelect: function () {
-			var val = $('#gk-f-contents-select').val();
+			const val = $('#gk-f-contents-select').val();
 			if (val === '__custom__') {
 				$('#gk-f-contents').show().focus();
 			} else {
@@ -647,13 +661,14 @@
 			}
 		},
 
-		/* ── collect checked addons to hidden field ── */
+		/* ── collect checked addons (by category, not id — see fetchAddons()) to hidden field ── */
 		collectAddons: function () {
-			var ids = [];
+			const categories = [];
 			$('#gk-f-addons-list .gk-tmpl-addon:checked').each(function () {
-				ids.push(parseInt($(this).val(), 10));
+				const cat = $(this).data('category');
+				if (cat) { categories.push(cat); }
 			});
-			$('#gk-f-addons').val(JSON.stringify(ids));
+			$('#gk-f-addons').val(JSON.stringify(categories));
 		},
 
 		esc: function (str) {
@@ -674,7 +689,7 @@
 			$('#gk-tmpl-star-btn').on('click', function () { GkTmpl.setDefault(); });
 			$('#gk-tmpl-sync-btn').on('click', function () { GkTmpl.syncFromGK(); });
 
-			var dimFields = '#gk-f-length, #gk-f-width, #gk-f-height, #gk-f-weight, #gk-f-sender-country, #gk-f-recipient-country';
+			const dimFields = '#gk-f-length, #gk-f-width, #gk-f-height, #gk-f-weight, #gk-f-sender-country, #gk-f-recipient-country, #gk-f-package-list, #gk-f-collection-type, #gk-f-delivery-type';
 			$(document).on('input change', dimFields, function () {
 				clearTimeout(GkTmpl._productTimer);
 				GkTmpl._productTimer = setTimeout(function () { GkTmpl.fetchProducts(); }, 600);
@@ -690,12 +705,30 @@
 				GkTmpl.onContentsSelect();
 			});
 
+			// PAID_PICKUP and ORDERED_COURIER are optional and mutually exclusive —
+			// pick one of the two, or neither (mirrors the order form's pickup
+			// method logic). Unlike other addon categories, both are always shown
+			// here since neither depends on an order-time amount. Bound before the
+			// collectAddons() handler below so it reads the corrected state.
+			$(document).on('change', '.gk-tmpl-addon', function () {
+				const $current = $(this);
+				if (!$current.is(':checked')) { return; }
+				const pickupMethodPair = ['ORDERED_COURIER', 'PAID_PICKUP'];
+				const category = $current.data('category');
+				if (pickupMethodPair.indexOf(category) === -1) { return; }
+				$('#gk-f-addons-list .gk-tmpl-addon').not($current).each(function () {
+					if (pickupMethodPair.indexOf($(this).data('category')) !== -1 && $(this).is(':checked')) {
+						$(this).prop('checked', false);
+					}
+				});
+			});
+
 			$(document).on('change', '#gk-f-addons-list', function () {
 				GkTmpl.collectAddons();
 			});
 
 			$(document).on('click', '.gk-tmpl-list-item', function () {
-				var id = parseInt($(this).data('id'), 10);
+				const id = parseInt($(this).data('id'), 10);
 				GkTmpl.openTemplate(id);
 			});
 		}

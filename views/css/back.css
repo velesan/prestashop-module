@@ -170,7 +170,8 @@
 
 /* Template editor */
 .gk-tmpl-layout { display:flex; gap:16px; align-items:flex-start; min-height:360px; }
-.gk-tmpl-list { width:260px; flex-shrink:0; border:1px solid #e2e8f0; border-radius:4px; overflow-y:auto; max-height:560px; background:#fff; }
+.gk-tmpl-list-wrap { width:260px; flex-shrink:0; display:flex; flex-direction:column; gap:8px; }
+.gk-tmpl-list { width:100%; border:1px solid #e2e8f0; border-radius:4px; overflow-y:auto; max-height:560px; background:#fff; }
 .gk-tmpl-list-item { padding:11px 14px; border-bottom:1px solid #edf2f7; cursor:pointer; border-left:3px solid transparent; transition:background .12s,border-color .12s; }
 .gk-tmpl-list-item:last-child { border-bottom:none; }
 .gk-tmpl-list-item:hover { background:#f4f7fb; border-left-color:#b8c5d6; }
@@ -211,7 +212,8 @@
     .gk-operator-point { flex:1 1 110px; }
     /* Template tab: stack list above editor */
     .gk-tmpl-layout { flex-direction:column; min-height:auto; gap:12px; }
-    .gk-tmpl-list { width:100%; max-height:200px; }
+    .gk-tmpl-list-wrap { width:100%; }
+    .gk-tmpl-list { max-height:200px; }
     .gk-tmpl-editor { min-height:400px; }
     /* Template form: remove horizontal float layout on mobile */
     .gk-tmpl-editor-body .form-horizontal .control-label { float:none; width:100%; text-align:left; padding-bottom:2px; }
@@ -296,6 +298,33 @@ body[class*="controller-adminglobkurier"] .bootstrap .prestashop-switch.prestash
 
 .glob-product-wrapper:hover {
     box-shadow: 2px 2px 2px 2px rgba(0, 0, 0, 0.2);
+}
+
+.glob-product-wrapper.gk-template-match {
+    border-color: #1db3d4;
+    box-shadow: 0 0 0 1px #1db3d4;
+}
+
+.glob-template-badge {
+    position: absolute;
+    top: -1px;
+    left: -1px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px 4px 8px;
+    background: #1db3d4;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+    border-radius: 5px 0 6px 0;
+    z-index: 2;
+}
+
+.glob-template-badge svg {
+    flex-shrink: 0;
 }
 
 .glob-product-logo {

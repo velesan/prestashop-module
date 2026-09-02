@@ -59,7 +59,7 @@ $sql[] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'gk_terminal_pickup` (
    PRIMARY KEY  (`cart_id`)
    ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8';
 
-$sql[] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'globkurier_template` (
+$sql[] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'gk_template` (
     `id_template`    INT UNSIGNED    NOT NULL AUTO_INCREMENT,
     `gk_template_id` INT             DEFAULT NULL,
     `name`           VARCHAR(255)    NOT NULL,

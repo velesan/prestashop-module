@@ -26,7 +26,9 @@ if (!defined('_PS_VERSION_')) {
  *
  * Changes:
  *  1. Add `tracking_number` column to gk_orders (if missing)
- *  2. Create globkurier_template table (idempotent)
+ *  2. Rename globkurier_template to gk_template, for naming consistency with
+ *     the module's other tables (gk_orders, gk_terminal_pickup), then create
+ *     it if it doesn't exist yet (idempotent either way)
  *  3. Migrate existing config settings into a default template (one-time, if table empty)
  */
 function upgrade_module_3_4_0($module)
@@ -52,9 +54,24 @@ function upgrade_module_3_4_0($module)
         }
     }
 
-    /* ── 2. Create globkurier_template (idempotent) ── */
+    /* ── 2a. Rename legacy globkurier_template to gk_template (idempotent) ── */
+    $legacyExists = $db->executeS(
+        'SHOW TABLES LIKE \'' . pSQL($prefix . 'globkurier_template') . '\''
+    );
+    $renamedExists = $db->executeS(
+        'SHOW TABLES LIKE \'' . pSQL($prefix . 'gk_template') . '\''
+    );
+    if ($legacyExists && !$renamedExists) {
+        if (!$db->execute(
+            'RENAME TABLE `' . $prefix . 'globkurier_template` TO `' . $prefix . 'gk_template`'
+        )) {
+            return false;
+        }
+    }
+
+    /* ── 2b. Create gk_template if it still doesn't exist (idempotent) ── */
     if (!$db->execute('
-        CREATE TABLE IF NOT EXISTS `' . $prefix . 'globkurier_template` (
+        CREATE TABLE IF NOT EXISTS `' . $prefix . 'gk_template` (
             `id_template`    INT UNSIGNED    NOT NULL AUTO_INCREMENT,
             `gk_template_id` INT             DEFAULT NULL
                 COMMENT "ID szablonu w GlobKurier API",
@@ -95,14 +112,14 @@ function upgrade_module_3_4_0($module)
         return false;
     }
 
-    /* ── 2b. Add collection_type/delivery_type if globkurier_template pre-dates them ── */
+    /* ── 2c. Add collection_type/delivery_type if gk_template pre-dates them ── */
     foreach (['collection_type', 'delivery_type'] as $col) {
         $colExists = $db->executeS(
-            'SHOW COLUMNS FROM `' . $prefix . 'globkurier_template` LIKE \'' . $col . '\''
+            'SHOW COLUMNS FROM `' . $prefix . 'gk_template` LIKE \'' . $col . '\''
         );
         if (empty($colExists)) {
             if (!$db->execute(
-                'ALTER TABLE `' . $prefix . 'globkurier_template`
+                'ALTER TABLE `' . $prefix . 'gk_template`
                  ADD COLUMN `' . $col . '` VARCHAR(20) DEFAULT NULL'
             )) {
                 return false;
@@ -112,7 +129,7 @@ function upgrade_module_3_4_0($module)
 
     /* ── 3. One-time migration: config → default template ── */
     $count = (int) $db->getValue(
-        'SELECT COUNT(*) FROM `' . $prefix . 'globkurier_template`'
+        'SELECT COUNT(*) FROM `' . $prefix . 'gk_template`'
     );
     if ($count === 0) {
         try {

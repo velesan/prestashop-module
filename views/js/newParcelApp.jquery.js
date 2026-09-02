@@ -80,9 +80,14 @@ function setProcessing(on) {
 		}
 		// CASH_ON_DELIVERY → show COD fields
 		const hasCOD = activeCategories.indexOf('CASH_ON_DELIVERY') !== -1;
-		$('#codAmountGroup, #codAccountGroup, #codAccountHolderGroup, #codAccountAddr1Group, #codAccountAddr2Group').toggle(hasCOD);
+		$('#codAmountGroup, #codSwiftGroup, #codAccountGroup, #codAccountHolderGroup, #codAccountAddr1Group, #codAccountAddr2Group').toggle(hasCOD);
 		if (hasCOD) {
 			// Fill all COD fields with defaults like Angular does
+			if (window.InitialValues && window.InitialValues.defaultCodSwiftCode) {
+				$('#codSwiftInput').val(window.InitialValues.defaultCodSwiftCode);
+				if (!GK.state.additionalInfo) GK.state.additionalInfo = {};
+				GK.state.additionalInfo.codSwiftCode = window.InitialValues.defaultCodSwiftCode;
+			}
 			if (window.InitialValues && window.InitialValues.defaultCodAccount) {
 				$('#codAccountInput').val(window.InitialValues.defaultCodAccount);
 				if (!GK.state.additionalInfo) GK.state.additionalInfo = {};
@@ -104,7 +109,7 @@ function setProcessing(on) {
 				GK.state.additionalInfo.codAccountAddr2 = window.InitialValues.defaultCodAccountHolderAddr2;
 			}
 		} else {
-			$('#codAmountInput, #codAccountInput, #codAccountHolderInput, #codAccountAddr1Input, #codAccountAddr2Input').val('');
+			$('#codAmountInput, #codSwiftInput, #codAccountInput, #codAccountHolderInput, #codAccountAddr1Input, #codAccountAddr2Input').val('');
 		}
 		// INSURANCE / INSURANCE_CARGO → show insurance amount
 		const hasInsurance =
@@ -167,9 +172,9 @@ function showOrderPlaced(order) {
 		$('#downloadLabelBtn').toggle(!!(order && order.hash));
 	}
 
-	var _trackingPollTimer = null;
-	var _trackingPollAttempts = 0;
-	var _trackingPollMax = 24;
+	let _trackingPollTimer = null;
+	let _trackingPollAttempts = 0;
+	const _trackingPollMax = 24;
 
 	function startTrackingPoll(gkId, hash, moduleApiUrl) {
 		_trackingPollAttempts = 0;
@@ -187,7 +192,7 @@ function showOrderPlaced(order) {
 		fetch(gkApiBase() + 'order?hash=' + encodeURIComponent(hash), { headers: buildHeaders() })
 			.then(function(r){ return r.json(); })
 			.then(function(resp){
-				var tracking = (resp && resp.trackingNumber) ? resp.trackingNumber : null;
+				const tracking = (resp && resp.trackingNumber) ? resp.trackingNumber : null;
 				if (tracking) {
 					GK.state.orderPlaced.trackingNumber = tracking;
 					$('#orderPlacedTracking').text(tracking);
@@ -218,7 +223,9 @@ function showOrderPlaced(order) {
 		$('#valErrReceiverPhone').hide();
 		$('#valErrNoPickupMethod').hide();
 		$('#carrierLimitsWarning').hide();
-		$('#pkg-weight, #pkg-width, #pkg-height, #pkg-length').removeClass('gk-field-error');
+		$('#valErrCodSwiftRequired').hide();
+		$('#valErrCodSwiftFormat').hide();
+		$('#pkg-weight, #pkg-width, #pkg-height, #pkg-length, #codSwiftInput').removeClass('gk-field-error');
 	}
 
 	function showValidationErrors(err) {
@@ -229,7 +236,26 @@ function showOrderPlaced(order) {
 			err.dimensionFields.forEach(function(f) { $('#' + f).addClass('gk-field-error'); });
 			$('#carrierLimitsWarning').show();
 		}
-		if (err.noSenderPhone || err.noReceiverPhone || err.noPickupMethod) $('#validationErrorBox').show();
+		if (err.codSwiftRequired) $('#valErrCodSwiftRequired').show();
+		if (err.codSwiftFormat) {
+			$('#codSwiftInput').addClass('gk-field-error');
+			$('#valErrCodSwiftFormat').show();
+		}
+		if (err.noSenderPhone || err.noReceiverPhone || err.noPickupMethod || err.codSwiftRequired) $('#validationErrorBox').show();
+	}
+
+	const SWIFT_BIC_PATTERN = /^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/;
+
+	// UWAGA: swiftCode wymagany jest tu wyłącznie na podstawie prefiksu IBAN (PL/nie-PL).
+	// Prawdziwa reguła API GlobKurier to: SWIFT wymagany, gdy IBAN nie jest polski
+	// LUB waluta dodatku COD (przypisana do konkretnego produktu/przewoźnika) nie jest PLN.
+	// Uproszczono, bo ta integracja nie ma pojęcia "waluty pobrania" w UI, a wszyscy
+	// obecnie obsługiwani przewoźnicy z COD rozliczają pobranie w PLN.
+	// TODO: jeśli dojdzie zagraniczny przewoźnik z COD w innej walucie niż PLN,
+	// wrócić do tej reguły i doprecyzować warunek (nie polegać tylko na prefiksie IBAN).
+	function isCodSwiftRequired() {
+		const acct = ((GK.state.additionalInfo && GK.state.additionalInfo.codAccount) || '').replace(/\s/g, '').toUpperCase();
+		return acct.length > 0 && acct.substring(0, 2) !== 'PL';
 	}
 
 	function validateDimensions() {
@@ -267,6 +293,14 @@ function showOrderErrors(obj) {
 			const $paidAddon = $('.addon-checkbox[data-category="PAID_PICKUP"]');
 			if (($orderedAddon.length > 0 || $paidAddon.length > 0) && !$orderedAddon.is(':checked') && !$paidAddon.is(':checked')) {
 				r.noPickupMethod = true;
+			}
+		}
+		if ($('#codSwiftGroup').is(':visible')) {
+			const swift = (GK.state.additionalInfo && GK.state.additionalInfo.codSwiftCode || '').replace(/\s/g, '').toUpperCase();
+			if (swift) {
+				if (!SWIFT_BIC_PATTERN.test(swift)) r.codSwiftFormat = true;
+			} else if (isCodSwiftRequired()) {
+				r.codSwiftRequired = true;
 			}
 		}
 		return Object.keys(r).length ? r : null;
@@ -509,6 +543,7 @@ function showOrderErrors(obj) {
 			if (option.category === 'CASH_ON_DELIVERY') {
 				addon.value = additionalInfo.codAmount || '';
 				if (additionalInfo.codAccount) addon.bankAccountNumber = additionalInfo.codAccount.replace(/\s/g, '');
+				if (additionalInfo.codSwiftCode) addon.swiftCode = additionalInfo.codSwiftCode.replace(/\s/g, '').toUpperCase();
 				if (additionalInfo.codAccountHolder) addon.name = additionalInfo.codAccountHolder;
 				if (additionalInfo.codAccountAddr1) addon.addressLine1 = additionalInfo.codAccountAddr1;
 				if (additionalInfo.codAccountAddr2) addon.addressLine2 = additionalInfo.codAccountAddr2;
@@ -654,14 +689,14 @@ function showOrderErrors(obj) {
 		$(document).on('click', '#validationErrorClose', function(){ $('#validationErrorBox').hide(); });
 		$(document).on('click', '#sendOrderBtn', placeOrder);
 		$(document).on('click', '#downloadLabelBtn', function(){
-			var order = GK.state.orderPlaced;
+			const order = GK.state.orderPlaced;
 			if (!order || !order.hash) return;
 			fetch(
 				gkApiBase() + 'order/labels?orderHashes[0]=' + encodeURIComponent(order.hash),
 				{ headers: buildHeaders() }
 			).then(function(r){ return r.blob(); }).then(function(blob){
-				var url = URL.createObjectURL(blob);
-				var a = document.createElement('a');
+				const url = URL.createObjectURL(blob);
+				const a = document.createElement('a');
 				a.href = url;
 				a.download = (order.gkId || 'label') + '.pdf';
 				document.body.appendChild(a);
@@ -1028,10 +1063,23 @@ function buildHeaders() {
 function cardForProduct(product) {
     const logo = product.carrierLogoLink ? '<img src="' + product.carrierLogoLink + '" alt="' + (product.carrierName || '') + '" />' : '';
     const price = (product.netPrice != null) ? (product.netPrice + " " + product.currency) : '';
+    // Purely visual match against the active template's saved service — no
+    // fetching or side effects, just a state read (see applyTemplate() /
+    // initTemplateSelector()), so this carries none of the timing risk that
+    // auto-selecting the service on load did.
+    const isTemplateMatch = !!(GK.state._templateServiceId && (product.id + '') === (GK.state._templateServiceId + ''));
+    const iv = window.InitialValues || {};
+    const templateBadge = isTemplateMatch
+        ? '<span class="glob-template-badge" title="' + (iv.langFromTemplateTitle || '') + '">' +
+            '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H7a2 2 0 0 0-2 2v16l7-3 7 3V5a2 2 0 0 0-2-2z"/></svg> ' +
+            (iv.langFromTemplate || '') +
+        '</span>'
+        : '';
 
 	return (
 		'<div class="col-lg-4 col-md-6 col-sm-6 glob-product-block text-center">' +
-			'<div class="glob-product-wrapper">' +
+			'<div class="glob-product-wrapper' + (isTemplateMatch ? ' gk-template-match' : '') + '">' +
+			templateBadge +
 			'<div class="glob-collectionTypes">' +
 				'<div class="glob-collectionType">' +
 				(product.collectionTypes || []).map(
@@ -1126,6 +1174,9 @@ function renderServiceOptionsContainer() {
       .off('input change', '#codAmountInput')
       .on('input change', '#codAmountInput', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.codAmount = $(this).val(); recalcOrderPrice(); });
     $(document)
+      .off('input change', '#codSwiftInput')
+      .on('input change', '#codSwiftInput', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.codSwiftCode = $(this).val(); });
+    $(document)
       .off('input change', '#codAccountInput')
       .on('input change', '#codAccountInput', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.codAccount = $(this).val(); });
     $(document)
@@ -1187,7 +1238,11 @@ function renderServiceOptionsContainer() {
 		const senderIso = (s.sender && s.sender.country && s.sender.country.isoCode) || (window.InitialValues && window.InitialValues.sender && window.InitialValues.sender.countryCode) || 'PL';
 		const receiverIso = (s.receiver && s.receiver.country && s.receiver.country.isoCode) || (window.InitialValues && window.InitialValues.receiver && window.InitialValues.receiver.countryCode) || 'PL';
 		const url = gkApiBase() + 'order/content?' + new URLSearchParams({ productId: s.pickedService.id, senderCountry: senderIso, receiverCountry: receiverIso }).toString();
-		const defaultContent = (window.InitialValues && window.InitialValues.defaultPackageInfo && window.InitialValues.defaultPackageInfo.content) || '';
+		// A just-applied template's content (see applyTemplateContent()) takes
+		// priority over the page-load default, since it reflects the user's
+		// most recent choice rather than the initial server-side computation.
+		const defaultContent = GK.state._templateContent || (window.InitialValues && window.InitialValues.defaultPackageInfo && window.InitialValues.defaultPackageInfo.content) || '';
+		GK.state._templateContent = null;
 		const currentCustom = (GK.state.packageInfo && GK.state.packageInfo.content) || '';
 		fetch(url, { headers: buildHeaders() })
 			.then(function(r) { return r.json(); })
@@ -1273,6 +1328,17 @@ function renderServiceOptionsContainer() {
 				}).join('');
 				$('#addonsList').html(html);
 				if (html) { $('#addonsListContainer').show(); } else { $('#addonsListContainer').hide(); }
+				// Matched by category, not id: the GK API assigns a different numeric
+				// id to the same conceptual addon (e.g. COD) depending on the
+				// product/route, but its category (CASH_ON_DELIVERY, DECLARED_VALUE,
+				// ...) is stable — see queueTemplateAddons() and configApp.jquery.js.
+				if (Array.isArray(GK.state._templateAddonCategories) && GK.state._templateAddonCategories.length) {
+					applyTemplateAddonCategories(GK.state._templateAddonCategories);
+					// Applied once per template selection — cleared so later addon-list
+					// refreshes (e.g. dimensions change) don't keep re-forcing them back
+					// on over the user's own manual (un)checks.
+					GK.state._templateAddonCategories = null;
+				}
 				applyPickupMethodAddonLogic();
 				refreshPayments();
 			});
@@ -2146,6 +2212,7 @@ function renderServicesAndBind() {
             if ($('input[name=pickup_type]:checked').val() === 'PICKUP') { fetchTimeRanges(); }
 		fetchCustomRequiredFields();
 		});
+
 		$(document).on('change', '.addon-checkbox', function(){
 			const $current = $(this);
 			const id = $current.data('id');
@@ -2446,8 +2513,7 @@ function renderServicesAndBind() {
 		if (tmpl.width   != null) { $('#pkg-width').val(tmpl.width);    GK.state.packageInfo.width   = parseFloat(tmpl.width);   }
 		if (tmpl.quantity) { $('#pkg-count').val(tmpl.quantity); GK.state.packageInfo.count = parseInt(tmpl.quantity, 10); }
 		if (tmpl.contents) {
-			GK.state.packageInfo.content = tmpl.contents;
-			$('#pkg-content').val(tmpl.contents);
+			applyTemplateContent(tmpl.contents);
 		}
 		if (tmpl.payment_type) {
 			GK.state._templatePaymentId = tmpl.payment_type + '';
@@ -2455,33 +2521,112 @@ function renderServicesAndBind() {
 		if (tmpl.gk_product_id) {
 			GK.state._templateServiceId = parseInt(tmpl.gk_product_id, 10);
 		}
-		$('#gk-template-applied-label').show();
+		queueTemplateAddons(tmpl);
+	}
+
+	// Syncs whatever .addon-checkbox elements currently exist in the DOM (see
+	// fetchAddonsAndPayments()) to exactly match the given addon categories —
+	// checks the ones present, and just as importantly unchecks any addon left
+	// over from a previously selected template that isn't in this one.
+	function applyTemplateAddonCategories(categories) {
+		$('#addonsList .addon-checkbox').each(function () {
+			const $cb = $(this);
+			const shouldBeChecked = categories.indexOf($cb.data('category')) !== -1;
+			if ($cb.is(':checked') !== shouldBeChecked) {
+				$cb.prop('checked', shouldBeChecked).trigger('change');
+			}
+		});
+		// Each toggle above already re-triggers the addon-checkbox change handler
+		// (which itself calls recalcOrderPrice()), but that only fires for
+		// checkboxes whose state actually flipped. Called again here so the
+		// summary is always fresh after a template switch, even when nothing
+		// needed toggling (e.g. re-applying the same template).
+		recalcOrderPrice();
+	}
+
+	// If the predefined content list is already fetched and visible for the
+	// currently picked service, selects the matching option now (or falls
+	// back to the custom free-text input if there's no match). Otherwise sets
+	// the raw field and queues the value for fetchContentList() to reconcile
+	// against the real list once it loads (see there).
+	function applyTemplateContent(content) {
+		GK.state.packageInfo = GK.state.packageInfo || {};
+		const $sel = $('#pkg-content-select');
+		const $inp = $('#pkg-content');
+		// The select always ships with one static placeholder option (see the
+		// tpl); a real fetchContentList() completion always adds at least a
+		// "custom" option on top of that, so >1 reliably means the predefined
+		// list for the currently picked service has actually loaded.
+		if ($sel.find('option').length > 1) {
+			const hasMatch = $sel.find('option').toArray().some(function (o) { return o.value === content; });
+			if (hasMatch) {
+				$sel.val(content);
+				$inp.hide().val(content);
+			} else {
+				$sel.val('__custom__');
+				$inp.show().val(content);
+			}
+			GK.state._templateContent = null;
+		} else {
+			$inp.val(content);
+			GK.state._templateContent = content;
+		}
+		GK.state.packageInfo.content = content;
+	}
+
+	// If the addons list is already fetched and visible for the currently
+	// picked service, the template's saved categories are applied right away.
+	// Otherwise addon checkboxes don't exist in the DOM yet (no service picked,
+	// or list not loaded), so they're queued here and applied later, once
+	// fetchAddonsAndPayments() renders the checkboxes (see there).
+	function queueTemplateAddons(tmpl) {
+		if (!tmpl || !tmpl.gk_addons) return;
+		try {
+			const categories = JSON.parse(tmpl.gk_addons);
+			if (!Array.isArray(categories) || !categories.length) { return; }
+			if ($('#addonsList .addon-checkbox').length) {
+				applyTemplateAddonCategories(categories);
+			} else {
+				GK.state._templateAddonCategories = categories;
+			}
+		} catch (e) {}
 	}
 
 	function initTemplateSelector() {
-		var templates = window.GkTemplates || [];
+		const templates = window.GkTemplates || [];
 		if (!templates.length) return;
-		var selectedId = window.GkSelectedTemplateId || 0;
-		var $sel = $('#gk-template-select');
+		const selectedId = window.GkSelectedTemplateId || 0;
+		const $sel = $('#gk-template-select');
 		if (!$sel.length) return;
-		var html = '<option value="">{l s=\'-- no template --\' mod=\'globkuriermodule\'}</option>';
+		const iv = window.InitialValues || {};
+		let html = '<option value="">' + (iv.langNoTemplate || '') + '</option>';
 		templates.forEach(function(t) {
-			var label = t.name;
+			let label = t.name;
 			if (t.is_default) label += ' (★)';
 			html += '<option value="' + t.id_template + '">' + label + '</option>';
 		});
 		$sel.html(html);
 		if (selectedId) {
 			$sel.val(selectedId);
-			$('#gk-template-applied-label').show();
+			// Dimensions/weight/quantity/content/payment_type/pickup_type for the
+			// auto-matched template are already baked into the initial server-side
+			// render (InitialValues, pickup_type radio), so we don't re-run the
+			// rest of applyTemplate() here to avoid clobbering values PHP already
+			// computed with different precedence (e.g. order product weight).
+			// Addon checkboxes have no such server-side pre-check mechanism though
+			// (they don't exist in the DOM until a service is picked), so queue
+			// them the same way a manual template switch would.
+			const autoTmpl = templates.find(function(t) { return t.id_template === selectedId; });
+			if (autoTmpl) {
+				queueTemplateAddons(autoTmpl);
+				if (autoTmpl.gk_product_id) { GK.state._templateServiceId = parseInt(autoTmpl.gk_product_id, 10); }
+			}
 		}
 		$sel.off('change.template').on('change.template', function() {
-			var id = parseInt($(this).val(), 10);
-			var tmpl = templates.find(function(t) { return t.id_template === id; });
+			const id = parseInt($(this).val(), 10);
+			const tmpl = templates.find(function(t) { return t.id_template === id; });
 			if (tmpl) {
 				applyTemplate(tmpl);
-			} else {
-				$('#gk-template-applied-label').hide();
 			}
 		});
 	}

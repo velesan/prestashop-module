@@ -256,3 +256,15 @@ $_MODULE['<{globkuriermodule}prestashop>config_page_v16_ec5e2ce5eea13bed310cb1b5
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_6310f29293c902c64db619c29179d99a'] = 'Delivery method';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_0c86cbb55f8e0a758b64008d1359feb3'] = 'Door delivery';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_166f08a7fadaddc1b804f1b73d8b1ca4'] = 'Delivery to a point';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_3a3bcc9ff32227babfa1f03ea8836209'] = 'SWIFT/BIC code for COD purpose';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_a74e6f14aa0e3c36d7dd66c46325e15f'] = 'Optional for a Polish account. Required by the bank when the account is not Polish.';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_1e3634ba5007d842bf03cabae992e989'] = 'SWIFT/BIC code';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_9b1a997168f3d7e48ce003a9848f54b4'] = 'Invalid SWIFT/BIC code format';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_1c1bfadb17ad02613babe4b071b7cbc9'] = 'SWIFT/BIC code is required for a non-Polish COD account';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_6447100c8b660af28ce965505f2ef61b'] = 'Template applied';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_a4570da8ef5895d10633d2a72923ced3'] = 'matched by carrier';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_1cd39d3e17e2a1c06ab41dbaaed46d31'] = 'From template';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_cf17a66fad0b593d5a2b9fb65e1ef1a4'] = 'This is the service saved in your selected template';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_62c33c5bfb177f49ffe298b180029d79'] = '-- no template --';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_650e9cf7c2f8abf23fb3221526df1e8b'] = 'default template';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_278c491bdd8a53618c149c4ac790da34'] = 'Template';

@@ -29,7 +29,7 @@ if (!defined('_PS_VERSION_')) {
 $sql = [];
 $sql[] = 'DROP TABLE IF EXISTS `' . _DB_PREFIX_ . 'gk_log`';
 $sql[] = 'DROP TABLE IF EXISTS `' . _DB_PREFIX_ . 'gk_terminal_pickup`';
-$sql[] = 'DROP TABLE IF EXISTS `' . _DB_PREFIX_ . 'globkurier_template`';
+$sql[] = 'DROP TABLE IF EXISTS `' . _DB_PREFIX_ . 'gk_template`';
 
 foreach ($sql as $query) {
     if (Db::getInstance()->execute($query) == false) {

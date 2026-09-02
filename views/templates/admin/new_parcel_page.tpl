@@ -61,12 +61,6 @@
                         <option value="">{l s='-- no template --' mod='globkuriermodule'}</option>
                     </select>
                 </div>
-                <div class="col-sm-4" id="gk-template-applied-label" style="padding-top:6px; display:none;">
-                    <span class="label label-success" style="font-size:11px;">{l s='Template applied' mod='globkuriermodule'}</span>
-                    {if $selected_template && $selected_template.ps_carrier_id}
-                    <span class="text-muted" style="font-size:11px; margin-left:6px;">{l s='matched by carrier' mod='globkuriermodule'}</span>
-                    {/if}
-                </div>
             </div>
         </div>
     </div>
@@ -86,6 +80,7 @@
             <span id="valErrSenderPhone" style="display:none;">{l s='Please provide sender phone number' mod='globkuriermodule'}</span>
             <span id="valErrReceiverPhone" style="display:none;">{l s='Please provide receiver phone number' mod='globkuriermodule'}</span>
             <span id="valErrNoPickupMethod" style="display:none;">{l s='Please select a courier pickup method' mod='globkuriermodule'}</span>
+            <span id="valErrCodSwiftRequired" style="display:none;">{l s='SWIFT/BIC code is required for a non-Polish COD account' mod='globkuriermodule'}</span>
             <button type="button" class="close" id="validationErrorClose">×</button>
         </div>
     </div>
@@ -333,6 +328,13 @@
                         <div class="form-group row" id="codAmountGroup" style="display:none;">
                             <label class="col-sm-4 col-form-label">{l s='COD amount' mod='globkuriermodule'}</label>
                             <div class="col-sm-8"><input type="text" id="codAmountInput" class="form-control" /></div>
+                        </div>
+                        <div class="form-group row" id="codSwiftGroup" style="display:none;">
+                            <label class="col-sm-4 col-form-label">{l s='SWIFT/BIC code' mod='globkuriermodule'}</label>
+                            <div class="col-sm-8">
+                                <input type="text" id="codSwiftInput" class="form-control" style="text-transform:uppercase;" placeholder="e.g. BREXPLPWXXX" />
+                                <span id="valErrCodSwiftFormat" class="text-danger" style="display:none;">{l s='Invalid SWIFT/BIC code format' mod='globkuriermodule'}</span>
+                            </div>
                         </div>
                         <div class="form-group row" id="codAccountGroup" style="display:none;">
                             <label class="col-sm-4 col-form-label">{l s='Account number to COD' mod='globkuriermodule'}</label>
@@ -606,6 +608,7 @@
                 count  : {if $selected_template && $selected_template.quantity}{$selected_template.quantity|intval}{else}1{/if},
             },
             defaultPaymentType : '{if $selected_template && $selected_template.payment_type}{$selected_template.payment_type|intval}{else}{$config->defaultPaymentType|escape:'javascript':'UTF-8'}{/if}',
+            defaultCodSwiftCode : '{$config->defaultCodSwiftCode|escape:'javascript':'UTF-8'}',
             defaultCodAccount : '{$config->defaultCodAccount|escape:'javascript':'UTF-8'}',
             defaultCodAccountHolderName : '{$config->defaultCodAccountHolderName|escape:'javascript':'UTF-8'}',
             defaultCodAccountHolderAddr1 : '{$config->defaultCodAccountHolderAddr1|escape:'javascript':'UTF-8'}',
@@ -646,6 +649,9 @@
             lang16: '{l s='Save' mod='globkuriermodule'}',
             lang17: '{l s='Complete the recipients address before quoting' mod='globkuriermodule'}',
             langContentCustom: '{l s='Custom value' mod='globkuriermodule'}',
+            langFromTemplate: '{l s='From template' mod='globkuriermodule'}',
+            langFromTemplateTitle: '{l s='This is the service saved in your selected template' mod='globkuriermodule'}',
+            langNoTemplate: '{l s='-- no template --' mod='globkuriermodule'}',
         };
 
         window.GkTemplates = {$gk_all_templates_json};

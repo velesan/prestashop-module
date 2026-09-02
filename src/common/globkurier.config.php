@@ -62,6 +62,8 @@ class Config
 
     public $defaultPaymentType;
 
+    public $defaultCodSwiftCode;
+
     public $defaultCodAccount;
 
     public $defaultCodAccountHolderName;

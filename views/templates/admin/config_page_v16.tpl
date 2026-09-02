@@ -448,9 +448,6 @@
                                 <span class="text-muted" style="font-size:12px; margin-left:8px;" id="gk-tmpl-count-label">{$gk_template_count|intval} {l s='templates' mod='globkuriermodule'}</span>
                             </div>
                             <div style="display:flex; gap:8px;">
-                                <button type="button" class="btn btn-success btn-sm" id="gk-tmpl-sync-btn">
-                                    <i class="icon-refresh"></i> {l s='Import from GlobKurier' mod='globkuriermodule'}
-                                </button>
                                 <button type="button" class="btn btn-primary btn-sm" id="gk-tmpl-new-btn">
                                     <i class="icon-plus"></i> {l s='New template' mod='globkuriermodule'}
                                 </button>
@@ -458,10 +455,15 @@
                         </div>
 
                         <div class="gk-tmpl-layout">
-                            <div class="gk-tmpl-list" id="gk-tmpl-list">
-                                <div style="padding:20px; text-align:center; color:#8a9db0; font-size:13px;" id="gk-tmpl-empty">
-                                    {l s='No templates yet. Click New template to add one.' mod='globkuriermodule'}
+                            <div class="gk-tmpl-list-wrap">
+                                <div class="gk-tmpl-list" id="gk-tmpl-list">
+                                    <div style="padding:20px; text-align:center; color:#8a9db0; font-size:13px;" id="gk-tmpl-empty">
+                                        {l s='No templates yet. Click New template to add one.' mod='globkuriermodule'}
+                                    </div>
                                 </div>
+                                <button type="button" class="btn btn-success btn-sm" id="gk-tmpl-sync-btn" style="width:100%;">
+                                    <i class="icon-refresh"></i> {l s='Import from GlobKurier' mod='globkuriermodule'}
+                                </button>
                             </div>
 
                             <div class="gk-tmpl-editor" id="gk-tmpl-editor">
@@ -664,6 +666,13 @@
                                                 {/if}
                                             </select>
                                             <p class="help-block">{l s='Auto-selected during shipment. Overridden by template setting.' mod='globkuriermodule'}</p>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="col-lg-4 control-label">{l s='SWIFT/BIC code for COD purpose' mod='globkuriermodule'}:</label>
+                                        <div class="col-lg-7">
+                                            <input type="text" class="form-control" name="config_defaultCodSwiftCode" value="{$config->defaultCodSwiftCode|escape:'htmlall':'UTF-8'}" placeholder="e.g. BREXPLPWXXX" style="text-transform:uppercase;" />
+                                            <p class="help-block">{l s='Optional for a Polish account. Required by the bank when the account is not Polish.' mod='globkuriermodule'}</p>
                                         </div>
                                     </div>
                                     <div class="form-group">
