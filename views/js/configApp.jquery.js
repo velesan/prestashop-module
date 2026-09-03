@@ -259,8 +259,9 @@
 		_productTimer: null,
 
 		init: function () {
-			if (typeof window.gkConfigAjaxUrl === 'undefined') { return; }
-			GkTmpl.ajaxUrl = window.gkConfigAjaxUrl;
+			const ajaxUrl = (typeof gkConfigAjaxUrl !== 'undefined') ? gkConfigAjaxUrl : window.gkConfigAjaxUrl;
+			if (typeof ajaxUrl === 'undefined') { return; }
+			GkTmpl.ajaxUrl = ajaxUrl;
 			GkTmpl.templates = (typeof window.gkTemplatesData !== 'undefined' && window.gkTemplatesData) ? window.gkTemplatesData : [];
 			GkTmpl.renderList();
 			GkTmpl.bindEvents();
