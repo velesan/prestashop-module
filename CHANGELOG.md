@@ -1,9 +1,17 @@
-## [3.4.0] - 2026-07-17
-+ Template management: create, edit, delete and set default shipment templates
-+ Config page redesigned with 4 tabs: Sender, Shipment settings, Operators, Templates
-+ Auto-select template by PS carrier on order placement, fallback to default template
-+ Sync templates from GlobKurier API
-+ New DB table: globkurier_template (upgrade script + migration from config)
+## [3.4.0] - 2026-09-03
++ Config page redesigned: sidebar navigation with 7 sections (Account & login,  Sender, Shipment settings, Operators, Templates, Payments, Labels & statuses),  replacing the old flat form
++ Template management: create, edit, delete, set default shipment templates; sync templates from GlobKurier API; package type, sending/delivery method added
++ Auto-select template by PS carrier on order placement, fallback to default
++ New DB table gk_template (renamed from globkurier_template), migrated from config
++ COD SWIFT/BIC field for foreign bank accounts
++ Payments tab redesigned around GlobKurier's actual billing model (pre-paid balance vs. deferred collective invoice), with live balance display
++ Order form: dropped bank transfer/online as customer-facing payment options
++ Fixed: payment method mismatch between config page and order form
++ Fixed: template import from GlobKurier API only ever populated name/content
++ Fixed: front checkout pickup-point widget bugs on PS 1.7/8/9 (duplicate Select2 init, missing Select2 CSS on PS8/9, PS1.7 theme race hiding the map, search query overwritten by stale auto-search)
++ Fixed: logging out and reloading silently logged the user back in (Post/Redirect/Get for the login form)
++ Non-account tabs now fully hidden (not just their nav buttons) while logged out
++ PrestaShop Addons Validator compliance fixes
 + Translations PL/EN extended for new UI
 
 ## [3.3.6] - 2026-07-27
