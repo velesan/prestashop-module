@@ -79,7 +79,7 @@ class Globkuriermodule extends Module
         require_once __DIR__ . '/sql/install.php';
         ModuleTabs::install();
 
-        return parent::install()
+        $result = parent::install()
             && $this->registerHook('displayHeader')
             && $this->registerHook('displayBackOfficeHeader')
             && $this->registerHook('displayAdminAfterHeader')
@@ -89,6 +89,47 @@ class Globkuriermodule extends Module
             && $this->registerHook('displayAdminOrderMainBottom')
             && $this->registerHook('actionUpdateCarrier')
             && $this->registerHook('actionAdminOrdersTrackingNumberUpdate');
+
+        // Fresh install and "Reset" (BO Modules list) both call install() - without
+        // this, newly registered hooks and compiled admin templates can stay stale
+        // the same way they did on the 3.4.0 upgrade path (see clearAllCaches()).
+        $this->clearAllCaches();
+
+        return $result;
+    }
+
+    /**
+     * Clears every cache layer that can otherwise serve a stale compiled template,
+     * combined CSS/JS, or the hook<->module association list right after install,
+     * reset or upgrade. Called from here and from upgrade/upgrade-3.4.0.php.
+     */
+    public function clearAllCaches()
+    {
+        // From PS 1.7.7+, back office pages are increasingly rendered via Symfony, so a
+        // full Tools::clearAllCache() (Smarty + XML + Symfony/Sf2 + media cache) is
+        // needed. Below that, the legacy Smarty-only cache is enough and cheaper - both
+        // ultimately call Tools::clearCompile($smarty), which flushes compiled .tpl PHP.
+        if (Tools::version_compare(_PS_VERSION_, '1.7.7.0', '>=')) {
+            Tools::clearAllCache();
+        } else {
+            Tools::clearSmartyCache();
+        }
+
+        // Hook::getHookModuleList() caches the full hook<->module association list under
+        // 'hook_module_list' and reads it straight from Cache::retrieve() if present, so
+        // a freshly registerHook()'d hook can stay invisible until this is cleared - even
+        // though the row already exists in ps_hook_module.
+        Cache::clean('*');
+
+        // CCC (Combine, Compress and Cache) cache - combined/minified CSS & JS files
+        // stored under themes/<theme>/cache/. Not touched by the calls above.
+        Media::clearCache();
+
+        // Invalidate OPcache for this file so the server loads updated PHP immediately
+        // instead of serving stale bytecode.
+        if (function_exists('opcache_invalidate')) {
+            opcache_invalidate(__FILE__, true);
+        }
     }
 
     public function uninstall()
