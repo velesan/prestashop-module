@@ -142,16 +142,34 @@
 			closeSidebar();
 		});
 
-		const defaultTab = (typeof gkIsAuthenticated !== 'undefined' && !gkIsAuthenticated) ? 'tab-konto' : null;
+		const isGuest = typeof gkIsAuthenticated !== 'undefined' && !gkIsAuthenticated;
 		let saved = null;
 		try { saved = sessionStorage.getItem(STORAGE_KEY); } catch(e) {}
 		const hash = window.location.hash ? window.location.hash.replace('#', '') : null;
-		const target = hash || saved || defaultTab || 'tab-konto';
+		// Logged-out users only have the account tab's nav button rendered - ignore any
+		// stale hash/sessionStorage pointing at a tab from a previous logged-in session.
+		const target = isGuest ? 'tab-konto' : (hash || saved || 'tab-konto');
 		if ($('#' + target).length) {
 			activateTab(target);
 		} else {
 			activateTab('tab-konto');
 		}
+	}
+
+	function initLoginLoadingState() {
+		// This is a native form submit (full page reload via Post/Redirect/Get), not
+		// AJAX - there's a multi-second gap with no visual feedback otherwise. Disabling
+		// a submit button SYNCHRONOUSLY inside its own click handler can make some
+		// browsers drop it as the form's "activated submitter" and cancel the pending
+		// submit entirely (button spins forever, no request ever goes out) - deferring
+		// the disable by one tick lets the native submit fire first.
+		$(document).on('click', '#gkLoginBtn', function () {
+			const $btn = $(this);
+			const loadingText = $btn.data('loading-text') || 'Logowanie…';
+			setTimeout(function () {
+				$btn.prop('disabled', true).html('<i class="icon-refresh icon-spin"></i> ' + loadingText);
+			}, 0);
+		});
 	}
 
 	function initLogout() {
@@ -221,6 +239,7 @@
 
 	$(function () {
 		initSidebar();
+		initLoginLoadingState();
 		initLogout();
 		initApiEnvSwitch();
 		initPrepaidBalanceToggle();

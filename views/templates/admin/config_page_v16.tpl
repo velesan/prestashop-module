@@ -69,13 +69,16 @@
                             {l s='Account & login' mod='globkuriermodule'}
                             {if !$gkIsAuthenticated}<span class="gk-sidebar-badge">!</span>{/if}
                         </button></li>
+                        {if $gkIsAuthenticated}
                         <li><button type="button" class="gk-sidebar-btn" data-tab="tab-nadawca" data-title="{l s='Sender' mod='globkuriermodule'}">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                             {l s='Sender address' mod='globkuriermodule'}
                         </button></li>
+                        {/if}
                     </ul>
                 </div>
 
+                {if $gkIsAuthenticated}
                 {* Group: Shipments *}
                 <div class="gk-sidebar-group">
                     <div class="gk-sidebar-label">{l s='Shipments' mod='globkuriermodule'}</div>
@@ -110,6 +113,7 @@
                         </button></li>
                     </ul>
                 </div>
+                {/if}
             </aside>
 
             {* Mobile overlay *}
@@ -157,7 +161,7 @@
                                 <label class="control-label" style="font-weight:600; margin-bottom:4px;">{l s='Password' mod='globkuriermodule'}</label>
                                 <input type="password" class="form-control" name="config_password" value="" placeholder="{l s='Your GlobKurier password' mod='globkuriermodule'}" autocomplete="current-password" />
                             </div>
-                            <button type="submit" name="action" value="updateConfig" class="btn btn-primary">
+                            <button type="submit" name="action" value="updateConfig" class="btn btn-primary" id="gkLoginBtn" data-loading-text="{l s='Logging in…' mod='globkuriermodule'}">
                                 <i class="icon-sign-in"></i> {l s='Log in' mod='globkuriermodule'}
                             </button>
                             <p class="help-block" style="margin-top:12px;">
@@ -183,6 +187,11 @@
                         </div>
                     </div>
 
+                    {* Hidden entirely (not just the sidebar nav button) while logged out -
+                       otherwise these panes' required fields stay in the DOM, invisible,
+                       and the browser refuses to submit the form at all (including the
+                       login form itself) with "invalid form control ... not focusable". *}
+                    {if $gkIsAuthenticated}
                     {* ══════════════════════════════════════
                        TAB: NADAWCA
                     ══════════════════════════════════════ *}
@@ -746,6 +755,7 @@
                             </div>
                         </div>
                     </div>
+                    {/if}
 
                 </div>{* /gk-sidebar-content-area *}
             </div>{* /gk-sidebar-main *}

@@ -37,6 +37,7 @@ $_MODULE['<{globkuriermodule}prestashop>config_page_v16_92f78c9bab09c8227ee8fa7f
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_dc647eb65e6711e155375218212b3964'] = 'Hasło';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_1c8db4b33cd21f374abf1b0e1f2b6cc6'] = 'Twoje hasło GlobKurier';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_bffe9a3c9a7e00ba00a11749e022d911'] = 'Zaloguj się';
+$_MODULE['<{globkuriermodule}prestashop>config_page_v16_1512f4c9f922c3f5fe39d1f1ae68588a'] = 'Logowanie…';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_c77b57e9976c1675ce484dfa97da2afe'] = 'Nie masz jeszcze konta?';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_0ba7583639a274c434bbe6ef797115a4'] = 'Zarejestruj się';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_5620f91192ef1b932639ded7d8d957e4'] = 'Środowisko API GlobKurier';

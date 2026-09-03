@@ -128,17 +128,31 @@ class Globkuriermodule extends Module
         $config = new Config();
         if (Tools::getValue('action') == 'updateConfig' && $this->validateConfigFields()) {
             $return = $config->update();
-            if ($return) {
-                $this->context->smarty->assign([
-                    'success' => $this->l('The module settings have been saved correctly.'),
-                ]);
-            } else {
-                $error = $this->l('An error occurred while saving the settings. Try again.');
-                $this->context->smarty->assign([
-                    'error_info' => $error,
-                ]);
-            }
+
+            // Redirect (Post/Redirect/Get) instead of rendering the result of this POST
+            // directly: otherwise the browser's history entry for this page IS the POST,
+            // and any later reload (a normal F5, or our own AJAX logout calling
+            // window.location.reload()) resubmits it - which, for the login form
+            // specifically, silently logs the user back in with the same credentials
+            // right after they just logged out.
+            Tools::redirectAdmin(
+                $this->context->link->getAdminLink('AdminModules')
+                . '&configure=' . $this->name
+                . '&token=' . Tools::getAdminTokenLite('AdminModules')
+                . '&gk_saved=' . ($return ? '1' : '0')
+            );
         }
+
+        if (Tools::getValue('gk_saved') === '1') {
+            $this->context->smarty->assign([
+                'success' => $this->l('The module settings have been saved correctly.'),
+            ]);
+        } elseif (Tools::getValue('gk_saved') === '0') {
+            $this->context->smarty->assign([
+                'error_info' => $this->l('An error occurred while saving the settings. Try again.'),
+            ]);
+        }
+
         $gkApiEnv = isset($config->gkApiEnv) ? (int)$config->gkApiEnv : 1;
         $api = new Globkuriermodule\Common\GlobkurierApi($config->login, $config->password, $config->apiKey, $gkApiEnv);
         $gkIsAuthenticated = $api->isUserAuthorized();
