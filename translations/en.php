@@ -246,7 +246,6 @@ $_MODULE['<{globkuriermodule}prestashop>config_page_v16_1a4c1b027a8001c299c9e506
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_88299e7c23ef1a0571459f5b51c047e2'] = 'TEST MODE';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_a3224c57449eee5e74c8025e25ea92e0'] = 'GlobKurier API environment is set to Test. Switch to Production in module settings before shipping real parcels.';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_248336101b461380a4b2391a7625493d'] = 'Saved';
-$_MODULE['<{globkuriermodule}prestashop>config_page_v16_266d7dbacfb7e268ceff723f54b8c371'] = 'The environment switch is applied instantly — no need to save the form or log in again.';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_3d0ed3e9145be53d081d10fe37c93290'] = 'Width (cm)';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_519044510c97365906cb7e8370ee07db'] = 'Package type';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_f38e9081d395bb971dd1bf81f65f22e6'] = 'Parcel';

@@ -43,7 +43,6 @@ $_MODULE['<{globkuriermodule}prestashop>config_page_v16_5620f91192ef1b932639ded7
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_756d97bb256b8580d4d71ee0c547804e'] = 'Produkcyjne';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_0cbc6611f5540bd0809a388dc95a615b'] = 'Testowe';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_248336101b461380a4b2391a7625493d'] = 'Zapisano';
-$_MODULE['<{globkuriermodule}prestashop>config_page_v16_266d7dbacfb7e268ceff723f54b8c371'] = 'Przełącznik środowiska działa natychmiast — nie trzeba zapisywać formularza ani logować się ponownie.';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_d1f953c9d544c352d1f47988da9067fa'] = 'Domyślny adres nadania';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_49ee3087348e8d44e1feda1917443987'] = 'Nazwa';
 $_MODULE['<{globkuriermodule}prestashop>config_page_v16_fde5e1ed5d4d49a5b2ee1482f838742d'] = 'Imię i nazwisko';

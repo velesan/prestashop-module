@@ -180,7 +180,6 @@
                                 <small class="text-muted" id="gkApiEnvHost">{if $config->gkApiEnv == '0'}{$gkApiBaseUrlTest|escape:'htmlall':'UTF-8'}{else}{$gkApiBaseUrlProd|escape:'htmlall':'UTF-8'}{/if}</small>
                                 <span id="gkApiEnvSavedMsg" class="text-success" style="display:none;"><i class="icon-check"></i> {l s='Saved' mod='globkuriermodule'}</span>
                             </div>
-                            <p class="help-block">{l s='The environment switch is applied instantly — no need to save the form or log in again.' mod='globkuriermodule'}</p>
                         </div>
                     </div>
 
