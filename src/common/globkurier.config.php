@@ -25,7 +25,7 @@ class Config
 {
     public const CONFIG_COLUMN_NAME = 'wk_globkurier_config';
 
-    /** Poniżej są dane kofiguracyjne, które można wykorzystać w formularzu */
+    /** Below are the configuration fields usable in the form */
     public $defaultSenderName;
 
     public $defaultSenderPersonName;
@@ -62,6 +62,8 @@ class Config
 
     public $defaultPaymentType;
 
+    public $defaultCodSwiftCode;
+
     public $defaultCodAccount;
 
     public $defaultCodAccountHolderName;
@@ -80,13 +82,19 @@ class Config
 
     public $defaultInPostPoint;
 
+    public $defaultInPostCODPoint;
+
     public $paczkaRuchEnabled;
 
     public $paczkaRuchCarrier;
 
+    public $defaultPaczkaRuchPoint;
+
     public $pocztex48owpEnabled;
 
     public $pocztex48owpCarrier;
+
+    public $defaultPocztex48owpPoint;
 
     public $dhlparcelEnabled;
 
@@ -96,6 +104,8 @@ class Config
 
     public $dpdpickupCarrier;
 
+    public $defaultDpdpickupPoint;
+
     public $globboxEnabled;
 
     public $login;
@@ -103,6 +113,18 @@ class Config
     public $password;
 
     public $apiKey;
+
+    public $gkApiEnv;
+
+    public $defaultEoriNumber;
+
+    public $defaultDutyPayerNumber;
+
+    public $labelFormat;
+
+    public $orderStatusAfterCreation;
+
+    public $orderStatusAfterDelivery;
 
     /** @deprecated No longer used - replaced with Leaflet maps */
     public $googleMapsApiKey;
@@ -178,8 +200,28 @@ class Config
         foreach (array_keys(get_object_vars($this)) as $key) {
             $v = \Tools::getValue('config_' . $key);
             if ($v !== false) {
+                // Keep existing password when submitted empty (user left field blank)
+                if ($key === 'password' && $v === '') {
+                    continue;
+                }
                 $this->$key = $v;
             }
         }
+    }
+
+    /**
+     * Very old installs stored defaultPaymentType as a letter code (T/O/P/D/COD)
+     * instead of the numeric GlobKurier payment method id used everywhere else
+     * (config page pre-selection, the order form). Shared here so both call
+     * sites normalize identically instead of drifting out of sync.
+     *
+     * @param mixed $value
+     * @return mixed the numeric id if $value was a known legacy code, unchanged otherwise
+     */
+    public static function normalizeLegacyPaymentType($value)
+    {
+        $legacyPaymentMap = ['T' => 1, 'O' => 2, 'P' => 9, 'D' => 4, 'COD' => 6];
+
+        return isset($legacyPaymentMap[$value]) ? $legacyPaymentMap[$value] : $value;
     }
 }

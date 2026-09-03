@@ -20,6 +20,210 @@
 *  @author    PrestaShop SA <contact@prestashop.com>
 */
 
+/* ── GlobKurier config page: sidebar navigation — PS 1.7/8/9 ── */
+
+/* App layout */
+.gk-app-layout { display:flex; min-height:500px; align-items:stretch; }
+
+/* Sidebar */
+.gk-sidebar {
+    width:230px; flex-shrink:0;
+    background:#fff; color:#1a2840;
+    border-right:1px solid #e8edf2;
+    display:flex; flex-direction:column;
+    overflow-y:auto;
+}
+.gk-sidebar-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 16px 12px; border-bottom:1px solid #e8edf2;
+}
+.gk-sidebar-logo { height:28px; width:auto; max-width:140px; }
+.gk-sidebar-close {
+    display:none; background:none; border:none; color:#9aa5b4;
+    cursor:pointer; padding:2px 4px; line-height:1;
+}
+.gk-sidebar-close:hover { color:#1a2840; }
+.gk-sidebar-group { padding:12px 0 4px; }
+.gk-sidebar-label {
+    font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+    color:#9aa5b4; padding:0 16px 6px;
+}
+.gk-sidebar-nav { list-style:none; margin:0; padding:0; }
+.gk-sidebar-nav li { margin:0; }
+.gk-sidebar-btn {
+    display:flex; align-items:center; gap:9px; width:100%;
+    padding:9px 16px; background:none; border:none;
+    color:#4a5568; font-size:13px; font-weight:500;
+    cursor:pointer; text-align:left; border-left:3px solid transparent;
+    transition:background .12s, color .12s, border-color .12s;
+    white-space:nowrap; overflow:hidden;
+}
+.gk-sidebar-btn svg { flex-shrink:0; opacity:.55; }
+.gk-sidebar-btn:hover { background:#f4f7fb; color:#1a2840; }
+.gk-sidebar-btn:hover svg { opacity:.85; }
+.gk-sidebar-btn.is-active {
+    background:#dff5fb; color:#1db3d4;
+    border-left-color:#1db3d4; font-weight:600;
+}
+.gk-sidebar-btn.is-active svg { opacity:1; }
+.gk-sidebar-badge {
+    margin-left:auto; background:#e74c3c; color:#fff;
+    font-size:10px; font-weight:700; border-radius:50%;
+    width:16px; height:16px; display:inline-flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+}
+.gk-sidebar-cnt {
+    margin-left:auto; background:rgba(0,0,0,.07); color:#4a5568;
+    font-size:10px; font-weight:700; border-radius:10px;
+    padding:1px 6px; flex-shrink:0;
+}
+.gk-badge-new {
+    display:inline-block; background:#10a87c; color:#fff; font-size:9px; font-weight:700;
+    letter-spacing:.04em; padding:1px 5px; border-radius:8px; margin-left:4px; vertical-align:middle;
+    text-transform:uppercase; flex-shrink:0;
+}
+
+/* Mobile overlay */
+.gk-sidebar-overlay {
+    display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,.45); z-index:1040;
+}
+
+/* Main content area */
+.gk-sidebar-main { flex:1; display:flex; flex-direction:column; min-width:0; }
+.gk-sidebar-topbar {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 20px; border-bottom:1px solid #e8edf2;
+    background:#f8f9fa; min-height:48px; flex-shrink:0;
+}
+.gk-hamburger {
+    display:none; background:none; border:none; cursor:pointer;
+    padding:4px; color:#1a2840; flex-shrink:0;
+}
+.gk-sidebar-crumb { font-size:14px; font-weight:600; color:#1a2840; }
+
+/* Status pill */
+.gk-status-pill {
+    display:inline-flex; align-items:center; gap:5px;
+    font-size:11px; font-weight:600; padding:3px 10px 3px 7px;
+    border-radius:20px; letter-spacing:.02em;
+}
+.gk-pill-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.gk-pill--ok  { background:#e8f8f2; color:#10a87c; }
+.gk-pill--ok .gk-pill-dot  { background:#10a87c; }
+.gk-pill--warn { background:#fef3e2; color:#d97000; }
+.gk-pill--warn .gk-pill-dot { background:#f0a020; }
+
+/* Content area */
+.gk-sidebar-content-area { flex:1; padding:24px 28px; overflow-x:hidden; }
+
+/* Form width in tabs — full-width wrapper, constrained by form-horizontal max-width */
+#tab-nadawca > .row > .col-lg-6,
+#tab-wysylka > .row > .col-lg-6,
+#tab-platnosci > .row > .col-lg-7,
+#tab-etykiety > .row > .col-lg-6 { float:none; width:100%; }
+.gk-sidebar-content-area .form-horizontal { max-width:720px; }
+
+/* Tab panes */
+.gk-tab-pane { display:none !important; }
+.gk-tab-pane.gk-active { display:block !important; }
+
+/* Account card — Konto tab */
+.gk-account-card {
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    padding:16px 20px; background:#f4f7fb; border:1px solid #e2e8f0;
+    border-radius:6px; margin-bottom:20px; max-width:560px;
+}
+.gk-account-av {
+    width:42px; height:42px; border-radius:50%;
+    background:#1a2840; color:#fff; font-size:13px; font-weight:700;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.gk-account-meta { flex:1; min-width:0; }
+.gk-account-email { font-size:14px; font-weight:600; color:#1a2840; word-break:break-all; }
+.gk-chip {
+    display:inline-flex; align-items:center; gap:5px;
+    font-size:11px; font-weight:600; color:#10a87c;
+    background:#e8f8f2; border-radius:20px; padding:2px 8px 2px 6px;
+    margin-top:4px;
+}
+.gk-chip-dot { width:6px; height:6px; border-radius:50%; background:#10a87c; flex-shrink:0; }
+
+/* API env block */
+.gk-env-block {
+    max-width:520px; margin-top:24px; padding:16px 20px;
+    background:#f8f9fa; border:1px solid #e2e8f0; border-radius:6px;
+}
+.gk-env-block .help-block { margin-bottom:0; }
+
+/* Operator table */
+.gk-operator-header { display:flex; align-items:center; gap:14px; padding:0 0 8px; border-bottom:2px solid #d0dae4; margin-bottom:4px; }
+.gk-operator-col-head { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#8a9db0; }
+.gk-operator-row { display:flex !important; align-items:center; gap:14px; padding:12px 0; border-bottom:1px solid #edf2f7; }
+.gk-operator-row:last-child { border-bottom:none; }
+.gk-operator-label { font-size:13px; font-weight:600; color:#1a2840; min-width:160px; flex:0 0 160px; }
+.gk-operator-active { flex:0 0 110px; min-width:110px; overflow:visible; }
+.gk-operator-select { flex:1 1 auto !important; min-width:120px; overflow:hidden; }
+.gk-operator-select select { width:100% !important; box-sizing:border-box; }
+.gk-operator-point { flex:0 0 160px; min-width:0; }
+.gk-operator-point input { width:100%; box-sizing:border-box; }
+
+/* Template editor */
+.gk-tmpl-layout { display:flex; gap:16px; align-items:flex-start; min-height:360px; }
+.gk-tmpl-list-wrap { width:260px; flex-shrink:0; display:flex; flex-direction:column; gap:8px; }
+.gk-tmpl-list { width:100%; border:1px solid #e2e8f0; border-radius:4px; overflow-y:auto; max-height:560px; background:#fff; }
+.gk-tmpl-list-item { padding:11px 14px; border-bottom:1px solid #edf2f7; cursor:pointer; border-left:3px solid transparent; transition:background .12s,border-color .12s; }
+.gk-tmpl-list-item:last-child { border-bottom:none; }
+.gk-tmpl-list-item:hover { background:#f4f7fb; border-left-color:#b8c5d6; }
+.gk-tmpl-list-item.gk-active { background:#e6f7fb; border-left-color:#1db3d4; }
+.gk-tmpl-name { font-size:13px; font-weight:600; color:#1a2840; }
+.gk-tmpl-meta { font-size:11px; color:#8a9db0; margin-top:2px; }
+.gk-tmpl-star { color:#d97000; }
+.gk-tmpl-synced { display:inline-block; width:6px; height:6px; border-radius:50%; background:#10a87c; margin-left:4px; vertical-align:middle; }
+.gk-tmpl-editor { flex:1; border:1px solid #e2e8f0; border-radius:4px; background:#fff; display:flex; flex-direction:column; }
+.gk-tmpl-editor-head { padding:10px 16px; background:#f8f9fa; border-bottom:1px solid #e2e8f0; border-radius:4px 4px 0 0; display:flex; align-items:center; justify-content:space-between; }
+.gk-tmpl-editor-title { font-size:13px; font-weight:700; color:#1a2840; }
+.gk-tmpl-editor-body { padding:16px; flex:1; overflow-y:auto; }
+.gk-tmpl-editor-body .form-group { margin-bottom:12px; }
+.gk-tmpl-editor-footer { padding:10px 16px; border-top:1px solid #e2e8f0; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.gk-tmpl-placeholder { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; padding:40px; text-align:center; color:#8a9db0; }
+.gk-tmpl-subheading { font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:#8a9db0; margin:14px 0 8px; padding-bottom:4px; border-bottom:1px solid #edf2f7; }
+.gk-tmpl-add-btn { display:inline-flex; align-items:center; gap:6px; padding:4px 14px 4px 10px; font-size:13px; font-weight:600; border:none; cursor:pointer; }
+.gk-sync-info { font-size:11px; color:#8a9db0; }
+
+/* Responsive */
+@media (max-width:900px) {
+    .gk-sidebar {
+        position:fixed; left:-240px; top:0; bottom:0; width:230px; z-index:1050;
+        transition:left .22s ease; overflow-y:auto;
+    }
+    .gk-sidebar.is-open { left:0; }
+    .gk-sidebar.is-open + .gk-sidebar-overlay { display:block; }
+    .gk-sidebar-close { display:block; }
+    .gk-hamburger { display:flex; }
+    .gk-sidebar-content-area { padding:16px 16px; }
+}
+@media (max-width:768px) {
+    /* Operators tab */
+    .gk-operator-header { display:none; }
+    .gk-operator-row { flex-wrap:wrap; gap:8px; padding:14px 0; }
+    .gk-operator-label { flex:0 0 100%; font-size:12px; margin-bottom:2px; }
+    .gk-operator-select { flex:1 1 140px; }
+    .gk-operator-point { flex:1 1 110px; }
+    /* Template tab: stack list above editor */
+    .gk-tmpl-layout { flex-direction:column; min-height:auto; gap:12px; }
+    .gk-tmpl-list-wrap { width:100%; }
+    .gk-tmpl-list { max-height:200px; }
+    .gk-tmpl-editor { min-height:400px; }
+    /* Template form: remove horizontal float layout on mobile */
+    .gk-tmpl-editor-body .form-horizontal .control-label { float:none; width:100%; text-align:left; padding-bottom:2px; }
+    .gk-tmpl-editor-body .form-horizontal [class*="col-sm-"] { float:none; width:100%; padding-left:0; padding-right:0; }
+    .gk-tmpl-editor-body .form-horizontal [class*="col-sm-offset-"] { margin-left:0; }
+}
+.glob-product-block { text-align:center; padding:10px; }
+.glob-product-block:hover { background-color:#e1e1e1; }
+body[class*="controller-adminglobkurier"] .modal-body.row { display:flex; flex-wrap:wrap; }
+
 /* Datepicker unavailable dates styling — scoped via gk-datepicker class added in JS beforeShow */
 .gk-datepicker.ui-datepicker .ui-datepicker-calendar td.unavailable {
     background-color: #f5f5f5 !important;
@@ -94,6 +298,33 @@ body[class*="controller-adminglobkurier"] .bootstrap .prestashop-switch.prestash
 
 .glob-product-wrapper:hover {
     box-shadow: 2px 2px 2px 2px rgba(0, 0, 0, 0.2);
+}
+
+.glob-product-wrapper.gk-template-match {
+    border-color: #1db3d4;
+    box-shadow: 0 0 0 1px #1db3d4;
+}
+
+.glob-template-badge {
+    position: absolute;
+    top: -1px;
+    left: -1px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px 4px 8px;
+    background: #1db3d4;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+    border-radius: 5px 0 6px 0;
+    z-index: 2;
+}
+
+.glob-template-badge svg {
+    flex-shrink: 0;
 }
 
 .glob-product-logo {
@@ -194,7 +425,7 @@ body[class*="controller-adminglobkurier"] .bootstrap .prestashop-switch.prestash
     justify-content: center;
     align-items: center;
 }
-.select2box > span.select2-container {
+body[class*="controller-adminglobkurier"] .select2box > span.select2-container {
     width: 100% !important;
 }
 

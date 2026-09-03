@@ -31,7 +31,10 @@ if (!defined('_PS_VERSION_')) {
 }
 class GlobkurierApi
 {
-    private $baseApiUrl = 'https://api.globkurier.pl/v1/';
+    const API_BASE_PROD = 'https://api.globkurier.pl/v1/';
+    const API_BASE_TEST = 'https://test.api.globkurier.pl/v1/';
+
+    private $baseApiUrl;
 
     /** @var string user login in globkurier.pl */
     private $login;
@@ -51,18 +54,24 @@ class GlobkurierApi
     /** @var string */
     private $pathForCachedPointsCalledFromAdmin;
 
-    public function __construct($login = null, $password = null, $apiKey = null)
+    public function __construct($login = null, $password = null, $apiKey = null, $env = 1)
     {
         $this->login = $login;
         $this->password = $password;
         $this->apiKey = $apiKey;
+        $this->baseApiUrl = ((int)$env === 0) ? self::API_BASE_TEST : self::API_BASE_PROD;
         $this->pathForCachedPointsCalledFromAdmin = _PS_MODULE_DIR_ . 'globkuriermodule/';
     }
 
+    public function getBaseApiUrl()
+    {
+        return $this->baseApiUrl;
+    }
+
     /**
-     * Probuje zalogowac uzytkowanika i pobrac token autoryzacyjny
+     * Tries to log the user in and fetch an authorization token
      *
-     * @throws \Exception jest server odpowie z kodem > 299 lub nie udalo sie uzyskac tokena
+     * @throws \Exception if the server responds with a code > 299 or a token could not be obtained
      */
     public function login()
     {
@@ -111,11 +120,11 @@ class GlobkurierApi
     }
 
     /**
-     * Pobiera i zwraca link z ktorego mozna pobrac list przewozowy
+     * Fetches and returns the link the waybill can be downloaded from
      *
-     * @param $gkNumber - numer przesylki dla ktorej ma zostac pobrany list
+     * @param $gkNumber - shipment number for which the waybill should be fetched
      *
-     * @return string - adres url z ktorego mozna pobrac list
+     * @return string - the URL the waybill can be downloaded from
      */
     public function getWaybillUrl($gkNumber)
     {
@@ -142,7 +151,7 @@ class GlobkurierApi
     }
 
     /**
-     * Pobiera liste terminali dla InPostu
+     * Fetches the list of terminals for InPost
      *
      * @return true
      */
@@ -160,7 +169,7 @@ class GlobkurierApi
     }
 
     /**
-     * Pobiera liste terminali dla Paczka w Ruchu
+     * Fetches the list of terminals for Paczka w Ruchu
      *
      * @return true
      */
@@ -175,9 +184,9 @@ class GlobkurierApi
     }
 
     /**
-     * Pobiera listę krajów
+     * Fetches the list of countries
      *
-     * @return array lista krajów
+     * @return array list of countries
      */
     public function getCountries()
     {
@@ -340,25 +349,44 @@ class GlobkurierApi
     }
 
     /**
-     * Pobiera dane zamówienia z GlobKurier API — w tym trackingNumber od przewoźnika.
+     * Fetches the list of shipment templates from the GlobKurier API.
+     * GET /v1/order/productTemplate
      *
-     * @param string $hash hash zamówienia
-     * @param string|null $number numer zamówienia GK (opcjonalnie, np. "GK260522105311")
-     *
-     * @return array dane zamówienia
+     * @param int $limit
+     * @param int $offset
+     * @return array
      */
+    public function getTemplates($limit = 100, $offset = 0)
+    {
+        $url = $this->baseApiUrl . 'order/productTemplate?limit=' . (int)$limit . '&offset=' . (int)$offset;
+        $result = $this->sendJSONRequest($url, $this->token, [], 'GET');
+        if (is_array($result) && isset($result['results'])) {
+            return $result['results'];
+        }
+        return [];
+    }
+
     /**
-     * Pobiera dostępne metody płatności dla konta (bez kontekstu produktu).
+     * Fetches account stats, including the pre-paid balance (prepaidBalance.value/currency).
      *
      * @return array
      */
-    public function getPayments()
+    public function getUserStats()
     {
-        $url = $this->baseApiUrl . 'order/payments';
+        $url = $this->baseApiUrl . 'user/stats';
 
         return $this->sendJSONRequest($url, $this->token, [], 'GET');
     }
 
+
+    /**
+     * Fetches order data from the GlobKurier API — including the trackingNumber from the carrier.
+     *
+     * @param string $hash order hash
+     * @param string|null $number GK order number (optional, e.g. "GK260522105311")
+     *
+     * @return array order data
+     */
     public function getOrder($hash, $number = null)
     {
         $params = ['hash' => $hash];

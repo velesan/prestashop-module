@@ -36,7 +36,7 @@ class OrderManager
     }
 
     /**
-     * Liczba wszystkich zamówień GK
+     * Total count of GK orders
      */
     public function getCount()
     {
@@ -44,7 +44,7 @@ class OrderManager
     }
 
     /**
-     * Pobiera stronę zamówień GK z numerem śledzenia z ps_order_carrier (do porównania)
+     * Fetches a page of GK orders along with the tracking number from ps_order_carrier (for comparison)
      *
      * @param int $limit
      * @param int $offset
@@ -70,11 +70,11 @@ class OrderManager
     }
 
     /**
-     * Zwraca obiekt typu order po id zamówienia
+     * Returns order objects by PrestaShop order id
      *
-     * @param $orderId - id zamowienia
+     * @param $orderId - the order id
      *
-     * @return array - tablica obiektów typu zamowienie z wszystkimi jego wartościami
+     * @return array - array of order objects with all their values
      *
      * @throws \Exception
      */
@@ -96,11 +96,11 @@ class OrderManager
     }
 
     /**
-     * Zwraca obiekt typu order po id globkuriera (id wysyłki)
+     * Returns an order object by GlobKurier id (shipment id)
      *
-     * @param $gkId - id globkuriera (id wysyłki)
+     * @param $gkId - the GlobKurier id (shipment id)
      *
-     * @return OrderModel - obiekt typu zamowienie z wszystkimi jego wartościami
+     * @return OrderModel - the order object with all its values
      *
      * @throws \Exception
      */
@@ -123,11 +123,11 @@ class OrderManager
     }
 
     /**
-     * Tworzy nowe zamówienie i wkłada je do bazy danych
+     * Creates a new order and inserts it into the database
      *
-     * @param $orderToCreate - obiekt typu zamowienie który ma zostac utowrzony
+     * @param $orderToCreate - the order object to be created
      *
-     * @return bool - true w przy pomyslnego utworzenia
+     * @return bool - true on successful creation
      */
     public function create(OrderModel $orderToCreate)
     {
@@ -157,8 +157,8 @@ class OrderManager
     }
 
     /**
-     * Zwraca wszystkie zamówienia bez przypisanego tracking number (bez limitu czasu)
-     * Sortuje malejąco po dacie, żeby pierwsze wystąpienie danego order_id to było najnowsze
+     * Returns all orders without a tracking number assigned (no time limit)
+     * Sorted descending by date, so the first occurrence of a given order_id is the newest
      *
      * @return OrderModel[]
      */
@@ -180,7 +180,7 @@ class OrderManager
     }
 
     /**
-     * Zwraca zamówienia z ostatnich 48h bez przypisanego tracking number
+     * Returns orders from the last 48h without a tracking number assigned
      *
      * @return OrderModel[]
      */
@@ -204,7 +204,7 @@ class OrderManager
     }
 
     /**
-     * Zapisuje tracking w tabeli gk_orders (per GK zamówienie)
+     * Saves the tracking number in the gk_orders table (per GK order)
      *
      * @param string $gkId
      * @param string $trackingNumber
@@ -221,8 +221,8 @@ class OrderManager
     }
 
     /**
-     * Zapisuje tracking w ps_order_carrier tylko gdy pole jest jeszcze puste.
-     * Używa PS ObjectModel per https://devdocs.prestashop-project.org/1.7/faq/shipping/
+     * Saves the tracking number in ps_order_carrier only if the field is still empty.
+     * Uses the PS ObjectModel per https://devdocs.prestashop-project.org/1.7/faq/shipping/
      *
      * @param string $gkId
      * @param string $trackingNumber
@@ -263,8 +263,8 @@ class OrderManager
     }
 
     /**
-     * Aktualizuje tracking zarówno w gk_orders jak i ps_order_carrier.
-     * Używane po złożeniu zamówienia — wtedy to zamówienie jest z definicji najnowszym GK dla tego PS order.
+     * Updates the tracking number in both gk_orders and ps_order_carrier.
+     * Used after placing an order — at that point this order is by definition the newest GK order for this PS order.
      *
      * @param string $gkId
      * @param string $trackingNumber

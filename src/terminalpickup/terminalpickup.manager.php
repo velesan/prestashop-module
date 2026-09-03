@@ -32,11 +32,11 @@ if (!defined('_PS_VERSION_')) {
 class TerminalPickupManager
 {
     /**
-     * Zwraca dane wybranego terminalu po id koszyka
+     * Returns the data of the selected terminal by cart id
      *
-     * @param int $id - id koszyka
+     * @param int $id - the cart id
      *
-     * @return array|false - tablica z danymi terminalu lub false jeśli nie znaleziono
+     * @return array|false - array with terminal data, or false if not found
      */
     public function getByCartId($id)
     {
@@ -50,12 +50,12 @@ class TerminalPickupManager
     }
 
     /**
-     * Dodaje / zmienia rekord z fraza 'ruch' w kolumnie type
+     * Adds / updates a record with 'ruch' in the type column
      *
-     * @param $cartId - id koszyka
-     * @param $code - kod terminalu
+     * @param $cartId - the cart id
+     * @param $code - the terminal code
      *
-     * @return bool - true w przy pomyślnego utworzenia/zmiany
+     * @return bool - true on successful creation/update
      */
     public function setRuchPickup($cartId, $code)
     {
@@ -63,12 +63,12 @@ class TerminalPickupManager
     }
 
     /**
-     * Dodaje / zmienia rekord z fraza 'pocztex48owp' w kolumnie type
+     * Adds / updates a record with 'pocztex48owp' in the type column
      *
-     * @param $cartId - id koszyka
-     * @param $code - kod terminalu
+     * @param $cartId - the cart id
+     * @param $code - the terminal code
      *
-     * @return bool - true w przy pomyślnego utworzenia/zmiany
+     * @return bool - true on successful creation/update
      */
     public function setPocztex48owpPickup($cartId, $code)
     {
@@ -76,12 +76,12 @@ class TerminalPickupManager
     }
 
     /**
-     * Dodaje / zmienia rekord z fraza 'dhlparcel' w kolumnie type
+     * Adds / updates a record with 'dhlparcel' in the type column
      *
-     * @param $cartId - id koszyka
-     * @param $code - kod terminalu
+     * @param $cartId - the cart id
+     * @param $code - the terminal code
      *
-     * @return bool - true w przy pomyślnego utworzenia/zmiany
+     * @return bool - true on successful creation/update
      */
     public function setDhlParcelPickup($cartId, $code)
     {
@@ -89,12 +89,12 @@ class TerminalPickupManager
     }
 
     /**
-     * Dodaje / zmienia rekord z fraza 'dpdpickup' w kolumnie type
+     * Adds / updates a record with 'dpdpickup' in the type column
      *
-     * @param $cartId - id koszyka
-     * @param $code - kod terminalu
+     * @param $cartId - the cart id
+     * @param $code - the terminal code
      *
-     * @return bool - true w przy pomyślnego utworzenia/zmiany
+     * @return bool - true on successful creation/update
      */
     public function setDpdPickupPickup($cartId, $code)
     {
@@ -102,12 +102,12 @@ class TerminalPickupManager
     }
 
     /**
-     * Dodaje / zmienia rekord z fraza 'inpost' w kolumnie type
+     * Adds / updates a record with 'inpost' in the type column
      *
-     * @param $cartId - id koszyka
-     * @param $code - kod paczkomatu
+     * @param $cartId - the cart id
+     * @param $code - the parcel locker code
      *
-     * @return bool - true w przy pomyślnego utworzenia/zmiany
+     * @return bool - true on successful creation/update
      */
     public function setInpostPickup($cartId, $code)
     {
@@ -115,12 +115,12 @@ class TerminalPickupManager
     }
 
     /**
-     * Dodaje / zmienia rekord z fraza 'globbox' w kolumnie type
+     * Adds / updates a record with 'globbox' in the type column
      *
-     * @param $cartId - id koszyka
-     * @param $code - kod globbox
+     * @param $cartId - the cart id
+     * @param $code - the globbox code
      *
-     * @return bool - true w przy pomyślnego utworzenia/zmiany
+     * @return bool - true on successful creation/update
      */
     public function setGlobboxPickup($cartId, $code)
     {
@@ -146,11 +146,11 @@ class TerminalPickupManager
     }
 
     /**
-     * Usuwa rekord po id koszyka
+     * Removes a record by cart id
      *
-     * @param $cart_id - id koszyka
+     * @param $cart_id - the cart id
      *
-     * @return bool - true w przy pomyślnego usunięcia
+     * @return bool - true on successful deletion
      */
     public function deletePickup($cartId)
     {

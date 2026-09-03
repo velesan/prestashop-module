@@ -116,7 +116,8 @@ class AdminGlobkurierHistoryController extends ModuleAdminController
         }
 
         $c = new Globkuriermodule\Common\Config();
-        $api = new Globkuriermodule\Common\GlobkurierApi($c->login, $c->password, $c->apiKey);
+        $gkApiEnv = isset($c->gkApiEnv) ? (int)$c->gkApiEnv : 1;
+        $api = new Globkuriermodule\Common\GlobkurierApi($c->login, $c->password, $c->apiKey, $gkApiEnv);
 
         try {
             $api->login();
@@ -191,20 +192,21 @@ class AdminGlobkurierHistoryController extends ModuleAdminController
     }
 
     /**
-     * Metoda do zwracania linku do listu przewozowego
-     * przykladowy adres: index.php?controller=AdminGlobkurierPlaceOrder&ajax=1&action=getWaybill&gknumber=xc123123
+     * Method for returning the waybill link
+     * example URL: index.php?controller=AdminGlobkurierPlaceOrder&ajax=1&action=getWaybill&gknumber=xc123123
      *
-     * @return bool zwracana zmienna nie ma znaczenia
+     * @return bool the returned value is not significant
      */
     public function displayAjaxGetWaybill()
     {
-        /** @var string numer przesylki dla ktorej chcemy pobrać list przewozowy */
+        /** @var string shipment number for which we want to download the waybill */
         $number = Tools::getValue('gknumber', null);
         $resData = [];
 
         try {
             $c = new Globkuriermodule\Common\Config();
-            $api = new Globkuriermodule\Common\GlobkurierApi($c->login, $c->password, $c->apiKey);
+            $gkApiEnv = isset($c->gkApiEnv) ? (int)$c->gkApiEnv : 1;
+            $api = new Globkuriermodule\Common\GlobkurierApi($c->login, $c->password, $c->apiKey, $gkApiEnv);
             $url = $api->getWaybillUrl($number);
             $resData['success'] = true;
             $resData['url'] = $url;

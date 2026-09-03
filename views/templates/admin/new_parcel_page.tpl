@@ -44,7 +44,27 @@
     <div class="panel-heading">
         <i class="icon-cogs"></i> {l s='Ship parcel with Globkurier' mod='globkuriermodule'}
         {if $orderId}{l s='Based on order' mod='globkuriermodule'} #{$orderId|escape:'htmlall':'UTF-8'}{/if}
+        {if $gkApiEnvIsTest}
+        <span class="label label-warning" style="margin-left:8px; vertical-align:middle;" title="{l s='GlobKurier API environment is set to Test. Switch to Production in module settings before shipping real parcels.' mod='globkuriermodule'}">
+            {l s='TEST MODE' mod='globkuriermodule'}
+        </span>
+        {/if}
     </div>
+
+    {if $gk_all_templates_json && $gk_all_templates_json != '[]'}
+    <div style="background:#f8f9fa; border-bottom:1px solid #e5e5e5; padding:10px 20px;">
+        <div class="form-horizontal">
+            <div class="form-group" style="margin-bottom:0;">
+                <label class="col-sm-2 control-label" style="padding-top:6px; font-weight:600;">{l s='Template' mod='globkuriermodule'}</label>
+                <div class="col-sm-6">
+                    <select class="form-control" id="gk-template-select">
+                        <option value="">{l s='-- no template --' mod='globkuriermodule'}</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+    {/if}
 
     <div class="bootstrap" id="orderErrorBox" style="display:none;">
         <div class="alert alert-danger">
@@ -60,6 +80,7 @@
             <span id="valErrSenderPhone" style="display:none;">{l s='Please provide sender phone number' mod='globkuriermodule'}</span>
             <span id="valErrReceiverPhone" style="display:none;">{l s='Please provide receiver phone number' mod='globkuriermodule'}</span>
             <span id="valErrNoPickupMethod" style="display:none;">{l s='Please select a courier pickup method' mod='globkuriermodule'}</span>
+            <span id="valErrCodSwiftRequired" style="display:none;">{l s='SWIFT/BIC code is required for a non-Polish COD account' mod='globkuriermodule'}</span>
             <button type="button" class="close" id="validationErrorClose">×</button>
         </div>
     </div>
@@ -175,21 +196,21 @@
                         <hr/>
                         <div class="row">
                             <div class="col-lg-4">
-                                <div class="form-group"><label>{l s='Height (cm)' mod='globkuriermodule'}</label><input id="pkg-height" type="number" step="1" class="form-control"></div>
-                            </div>
-                            <div class="col-lg-4">
                                 <div class="form-group"><label>{l s='Length (cm)' mod='globkuriermodule'}</label><input id="pkg-length" type="number" step="1" class="form-control"></div>
                             </div>
                             <div class="col-lg-4">
                                 <div class="form-group"><label>{l s='Width (cm)' mod='globkuriermodule'}</label><input id="pkg-width" type="number" step="1" class="form-control"></div>
                             </div>
+                            <div class="col-lg-4">
+                                <div class="form-group"><label>{l s='Height (cm)' mod='globkuriermodule'}</label><input id="pkg-height" type="number" step="1" class="form-control"></div>
+                            </div>
                         </div>
                         <div class="row">
                             <div class="col-lg-6">
-                                <div class="form-group"><label>{l s='Quantity' mod='globkuriermodule'}</label><input id="pkg-count" type="number" step="1" class="form-control" value="1"></div>
+                                <div class="form-group"><label>{l s='Weight (kg)' mod='globkuriermodule'}</label><input id="pkg-weight" type="number" step="0.01" class="form-control"></div>
                             </div>
                             <div class="col-lg-6">
-                                <div class="form-group"><label>{l s='Weight (kg)' mod='globkuriermodule'}</label><input id="pkg-weight" type="number" step="0.01" class="form-control"></div>
+                                <div class="form-group"><label>{l s='Quantity' mod='globkuriermodule'}</label><input id="pkg-count" type="number" step="1" class="form-control" value="1"></div>
                             </div>
                         </div>
                         {if isset($order_products_weight) && ($order_products_weight > 0 || (isset($catalog_products_weight) && $catalog_products_weight > 0))}
@@ -226,8 +247,8 @@
                     <div class="panel-heading">{l s='Shipping' mod='globkuriermodule'}</div>
                     <div class="panel-body form-horizontal" id="serviceOptionsBody" style="margin-left:20px;">
                         <div class="form-group deliverySending">
-                            <label class="radio"><input type="radio" name="pickup_type" id="pickup" value="PICKUP" checked> {l s='The parcel will be picked up by a courier' mod='globkuriermodule'}</label>
-                            <label class="radio"><input type="radio" name="pickup_type" id="point" value="POINT"> {l s='I will send the shipment at the terminal' mod='globkuriermodule'}</label>
+                            <label class="radio"><input type="radio" name="pickup_type" id="pickup" value="PICKUP" {if !($selected_template && $selected_template.collection_type == 'POINT')}checked{/if}> {l s='The parcel will be picked up by a courier' mod='globkuriermodule'}</label>
+                            <label class="radio"><input type="radio" name="pickup_type" id="point" value="POINT" {if $selected_template && $selected_template.collection_type == 'POINT'}checked{/if}> {l s='I will send the shipment at the terminal' mod='globkuriermodule'}</label>
                         </div>
                         <div id="pickupMethodAddons" style="display:none; margin-top:4px;"></div>
                     </div>
@@ -307,6 +328,13 @@
                         <div class="form-group row" id="codAmountGroup" style="display:none;">
                             <label class="col-sm-4 col-form-label">{l s='COD amount' mod='globkuriermodule'}</label>
                             <div class="col-sm-8"><input type="text" id="codAmountInput" class="form-control" /></div>
+                        </div>
+                        <div class="form-group row" id="codSwiftGroup" style="display:none;">
+                            <label class="col-sm-4 col-form-label">{l s='SWIFT/BIC code' mod='globkuriermodule'}</label>
+                            <div class="col-sm-8">
+                                <input type="text" id="codSwiftInput" class="form-control" style="text-transform:uppercase;" placeholder="e.g. BREXPLPWXXX" />
+                                <span id="valErrCodSwiftFormat" class="text-danger" style="display:none;">{l s='Invalid SWIFT/BIC code format' mod='globkuriermodule'}</span>
+                            </div>
                         </div>
                         <div class="form-group row" id="codAccountGroup" style="display:none;">
                             <label class="col-sm-4 col-form-label">{l s='Account number to COD' mod='globkuriermodule'}</label>
@@ -519,6 +547,11 @@
         </div>
     </div>
 
+    {* JSON goes through a real HTML-escaped attribute (browser-decoded before JS reads it)
+       instead of straight into <script> text, which HTML-escaping cannot pass through
+       without corrupting the JSON's own quote characters. *}
+    <div id="gk-all-templates-data" data-json="{$gk_all_templates_json|escape:'html':'UTF-8'}" style="display:none" aria-hidden="true"></div>
+
     <script type="text/javascript">
         // Note: These will be mapped to Globkurier country IDs in JavaScript via ISO codes
         let package = [];
@@ -572,14 +605,15 @@
                 }
             },
             defaultPackageInfo : {
-                content: '{$config->defaultContent|escape:'javascript':'UTF-8'  }',
-                length : {if $config->defaultDepth}{$config->defaultDepth|escape:'javascript':'UTF-8'}{else}null{/if},
-                width  : {if $config->defaultWidth}{$config->defaultWidth|escape:'javascript':'UTF-8'}{else}null{/if},
-                height : {if $config->defaultHeight}{$config->defaultHeight|escape:'javascript':'UTF-8'}{else}null{/if},
-                weight : {if $effective_products_weight > 0}{$effective_products_weight|floatval}{elseif $config->defaultWeight}{$config->defaultWeight|escape:'javascript':'UTF-8'}{else}null{/if},
-                count  : 1,
+                content: '{if $selected_template && $selected_template.contents}{$selected_template.contents|escape:'javascript':'UTF-8'}{else}{$config->defaultContent|escape:'javascript':'UTF-8'}{/if}',
+                length : {if $selected_template && $selected_template.length}{$selected_template.length|floatval}{elseif $config->defaultDepth}{$config->defaultDepth|escape:'javascript':'UTF-8'}{else}null{/if},
+                width  : {if $selected_template && $selected_template.width}{$selected_template.width|floatval}{elseif $config->defaultWidth}{$config->defaultWidth|escape:'javascript':'UTF-8'}{else}null{/if},
+                height : {if $selected_template && $selected_template.height}{$selected_template.height|floatval}{elseif $config->defaultHeight}{$config->defaultHeight|escape:'javascript':'UTF-8'}{else}null{/if},
+                weight : {if $effective_products_weight > 0}{$effective_products_weight|floatval}{elseif $selected_template && $selected_template.weight}{$selected_template.weight|floatval}{elseif $config->defaultWeight}{$config->defaultWeight|escape:'javascript':'UTF-8'}{else}null{/if},
+                count  : {if $selected_template && $selected_template.quantity}{$selected_template.quantity|intval}{else}1{/if},
             },
-            defaultPaymentType : '{$config->defaultPaymentType|escape:'javascript':'UTF-8'}',
+            defaultPaymentType : '{if $selected_template && $selected_template.payment_type}{$selected_template.payment_type|intval}{else}{$default_payment_type|escape:'javascript':'UTF-8'}{/if}',
+            defaultCodSwiftCode : '{$config->defaultCodSwiftCode|escape:'javascript':'UTF-8'}',
             defaultCodAccount : '{$config->defaultCodAccount|escape:'javascript':'UTF-8'}',
             defaultCodAccountHolderName : '{$config->defaultCodAccountHolderName|escape:'javascript':'UTF-8'}',
             defaultCodAccountHolderAddr1 : '{$config->defaultCodAccountHolderAddr1|escape:'javascript':'UTF-8'}',
@@ -588,6 +622,7 @@
             moduleName : 'globkuriermodule',
             partialsPath : '../modules/globkuriermodule/views/templates/partials/',
             moduleApiUrl : '{$moduleApiUrl|escape:'javascript':'UTF-8'}',
+            apiBase : '{$gkApiBaseUrl|escape:'javascript':'UTF-8'}',
             login : '{$config->login|escape:'javascript':'UTF-8'}',
             password : '{$config->password|escape:'javascript':'UTF-8'}',
             apiKey : '{$config->apiKey|escape:'javascript':'UTF-8'}',
@@ -619,7 +654,18 @@
             lang16: '{l s='Save' mod='globkuriermodule'}',
             lang17: '{l s='Complete the recipients address before quoting' mod='globkuriermodule'}',
             langContentCustom: '{l s='Custom value' mod='globkuriermodule'}',
+            langFromTemplate: '{l s='From template' mod='globkuriermodule'}',
+            langFromTemplateTitle: '{l s='This is the service saved in your selected template' mod='globkuriermodule'}',
+            langNoTemplate: '{l s='-- no template --' mod='globkuriermodule'}',
         };
+
+        try {
+            window.GkTemplates = JSON.parse(document.getElementById('gk-all-templates-data').getAttribute('data-json') || '[]');
+        } catch (e) {
+            window.GkTemplates = [];
+        }
+        window.GkSelectedTemplateId = {if $selected_template}{$selected_template.id_template|intval}{else}0{/if};
+        window.GkSelectedTemplateServiceId = {if $selected_template && $selected_template.gk_product_id}{$selected_template.gk_product_id|intval}{else}0{/if};
 
         $(document).ready(function() {
             $(document).on('click', '.searchTerminals', function() {

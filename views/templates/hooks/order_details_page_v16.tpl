@@ -107,7 +107,7 @@
                         <td>{if $order->cod}{$order->cod|escape:'htmlall':'UTF-8'}zł{else} - {/if}</td>
                         <td>{$order->payment|escape:'htmlall':'UTF-8'}</td>
                         <td>
-                            <a href="https://api.globkurier.pl/v1/order/labels?orderHashes[0]={$order->hash|escape:'url':'UTF-8'}" class="" target="_blank" title="Pobierz list przewozowy">
+                            <a href="/module/globkuriermodule/getLabel?hash={$order->hash|escape:'url':'UTF-8'}" class="" target="_blank" title="Pobierz list przewozowy">
                               <i class="icon-file-text"></i>
                             </a>
                             <form class="track-button" id="track{$order->gkId|escape:'htmlall':'UTF-8'}" action="https://www.globkurier.pl/shipment-tracking/{$order->gkId|escape:'htmlall':'UTF-8'}" target="_blank" method="get">
@@ -129,10 +129,10 @@
 {literal}
 <script type="text/javascript">
     $(function(){
-        var buttonShippingContainer = $('#new-glob-parcel');
+        const buttonShippingContainer = $('#new-glob-parcel');
         $('#addressShipping .well').append(buttonShippingContainer.contents());
 
-        var buttonInvoiceContainer = $('#new-glob-invoice-parcel');
+        const buttonInvoiceContainer = $('#new-glob-invoice-parcel');
         $('#addressInvoice .well').append(buttonInvoiceContainer.contents());
     });
 </script>

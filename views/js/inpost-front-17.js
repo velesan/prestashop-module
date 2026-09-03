@@ -49,7 +49,7 @@
 })();
 
 $(function () {
-    const baseApiUrl = 'https://api.globkurier.pl/v1/';
+    const baseApiUrl = window.gkApiBaseUrl;
 
     // Shared state — represents the currently active pickup widget
     let cachedPoints = [];
@@ -157,6 +157,14 @@ $(function () {
         $('.gk-pickup-widget').not($active).hide();
         if ($active.length) {
             $active.show();
+            // PS Classic theme.js also reacts to updatedDeliveryForm: it hides every
+            // .carrier-extra-content wrapper and slideDown()s only the one next to the
+            // selected carrier row (~400ms animation). Our widget can get moved/shown
+            // right as that races, so re-assert the wrapper is visible once now and
+            // once after the slide finishes, regardless of how PS's animation settles.
+            const $wrapper = $active.closest('.carrier-extra-content, .js-carrier-extra-content');
+            $wrapper.show();
+            setTimeout(function() { $wrapper.show(); }, 450);
         }
     }
 
@@ -171,12 +179,23 @@ $(function () {
 
         const city     = window.GlobKurier.get('address.city')     || $widget.attr('data-gk-delivery-city')     || '';
         const postcode = window.GlobKurier.get('address.postcode')  || $widget.attr('data-gk-delivery-postcode') || '';
+        const autoQuery = postcode ? city + ', ' + postcode : city;
 
-        if (city) {
-            $widget.find('input[name="pickup_town"]').val(postcode ? city + ', ' + postcode : city);
+        // updatedDeliveryForm can re-fire for reasons unrelated to this widget (any
+        // checkout/cart refresh), re-running this function. It used to blindly
+        // overwrite the search field with the delivery address every time, discarding
+        // a query the customer had already typed/searched with. Only apply the
+        // address-derived query while the customer hasn't edited the field themselves.
+        if (city && $widget.attr('data-gk-user-edited') !== '1') {
+            $widget.find('input[name="pickup_town"]').val(autoQuery);
+            $widget.attr('data-gk-last-auto-query', autoQuery);
         }
 
         fetchAndRestoreSavedPickup($widget, function() {
+            if ($widget.attr('data-gk-user-edited') === '1') {
+                // Customer already has their own query/results in place — leave it.
+                return;
+            }
             // No saved pickup — auto-search using delivery address
             setTimeout(function() {
                 $widget.find('button.search-button').trigger('click');
@@ -297,9 +316,14 @@ $(function () {
         }
     });
 
-    // Clear error on input
+    // Clear error on input, and remember the customer typed their own query so a
+    // later re-trigger of triggerAutoSearch() doesn't overwrite it (see there)
     $(document).on('input', 'input[name="pickup_town"]', function() {
-        $(this).closest('.gk-pickup-widget').find('.gk-pickup-error-banner').removeClass('is-visible');
+        const $widget = $(this).closest('.gk-pickup-widget');
+        $widget.find('.gk-pickup-error-banner').removeClass('is-visible');
+        if ($(this).val() !== $widget.attr('data-gk-last-auto-query')) {
+            $widget.attr('data-gk-user-edited', '1');
+        }
     });
 
     // Search button: fetch pickup points from GK API
@@ -537,6 +561,13 @@ $(function () {
             $select.append(options);
             $select.show();
             $select.val('0');
+            // A fresh search re-fills the same <select> and re-initializes Select2 on
+            // it without ever destroying the previous instance — left unguarded, each
+            // search stacks another select2-container span (its own random id) on top
+            // of the old one, leaving a dead one blocking clicks on the new one.
+            if ($select.hasClass('select2-hidden-accessible')) {
+                $select.select2('destroy');
+            }
             $select.select2({ width: '100%' });
         } else {
             $select.hide();

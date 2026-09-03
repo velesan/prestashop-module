@@ -51,15 +51,15 @@ class OrderModel
 
     public $cod;
 
-    /** @var string kod (litera) płatności */
+    /** @var string payment code (letter) */
     public $payment;
 
-    /** @var string nazwa płatności zrozumiała dla człowieka */
+    /** @var string human-readable payment name */
     public $paymentName;
 
-    /** @var string|null numer śledzenia od przewoźnika zapisany w gk_orders */
+    /** @var string|null carrier tracking number stored in gk_orders */
     public $trackingNumber;
 
-    /** @var string|null numer śledzenia zapisany w ps_order_carrier (zamówienie PS) */
+    /** @var string|null tracking number stored in ps_order_carrier (PS order) */
     public $psTrackingNumber;
 }

@@ -27,6 +27,12 @@
 	'use strict';
 
 	const GK = window.GK || (window.GK = {});
+	// Resolved lazily (not as a top-level const) because addJS()-registered scripts
+	// execute in <head>, before window.InitialValues is set by the inline <script>
+	// block further down the page. Reading it eagerly here always saw it as undefined.
+	function gkApiBase() {
+		return window.InitialValues && window.InitialValues.apiBase;
+	}
 	GK.state = {
 		isProcessing: false,
 		orderPlaced: null,
@@ -74,9 +80,14 @@ function setProcessing(on) {
 		}
 		// CASH_ON_DELIVERY → show COD fields
 		const hasCOD = activeCategories.indexOf('CASH_ON_DELIVERY') !== -1;
-		$('#codAmountGroup, #codAccountGroup, #codAccountHolderGroup, #codAccountAddr1Group, #codAccountAddr2Group').toggle(hasCOD);
+		$('#codAmountGroup, #codSwiftGroup, #codAccountGroup, #codAccountHolderGroup, #codAccountAddr1Group, #codAccountAddr2Group').toggle(hasCOD);
 		if (hasCOD) {
 			// Fill all COD fields with defaults like Angular does
+			if (window.InitialValues && window.InitialValues.defaultCodSwiftCode) {
+				$('#codSwiftInput').val(window.InitialValues.defaultCodSwiftCode);
+				if (!GK.state.additionalInfo) GK.state.additionalInfo = {};
+				GK.state.additionalInfo.codSwiftCode = window.InitialValues.defaultCodSwiftCode;
+			}
 			if (window.InitialValues && window.InitialValues.defaultCodAccount) {
 				$('#codAccountInput').val(window.InitialValues.defaultCodAccount);
 				if (!GK.state.additionalInfo) GK.state.additionalInfo = {};
@@ -98,7 +109,7 @@ function setProcessing(on) {
 				GK.state.additionalInfo.codAccountAddr2 = window.InitialValues.defaultCodAccountHolderAddr2;
 			}
 		} else {
-			$('#codAmountInput, #codAccountInput, #codAccountHolderInput, #codAccountAddr1Input, #codAccountAddr2Input').val('');
+			$('#codAmountInput, #codSwiftInput, #codAccountInput, #codAccountHolderInput, #codAccountAddr1Input, #codAccountAddr2Input').val('');
 		}
 		// INSURANCE / INSURANCE_CARGO → show insurance amount
 		const hasInsurance =
@@ -161,9 +172,9 @@ function showOrderPlaced(order) {
 		$('#downloadLabelBtn').toggle(!!(order && order.hash));
 	}
 
-	var _trackingPollTimer = null;
-	var _trackingPollAttempts = 0;
-	var _trackingPollMax = 24;
+	let _trackingPollTimer = null;
+	let _trackingPollAttempts = 0;
+	const _trackingPollMax = 24;
 
 	function startTrackingPoll(gkId, hash, moduleApiUrl) {
 		_trackingPollAttempts = 0;
@@ -178,10 +189,10 @@ function showOrderPlaced(order) {
 			$('#orderPlacedTrackingTimeout').show();
 			return;
 		}
-		fetch('https://api.globkurier.pl/v1/order?hash=' + encodeURIComponent(hash), { headers: buildHeaders() })
+		fetch(gkApiBase() + 'order?hash=' + encodeURIComponent(hash), { headers: buildHeaders() })
 			.then(function(r){ return r.json(); })
 			.then(function(resp){
-				var tracking = (resp && resp.trackingNumber) ? resp.trackingNumber : null;
+				const tracking = (resp && resp.trackingNumber) ? resp.trackingNumber : null;
 				if (tracking) {
 					GK.state.orderPlaced.trackingNumber = tracking;
 					$('#orderPlacedTracking').text(tracking);
@@ -212,7 +223,9 @@ function showOrderPlaced(order) {
 		$('#valErrReceiverPhone').hide();
 		$('#valErrNoPickupMethod').hide();
 		$('#carrierLimitsWarning').hide();
-		$('#pkg-weight, #pkg-width, #pkg-height, #pkg-length').removeClass('gk-field-error');
+		$('#valErrCodSwiftRequired').hide();
+		$('#valErrCodSwiftFormat').hide();
+		$('#pkg-weight, #pkg-width, #pkg-height, #pkg-length, #codSwiftInput').removeClass('gk-field-error');
 	}
 
 	function showValidationErrors(err) {
@@ -223,7 +236,26 @@ function showOrderPlaced(order) {
 			err.dimensionFields.forEach(function(f) { $('#' + f).addClass('gk-field-error'); });
 			$('#carrierLimitsWarning').show();
 		}
-		if (err.noSenderPhone || err.noReceiverPhone || err.noPickupMethod) $('#validationErrorBox').show();
+		if (err.codSwiftRequired) $('#valErrCodSwiftRequired').show();
+		if (err.codSwiftFormat) {
+			$('#codSwiftInput').addClass('gk-field-error');
+			$('#valErrCodSwiftFormat').show();
+		}
+		if (err.noSenderPhone || err.noReceiverPhone || err.noPickupMethod || err.codSwiftRequired) $('#validationErrorBox').show();
+	}
+
+	const SWIFT_BIC_PATTERN = /^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/;
+
+	// UWAGA: swiftCode wymagany jest tu wyłącznie na podstawie prefiksu IBAN (PL/nie-PL).
+	// Prawdziwa reguła API GlobKurier to: SWIFT wymagany, gdy IBAN nie jest polski
+	// LUB waluta dodatku COD (przypisana do konkretnego produktu/przewoźnika) nie jest PLN.
+	// Uproszczono, bo ta integracja nie ma pojęcia "waluty pobrania" w UI, a wszyscy
+	// obecnie obsługiwani przewoźnicy z COD rozliczają pobranie w PLN.
+	// TODO: jeśli dojdzie zagraniczny przewoźnik z COD w innej walucie niż PLN,
+	// wrócić do tej reguły i doprecyzować warunek (nie polegać tylko na prefiksie IBAN).
+	function isCodSwiftRequired() {
+		const acct = ((GK.state.additionalInfo && GK.state.additionalInfo.codAccount) || '').replace(/\s/g, '').toUpperCase();
+		return acct.length > 0 && acct.substring(0, 2) !== 'PL';
 	}
 
 	function validateDimensions() {
@@ -261,6 +293,14 @@ function showOrderErrors(obj) {
 			const $paidAddon = $('.addon-checkbox[data-category="PAID_PICKUP"]');
 			if (($orderedAddon.length > 0 || $paidAddon.length > 0) && !$orderedAddon.is(':checked') && !$paidAddon.is(':checked')) {
 				r.noPickupMethod = true;
+			}
+		}
+		if ($('#codSwiftGroup').is(':visible')) {
+			const swift = (GK.state.additionalInfo && GK.state.additionalInfo.codSwiftCode || '').replace(/\s/g, '').toUpperCase();
+			if (swift) {
+				if (!SWIFT_BIC_PATTERN.test(swift)) r.codSwiftFormat = true;
+			} else if (isCodSwiftRequired()) {
+				r.codSwiftRequired = true;
 			}
 		}
 		return Object.keys(r).length ? r : null;
@@ -503,6 +543,7 @@ function showOrderErrors(obj) {
 			if (option.category === 'CASH_ON_DELIVERY') {
 				addon.value = additionalInfo.codAmount || '';
 				if (additionalInfo.codAccount) addon.bankAccountNumber = additionalInfo.codAccount.replace(/\s/g, '');
+				if (additionalInfo.codSwiftCode) addon.swiftCode = additionalInfo.codSwiftCode.replace(/\s/g, '').toUpperCase();
 				if (additionalInfo.codAccountHolder) addon.name = additionalInfo.codAccountHolder;
 				if (additionalInfo.codAccountAddr1) addon.addressLine1 = additionalInfo.codAccountAddr1;
 				if (additionalInfo.codAccountAddr2) addon.addressLine2 = additionalInfo.codAccountAddr2;
@@ -595,7 +636,7 @@ function showOrderErrors(obj) {
 			'x-auth-token': token || ''
 		};
 
-		fetch('https://api.globkurier.pl/v1/order/validate', {
+		fetch(gkApiBase() + 'order/validate', {
 			method: 'POST',
 			headers: reqHeaders,
 			body: JSON.stringify(orderData)
@@ -603,7 +644,7 @@ function showOrderErrors(obj) {
 			if (validateResp.status !== 204) {
 				return validateResp.json().then(function(body) { throw body || {}; });
 			}
-			return fetch('https://api.globkurier.pl/v1/order', {
+			return fetch(gkApiBase() + 'order', {
 				method: 'POST',
 				headers: reqHeaders,
 				body: JSON.stringify(orderData)
@@ -648,14 +689,14 @@ function showOrderErrors(obj) {
 		$(document).on('click', '#validationErrorClose', function(){ $('#validationErrorBox').hide(); });
 		$(document).on('click', '#sendOrderBtn', placeOrder);
 		$(document).on('click', '#downloadLabelBtn', function(){
-			var order = GK.state.orderPlaced;
+			const order = GK.state.orderPlaced;
 			if (!order || !order.hash) return;
 			fetch(
-				'https://api.globkurier.pl/v1/order/labels?orderHashes[0]=' + encodeURIComponent(order.hash),
+				gkApiBase() + 'order/labels?orderHashes[0]=' + encodeURIComponent(order.hash),
 				{ headers: buildHeaders() }
 			).then(function(r){ return r.blob(); }).then(function(blob){
-				var url = URL.createObjectURL(blob);
-				var a = document.createElement('a');
+				const url = URL.createObjectURL(blob);
+				const a = document.createElement('a');
 				a.href = url;
 				a.download = (order.gkId || 'label') + '.pdf';
 				document.body.appendChild(a);
@@ -737,7 +778,6 @@ function initStateFromInitialValues() {
         try { preloadCountriesMap().then(ensureCountryIdsFromIso); } catch(e) { ensureCountryIdsFromIso(); }
 	}
 
-// Mapuje country.id po isoCode na podstawie listy z /countries (bez twardych wyjątków)
 // Maps country.id by isoCode using /countries list (no hardcoded exceptions)
 function ensureCountryIdsFromIso() {
     const s = GK.state;
@@ -770,7 +810,7 @@ function ensureCountryIdsFromIso() {
 function preloadCountriesMap() {
     if (!window.GK) window.GK = {};
     if (window.GK.countriesMapLoaded) return Promise.resolve(window.GK.countriesMap || {});
-    const url = 'https://api.globkurier.pl/v1/countries';
+    const url = gkApiBase() + 'countries';
     return fetch(url, { headers: buildHeaders() })
         .then(function(r){ return r.json(); })
         .then(function(list){
@@ -1023,10 +1063,23 @@ function buildHeaders() {
 function cardForProduct(product) {
     const logo = product.carrierLogoLink ? '<img src="' + product.carrierLogoLink + '" alt="' + (product.carrierName || '') + '" />' : '';
     const price = (product.netPrice != null) ? (product.netPrice + " " + product.currency) : '';
+    // Purely visual match against the active template's saved service — no
+    // fetching or side effects, just a state read (see applyTemplate() /
+    // initTemplateSelector()), so this carries none of the timing risk that
+    // auto-selecting the service on load did.
+    const isTemplateMatch = !!(GK.state._templateServiceId && (product.id + '') === (GK.state._templateServiceId + ''));
+    const iv = window.InitialValues || {};
+    const templateBadge = isTemplateMatch
+        ? '<span class="glob-template-badge" title="' + (iv.langFromTemplateTitle || '') + '">' +
+            '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H7a2 2 0 0 0-2 2v16l7-3 7 3V5a2 2 0 0 0-2-2z"/></svg> ' +
+            (iv.langFromTemplate || '') +
+        '</span>'
+        : '';
 
 	return (
 		'<div class="col-lg-4 col-md-6 col-sm-6 glob-product-block text-center">' +
-			'<div class="glob-product-wrapper">' +
+			'<div class="glob-product-wrapper' + (isTemplateMatch ? ' gk-template-match' : '') + '">' +
+			templateBadge +
 			'<div class="glob-collectionTypes">' +
 				'<div class="glob-collectionType">' +
 				(product.collectionTypes || []).map(
@@ -1051,7 +1104,7 @@ function fetchProducts() {
     const showAllFromDom = $('#service_filters_on').is(':checked');
     GK.state.showAllCarriers = !!showAllFromDom;
     const terminalType = GK.state.terminalType || (window.InitialValues && window.InitialValues.terminalType) || null;
-		const url = 'https://api.globkurier.pl/v1/products?' + new URLSearchParams(params).toString();
+		const url = gkApiBase() + 'products?' + new URLSearchParams(params).toString();
 		$('#servicesModalList').html('<div class="col-lg-12 text-center"><i class="icon-cog icon-spin"></i></div>');
 		$('#servicesContainer').addClass('loading');
 		const $btn = $('#getServicesBtn');
@@ -1121,6 +1174,9 @@ function renderServiceOptionsContainer() {
       .off('input change', '#codAmountInput')
       .on('input change', '#codAmountInput', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.codAmount = $(this).val(); recalcOrderPrice(); });
     $(document)
+      .off('input change', '#codSwiftInput')
+      .on('input change', '#codSwiftInput', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.codSwiftCode = $(this).val(); });
+    $(document)
       .off('input change', '#codAccountInput')
       .on('input change', '#codAccountInput', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.codAccount = $(this).val(); });
     $(document)
@@ -1181,8 +1237,12 @@ function renderServiceOptionsContainer() {
 		if (!s.pickedService) return;
 		const senderIso = (s.sender && s.sender.country && s.sender.country.isoCode) || (window.InitialValues && window.InitialValues.sender && window.InitialValues.sender.countryCode) || 'PL';
 		const receiverIso = (s.receiver && s.receiver.country && s.receiver.country.isoCode) || (window.InitialValues && window.InitialValues.receiver && window.InitialValues.receiver.countryCode) || 'PL';
-		const url = 'https://api.globkurier.pl/v1/order/content?' + new URLSearchParams({ productId: s.pickedService.id, senderCountry: senderIso, receiverCountry: receiverIso }).toString();
-		const defaultContent = (window.InitialValues && window.InitialValues.defaultPackageInfo && window.InitialValues.defaultPackageInfo.content) || '';
+		const url = gkApiBase() + 'order/content?' + new URLSearchParams({ productId: s.pickedService.id, senderCountry: senderIso, receiverCountry: receiverIso }).toString();
+		// A just-applied template's content (see applyTemplateContent()) takes
+		// priority over the page-load default, since it reflects the user's
+		// most recent choice rather than the initial server-side computation.
+		const defaultContent = GK.state._templateContent || (window.InitialValues && window.InitialValues.defaultPackageInfo && window.InitialValues.defaultPackageInfo.content) || '';
+		GK.state._templateContent = null;
 		const currentCustom = (GK.state.packageInfo && GK.state.packageInfo.content) || '';
 		fetch(url, { headers: buildHeaders() })
 			.then(function(r) { return r.json(); })
@@ -1246,7 +1306,7 @@ function renderServiceOptionsContainer() {
 		$('#addonsListContainer').hide();
 		const params = buildProductsParams();
 		params.productId = s.pickedService.id;
-		const addonsUrl = 'https://api.globkurier.pl/v1/product/addons?' + new URLSearchParams(params).toString();
+		const addonsUrl = gkApiBase() + 'product/addons?' + new URLSearchParams(params).toString();
 		fetch(addonsUrl, { headers: buildHeaders() })
 			.then(function(r){ return r.json(); })
 			.then(function(data){
@@ -1268,6 +1328,17 @@ function renderServiceOptionsContainer() {
 				}).join('');
 				$('#addonsList').html(html);
 				if (html) { $('#addonsListContainer').show(); } else { $('#addonsListContainer').hide(); }
+				// Matched by category, not id: the GK API assigns a different numeric
+				// id to the same conceptual addon (e.g. COD) depending on the
+				// product/route, but its category (CASH_ON_DELIVERY, DECLARED_VALUE,
+				// ...) is stable — see queueTemplateAddons() and configApp.jquery.js.
+				if (Array.isArray(GK.state._templateAddonCategories) && GK.state._templateAddonCategories.length) {
+					applyTemplateAddonCategories(GK.state._templateAddonCategories);
+					// Applied once per template selection — cleared so later addon-list
+					// refreshes (e.g. dimensions change) don't keep re-forcing them back
+					// on over the user's own manual (un)checks.
+					GK.state._templateAddonCategories = null;
+				}
 				applyPickupMethodAddonLogic();
 				refreshPayments();
 			});
@@ -1355,7 +1426,7 @@ function updatePickupMetaVisibility() {
     } else if ($ordered.is(':checked')) {
         $('#pickupMeta').hide();
     } else {
-        // Żadna opcja nie zaznaczona lub brak tych addonów — domyślnie pokaż
+        // No option checked, or these add-ons don't exist — show by default
         $('#pickupMeta').show();
     }
 }
@@ -1364,7 +1435,7 @@ function applyPickupMethodAddonLogic() {
     const sendingType = $('input[name=pickup_type]:checked').val();
     const $container = $('#pickupMethodAddons');
 
-    // Wyczyść stare elementy i przenieś świeże z #addonsList
+    // Clear old elements and move fresh ones in from #addonsList
     $container.empty();
     $('#addonsList .addon-checkbox[data-category="ORDERED_COURIER"]').closest('.col-lg-12').detach().appendTo($container);
     $('#addonsList .addon-checkbox[data-category="PAID_PICKUP"]').closest('.col-lg-12').detach().appendTo($container);
@@ -1389,7 +1460,7 @@ function applyPickupMethodAddonLogic() {
         });
     } else {
         $container.show();
-        // Domyślnie zaznacz PAID_PICKUP jeśli żadna opcja nie jest wybrana
+        // Default to checking PAID_PICKUP if no option is selected
         const $ordered = $container.find('.addon-checkbox[data-category="ORDERED_COURIER"]');
         const $paid = $container.find('.addon-checkbox[data-category="PAID_PICKUP"]');
         if (!$ordered.is(':checked') && !$paid.is(':checked') && $paid.length) {
@@ -1410,7 +1481,7 @@ function updateCarrierDependentUI() {
     $('.receiverAddressPointId').hide();
     $('.senderAddressPointId').hide();
     updatePickupMetaVisibility();
-    // Synchronizuj widoczność addonów odbioru kuriera (są w #pickupMethodAddons, nie w #addonsList)
+    // Sync visibility of courier pickup add-ons (they live in #pickupMethodAddons, not #addonsList)
     const $pma = $('#pickupMethodAddons');
     if ($pma.children().length) {
         if (sendingType === 'POINT') { $pma.hide(); } else { $pma.show(); }
@@ -1522,7 +1593,7 @@ function updateChosenServiceUI() {
 		if (!s.pickedService) return Promise.resolve();
 		const params = buildProductsParams();
 		params.productId = s.pickedService.id;
-		const addonsUrl = 'https://api.globkurier.pl/v1/product/addons?' + new URLSearchParams(params).toString();
+		const addonsUrl = gkApiBase() + 'product/addons?' + new URLSearchParams(params).toString();
 		$('#addonsList').empty();
 		$('#addonsListContainer').hide();
 		return fetch(addonsUrl, { headers: buildHeaders() })
@@ -1578,13 +1649,16 @@ function updateChosenServiceUI() {
 		const payParams = { productId: s.pickedService.id, isFreightForwardAddonSelected: false };
 		const gross = computeGrossPrice();
 		if (gross != null) payParams.grossOrderPrice = gross.toFixed(2);
-		const paymentsUrl = 'https://api.globkurier.pl/v1/order/payments?' + new URLSearchParams(payParams).toString();
+		const paymentsUrl = gkApiBase() + 'order/payments?' + new URLSearchParams(payParams).toString();
 		const prev = s.additionalInfo && s.additionalInfo.paymentType ? (s.additionalInfo.paymentType + '') : '';
 		return fetch(paymentsUrl, { headers: buildHeaders() })
 			.then(function(r){ return r.json(); })
 			.then(function(data){
 				const list = Array.isArray(data) ? data : (data && Array.isArray(data.payments) ? data.payments : []);
-				GK.state.availablePayments = list.filter(function(p){ return p.enabled !== false; });
+				// Bank transfer (1) and Online payment (2) are excluded here — the merchant
+				// settles shipping costs with GlobKurier via pre-paid balance or collective
+				// invoice instead (see the config page's Payments tab).
+				GK.state.availablePayments = list.filter(function(p){ return p.enabled !== false && p.id !== 1 && p.id !== 2; });
 				const html = '<option value="">-- wybierz --</option>' + GK.state.availablePayments.map(function(p){
 					return '<option value="' + p.id + '">' + (p.name || ('ID ' + p.id)) + '</option>';
 				}).join('');
@@ -1676,7 +1750,7 @@ function updateChosenServiceUI() {
 		if (s.sender && s.sender.postalCode) params.senderPostCode = s.sender.postalCode;
 		if (s.receiver && s.receiver.postalCode) params.receiverPostCode = s.receiver.postalCode;
 
-		const url = 'https://api.globkurier.pl/v1/order/pickupTimeRanges?' + new URLSearchParams(params).toString();
+		const url = gkApiBase() + 'order/pickupTimeRanges?' + new URLSearchParams(params).toString();
 		return fetch(url, { headers: buildHeaders() })
 			.then(function(r){ return r.json(); })
 			.then(function(data){
@@ -1708,7 +1782,7 @@ function updateChosenServiceUI() {
 	if (s.receiver && s.receiver.country && s.receiver.country.id) params.receiverCountryId = s.receiver.country.id;
 	if (s.sender && s.sender.postalCode) params.senderPostCode = s.sender.postalCode;
 	if (s.receiver && s.receiver.postalCode) params.receiverPostCode = s.receiver.postalCode;
-		const url = 'https://api.globkurier.pl/v1/order/pickupTimeRanges?' + new URLSearchParams(params).toString();
+		const url = gkApiBase() + 'order/pickupTimeRanges?' + new URLSearchParams(params).toString();
 		return fetch(url, { headers: buildHeaders() })
 			.then(function(r){ return r.json(); })
 			.then(function(data){
@@ -1742,7 +1816,7 @@ function fetchStates(countryId, opts) {
     const targetGroup = opts.targetGroup || '#statesGroup';
     const targetSelect = opts.targetSelect || '#statesSelect';
     if (!countryId) { $(targetGroup).hide(); return Promise.resolve([]); }
-    const url = 'https://api.globkurier.pl/v1/states?countryId=' + encodeURIComponent(countryId);
+    const url = gkApiBase() + 'states?countryId=' + encodeURIComponent(countryId);
     return fetch(url, { headers: buildHeaders() })
         .then(function(r){ return r.json(); })
         .then(function(list){
@@ -1765,7 +1839,7 @@ function fetchStates(countryId, opts) {
 		const receiverCountryId = s.receiver && s.receiver.country && s.receiver.country.id;
 		const senderCountryId = s.sender && s.sender.country && s.sender.country.id;
 		if (!receiverCountryId || !senderCountryId) return;
-		const url = 'https://api.globkurier.pl/v1/order/customRequiredFields?' + new URLSearchParams({
+		const url = gkApiBase() + 'order/customRequiredFields?' + new URLSearchParams({
 			productId: s.pickedService.id,
 			senderCountryId: senderCountryId,
 			receiverCountryId: receiverCountryId,
@@ -1909,7 +1983,7 @@ function renderSummaryContainer() {
 		if (s.additionalInfo && s.additionalInfo.codAmount) usp.append('cashOnDeliveryValue', s.additionalInfo.codAmount);
 		if (s.discountCode) usp.append('discountCode', s.discountCode);
 
-		const url = 'https://api.globkurier.pl/v1/order/price?' + usp.toString();
+		const url = gkApiBase() + 'order/price?' + usp.toString();
 		$('#priceErrorBox').hide().text('');
 		return fetch(url, { headers: buildHeaders() })
 			.then(function(r){ return r.json(); })
@@ -1980,7 +2054,7 @@ function renderSummaryContainer() {
 						try {
 							const usp2 = new URLSearchParams(usp.toString());
 							usp2.delete('discountCode');
-							const url2 = 'https://api.globkurier.pl/v1/order/price?' + usp2.toString();
+							const url2 = gkApiBase() + 'order/price?' + usp2.toString();
 							return fetch(url2, { headers: buildHeaders() })
 								.then(function(r){ return r.json(); })
 								.then(function(r2){
@@ -2141,6 +2215,7 @@ function renderServicesAndBind() {
             if ($('input[name=pickup_type]:checked').val() === 'PICKUP') { fetchTimeRanges(); }
 		fetchCustomRequiredFields();
 		});
+
 		$(document).on('change', '.addon-checkbox', function(){
 			const $current = $(this);
 			const id = $current.data('id');
@@ -2151,17 +2226,17 @@ function renderServicesAndBind() {
 			const $attrBox = $current.closest('.col-lg-12').find('.addon-attributes');
 			const isChecked = $current.is(':checked');
 
-			// Kategorie z ograniczeniem do jednego wyboru *w ramach danej kategorii*
-			// (CASH_ON_DELIVERY: tylko jedno COD, INSURANCE: tylko jedno, INSURANCE_CARGO: tylko jedno)
+			// Categories limited to a single choice *within that category*
+			// (CASH_ON_DELIVERY: only one COD, INSURANCE: only one, INSURANCE_CARGO: only one)
 			const singlePerCategory = ['CASH_ON_DELIVERY', 'INSURANCE', 'INSURANCE_CARGO'];
 
-			// Jeśli zaznaczamy opcję z jednej z ww. kategorii – odznacz inne z TEJ SAMEJ kategorii
+			// When checking an option from one of the categories above, uncheck others in THE SAME category
 			if (isChecked && singlePerCategory.indexOf(category) !== -1) {
 				$('.addon-checkbox').each(function(){
 					const $other = $(this);
 					if ($other[0] === $current[0]) return;
 					const otherCat = $other.data('category');
-					if (otherCat !== category) return; // tylko w obrębie tej samej kategorii
+					if (otherCat !== category) return; // only within the same category
 					if ($other.is(':checked')) {
 						const otherId = $other.data('id');
 						const $otherAttrBox = $other.closest('.col-lg-12').find('.addon-attributes');
@@ -2172,7 +2247,7 @@ function renderServicesAndBind() {
 				});
 			}
 
-			// ORDERED_COURIER i PAID_PICKUP wzajemnie się wykluczają
+			// ORDERED_COURIER and PAID_PICKUP are mutually exclusive
 			const pickupMethodPair = ['ORDERED_COURIER', 'PAID_PICKUP'];
 			if (isChecked && pickupMethodPair.indexOf(category) !== -1) {
 				$('.addon-checkbox').each(function(){
@@ -2256,7 +2331,7 @@ function renderServicesAndBind() {
 			params.countryId = resolvedCountryId;
 		}
 
-		const url = 'https://api.globkurier.pl/v1/points?' + new URLSearchParams(params).toString();
+		const url = gkApiBase() + 'points?' + new URLSearchParams(params).toString();
 		return fetch(url, { headers: buildHeaders() })
 			.then(function(r){ return r.json(); })
 			.then(function(resp){
@@ -2432,9 +2507,137 @@ function renderServicesAndBind() {
 		recalcOrderPrice();
 	});
 
+	function applyTemplate(tmpl) {
+		if (!tmpl) return;
+		GK.state.packageInfo = GK.state.packageInfo || {};
+		if (tmpl.weight  != null) { $('#pkg-weight').val(tmpl.weight);  GK.state.packageInfo.weight  = parseFloat(tmpl.weight);  }
+		if (tmpl.height  != null) { $('#pkg-height').val(tmpl.height);  GK.state.packageInfo.height  = parseFloat(tmpl.height);  }
+		if (tmpl.length  != null) { $('#pkg-length').val(tmpl.length);  GK.state.packageInfo.length  = parseFloat(tmpl.length);  }
+		if (tmpl.width   != null) { $('#pkg-width').val(tmpl.width);    GK.state.packageInfo.width   = parseFloat(tmpl.width);   }
+		if (tmpl.quantity) { $('#pkg-count').val(tmpl.quantity); GK.state.packageInfo.count = parseInt(tmpl.quantity, 10); }
+		if (tmpl.contents) {
+			applyTemplateContent(tmpl.contents);
+		}
+		if (tmpl.payment_type) {
+			GK.state._templatePaymentId = tmpl.payment_type + '';
+		}
+		if (tmpl.gk_product_id) {
+			GK.state._templateServiceId = parseInt(tmpl.gk_product_id, 10);
+		}
+		queueTemplateAddons(tmpl);
+	}
+
+	// Syncs whatever .addon-checkbox elements currently exist in the DOM (see
+	// fetchAddonsAndPayments()) to exactly match the given addon categories —
+	// checks the ones present, and just as importantly unchecks any addon left
+	// over from a previously selected template that isn't in this one.
+	function applyTemplateAddonCategories(categories) {
+		$('#addonsList .addon-checkbox').each(function () {
+			const $cb = $(this);
+			const shouldBeChecked = categories.indexOf($cb.data('category')) !== -1;
+			if ($cb.is(':checked') !== shouldBeChecked) {
+				$cb.prop('checked', shouldBeChecked).trigger('change');
+			}
+		});
+		// Each toggle above already re-triggers the addon-checkbox change handler
+		// (which itself calls recalcOrderPrice()), but that only fires for
+		// checkboxes whose state actually flipped. Called again here so the
+		// summary is always fresh after a template switch, even when nothing
+		// needed toggling (e.g. re-applying the same template).
+		recalcOrderPrice();
+	}
+
+	// If the predefined content list is already fetched and visible for the
+	// currently picked service, selects the matching option now (or falls
+	// back to the custom free-text input if there's no match). Otherwise sets
+	// the raw field and queues the value for fetchContentList() to reconcile
+	// against the real list once it loads (see there).
+	function applyTemplateContent(content) {
+		GK.state.packageInfo = GK.state.packageInfo || {};
+		const $sel = $('#pkg-content-select');
+		const $inp = $('#pkg-content');
+		// The select always ships with one static placeholder option (see the
+		// tpl); a real fetchContentList() completion always adds at least a
+		// "custom" option on top of that, so >1 reliably means the predefined
+		// list for the currently picked service has actually loaded.
+		if ($sel.find('option').length > 1) {
+			const hasMatch = $sel.find('option').toArray().some(function (o) { return o.value === content; });
+			if (hasMatch) {
+				$sel.val(content);
+				$inp.hide().val(content);
+			} else {
+				$sel.val('__custom__');
+				$inp.show().val(content);
+			}
+			GK.state._templateContent = null;
+		} else {
+			$inp.val(content);
+			GK.state._templateContent = content;
+		}
+		GK.state.packageInfo.content = content;
+	}
+
+	// If the addons list is already fetched and visible for the currently
+	// picked service, the template's saved categories are applied right away.
+	// Otherwise addon checkboxes don't exist in the DOM yet (no service picked,
+	// or list not loaded), so they're queued here and applied later, once
+	// fetchAddonsAndPayments() renders the checkboxes (see there).
+	function queueTemplateAddons(tmpl) {
+		if (!tmpl || !tmpl.gk_addons) return;
+		try {
+			const categories = JSON.parse(tmpl.gk_addons);
+			if (!Array.isArray(categories) || !categories.length) { return; }
+			if ($('#addonsList .addon-checkbox').length) {
+				applyTemplateAddonCategories(categories);
+			} else {
+				GK.state._templateAddonCategories = categories;
+			}
+		} catch (e) {}
+	}
+
+	function initTemplateSelector() {
+		const templates = window.GkTemplates || [];
+		if (!templates.length) return;
+		const selectedId = window.GkSelectedTemplateId || 0;
+		const $sel = $('#gk-template-select');
+		if (!$sel.length) return;
+		const iv = window.InitialValues || {};
+		let html = '<option value="">' + (iv.langNoTemplate || '') + '</option>';
+		templates.forEach(function(t) {
+			let label = t.name;
+			if (t.is_default) label += ' (★)';
+			html += '<option value="' + t.id_template + '">' + label + '</option>';
+		});
+		$sel.html(html);
+		if (selectedId) {
+			$sel.val(selectedId);
+			// Dimensions/weight/quantity/content/payment_type/pickup_type for the
+			// auto-matched template are already baked into the initial server-side
+			// render (InitialValues, pickup_type radio), so we don't re-run the
+			// rest of applyTemplate() here to avoid clobbering values PHP already
+			// computed with different precedence (e.g. order product weight).
+			// Addon checkboxes have no such server-side pre-check mechanism though
+			// (they don't exist in the DOM until a service is picked), so queue
+			// them the same way a manual template switch would.
+			const autoTmpl = templates.find(function(t) { return t.id_template === selectedId; });
+			if (autoTmpl) {
+				queueTemplateAddons(autoTmpl);
+				if (autoTmpl.gk_product_id) { GK.state._templateServiceId = parseInt(autoTmpl.gk_product_id, 10); }
+			}
+		}
+		$sel.off('change.template').on('change.template', function() {
+			const id = parseInt($(this).val(), 10);
+			const tmpl = templates.find(function(t) { return t.id_template === id; });
+			if (tmpl) {
+				applyTemplate(tmpl);
+			}
+		});
+	}
+
 	$(function(){
 		initStateFromInitialValues();
 		GK.state.packageInfo = (window.InitialValues && window.InitialValues.defaultPackageInfo) ? window.InitialValues.defaultPackageInfo : { count: 1 };
+		initTemplateSelector();
 		renderAddressBoxes();
         populateDisplayPanels();
         bindEditModals();

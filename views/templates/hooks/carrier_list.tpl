@@ -111,9 +111,9 @@
 
 $(function(){
     /**
-     * Jesli domyslnie jest ustawiony dostawca inpost, to pokaz wyszukiwarke punktow
-     * Instrukcja musi być tutaj, ponieważ prestaShop, przy każdorazowym wyborze przewoźnika
-     * ładuje jeszcze raz cały ten szablon
+     * If InPost is the default carrier, show the point picker.
+     * This must run here because PrestaShop reloads this entire template
+     * every time the carrier selection changes.
      */
     const inpostCODSelected = ($('input[value="' + window.gk_inpost_cod_carrier_id + ',"') && $('input[value="' + window.gk_inpost_cod_carrier_id + ',"').attr('checked')) ? true : false;
     const inpostSelected = ($('input[value="' + window.gk_inpost_carrier_id + ',"') && $('input[value="' + window.gk_inpost_carrier_id + ',"').attr('checked')) ? true : false;

@@ -23,19 +23,10 @@
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License 3.0 (AFL-3.0)
  * International Registered Trademark & Property of PrestaShop SA
  */
-if (!defined('_PS_VERSION_')) {
-    exit;
-}
-require_once 'common/ServerErrorException.php';
-require_once 'common/globkurier.config.php';
-require_once 'common/globkurier.api.php';
-require_once 'common/globkurier.logger.php';
-require_once 'common/moduletabs.service.php';
-require_once 'order/order.manager.php';
-require_once 'order/order.model.php';
-require_once 'terminalpickup/terminalpickup.manager.php';
-require_once 'Template/TemplateModel.php';
-require_once 'Template/TemplateManager.php';
-
-require_once 'addressspliter/AddressPart.php';
-require_once 'addressspliter/AddressSplitter.php';
+header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
+header('Cache-Control: no-store, no-cache, must-revalidate');
+header('Cache-Control: post-check=0, pre-check=0', false);
+header('Pragma: no-cache');
+header('Location: ../');
+exit;

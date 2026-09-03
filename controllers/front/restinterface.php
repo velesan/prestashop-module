@@ -28,13 +28,13 @@ if (!defined('_PS_VERSION_')) {
 }
 class GlobkuriermoduleRestinterfaceModuleFrontController extends ModuleFrontController
 {
-    /* @var bool  token uwierzytelniajacy */
+    /* @var bool authentication token */
     private $tokenAuth = false;
 
-    /* @var integer numer koszyka uzyskany podczas uwierzytelniania */
+    /* @var integer cart number obtained during authentication */
     private $id_cart;
 
-    /* @var string sciezka do folderu z modulem */
+    /* @var string path to the module folder */
     public $path;
 
     /* @var bool override */
@@ -73,9 +73,9 @@ class GlobkuriermoduleRestinterfaceModuleFrontController extends ModuleFrontCont
     }
 
     /**
-     * Zapisuje punkt inpost
+     * Saves the InPost pickup point
      *
-     * @return bool nieistotne
+     * @return bool not significant
      */
     public function displayAjaxSaveInPostPoint()
     {
@@ -100,9 +100,9 @@ class GlobkuriermoduleRestinterfaceModuleFrontController extends ModuleFrontCont
     }
 
     /**
-     * Zapisuje punkt paczka w ruchu
+     * Saves the Paczka w Ruchu pickup point
      *
-     * @return bool nieistotne
+     * @return bool not significant
      */
     public function displayAjaxSavePaczkaRuchPoint()
     {
@@ -127,9 +127,9 @@ class GlobkuriermoduleRestinterfaceModuleFrontController extends ModuleFrontCont
     }
 
     /**
-     * Zapisuje punkt pocztex48 OWP
+     * Saves the Pocztex 48 OWP pickup point
      *
-     * @return bool nieistotne
+     * @return bool not significant
      */
     public function displayAjaxSavePocztex48owpPoint()
     {
@@ -150,9 +150,9 @@ class GlobkuriermoduleRestinterfaceModuleFrontController extends ModuleFrontCont
     }
 
     /**
-     * Zapisuje punkt paczka w ruchu
+     * Saves the DHL Parcel pickup point
      *
-     * @return bool nieistotne
+     * @return bool not significant
      */
     public function displayAjaxSaveDhlParcelPoint()
     {
@@ -175,9 +175,9 @@ class GlobkuriermoduleRestinterfaceModuleFrontController extends ModuleFrontCont
     }
 
     /**
-     * Zapisuje punkt DPD Pickup
+     * Saves the DPD Pickup pickup point
      *
-     * @return bool nieistotne
+     * @return bool not significant
      */
     public function displayAjaxSaveDpdPickupPoint()
     {
@@ -200,7 +200,7 @@ class GlobkuriermoduleRestinterfaceModuleFrontController extends ModuleFrontCont
     }
 
     /**
-     * Usuwa wpis o wyborze punktu inpost
+     * Removes the entry for the selected InPost pickup point
      *
      * @deprecated use displayAjaxDeletePickupPoint instead
      */
@@ -210,7 +210,7 @@ class GlobkuriermoduleRestinterfaceModuleFrontController extends ModuleFrontCont
     }
 
     /**
-     * Usuwa wpis o wyborze punktu odbioru
+     * Removes the entry for the selected pickup point
      *
      * @return bool
      */
@@ -260,7 +260,7 @@ class GlobkuriermoduleRestinterfaceModuleFrontController extends ModuleFrontCont
     }
 
     /**
-     * Zwraca zapisany punkt odbioru dla koszyka
+     * Returns the saved pickup point for the cart
      */
     public function displayAjaxGetPickupPoint()
     {
@@ -276,10 +276,10 @@ class GlobkuriermoduleRestinterfaceModuleFrontController extends ModuleFrontCont
     }
 
     /**
-     * Sprawdza czy podano dobry token dla danego koszyka. Zabezpiecza przed nieuprawniona
-     * modyfikacja nieswojego koszyka
+     * Checks whether the correct token was given for this cart. Protects against
+     * unauthorized modification of someone else's cart
      *
-     * @return bool wartosc, ktora zostala ustawiona w $this->tokenAuth
+     * @return bool the value that was set on $this->tokenAuth
      */
     private function authorize()
     {

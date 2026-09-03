@@ -2,7 +2,7 @@
 <module>
     <name>globkuriermodule</name>
     <displayName><![CDATA[Integracja Globkurier]]></displayName>
-    <version><![CDATA[3.3.6]]></version>
+    <version><![CDATA[3.4.0]]></version>
     <description><![CDATA[Oficjalny moduł integracyjny Globkurier do wysyłania przesyłek]]></description>
     <author><![CDATA[GlobKurier.pl]]></author>
     <tab><![CDATA[shipping_logistics]]></tab>
