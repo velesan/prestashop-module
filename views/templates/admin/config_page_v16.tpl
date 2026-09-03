@@ -801,18 +801,22 @@
     });
 </script>
 
+{* JSON goes through a real HTML-escaped attribute (browser-decoded before JS reads it)
+   instead of straight into <script> text, which HTML-escaping cannot pass through
+   without corrupting the JSON's own quote characters. *}
+<div id="gk-templates-data" data-json="{$gk_templates_json|escape:'html':'UTF-8'}" style="display:none" aria-hidden="true"></div>
+
 <script type="text/javascript">
-    var tokenAPI       = '{$tokenAPI|escape:'javascript':'UTF-8'}';
-    var gkApiBaseUrl   = '{$gkApiBaseUrl|escape:'javascript':'UTF-8'}';
-    var gkConfigAjaxUrl = '{$configAjaxUrl|escape:'javascript':'UTF-8'}';
-    var gkTemplatesData = {$gk_templates_json};
-    var lang_change = '{l s='Change' mod='globkuriermodule'}';
-    var lang_choose = '{l s='Choose' mod='globkuriermodule'}';
-    var lang_delete = '{l s='Delete' mod='globkuriermodule'}';
-    var lang_choose_delivery = '{l s='Choose delivery' mod='globkuriermodule'}';
-    var lang_choosen = '{l s='Confirm' mod='globkuriermodule'}';
-    var lang_cancel = '{l s='Cancel' mod='globkuriermodule'}';
-    var lang_error1 = '{l s='No services matching your criteria were found' mod='globkuriermodule'}';
-    var window_tokenAPI = tokenAPI;
-    var gkIsAuthenticated = {if $gkIsAuthenticated}true{else}false{/if};
+    // Assigned directly on window (not as local const/let) because configApp.jquery.js
+    // reads these as window.* properties, and window.gkApiBaseUrl is reassigned there
+    // too (env switch) — a script-scope const/let would not be the same binding.
+    window.tokenAPI       = '{$tokenAPI|escape:'javascript':'UTF-8'}';
+    window.gkApiBaseUrl   = '{$gkApiBaseUrl|escape:'javascript':'UTF-8'}';
+    try {
+        window.gkTemplatesData = JSON.parse(document.getElementById('gk-templates-data').getAttribute('data-json') || '[]');
+    } catch (e) {
+        window.gkTemplatesData = [];
+    }
+    const gkConfigAjaxUrl = '{$configAjaxUrl|escape:'javascript':'UTF-8'}';
+    const gkIsAuthenticated = {if $gkIsAuthenticated}true{else}false{/if};
 </script>

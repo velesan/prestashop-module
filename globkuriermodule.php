@@ -206,7 +206,9 @@ class Globkuriermodule extends Module
             'gk_githubReleaseUrl' => 'https://github.com/globkurier/prestashop-module/releases/latest',
             'gk_currentPaymentId' => $currentPaymentId,
             'gk_prepaidBalance'   => $gkPrepaidBalance,
-            'gk_templates_json'   => json_encode($gkTemplatesArr),
+            // HEX flags neutralize <, >, ', ", & so this is safe to output as-is inside
+            // a script tag in the template, without disabling Smarty's escaping there.
+            'gk_templates_json'   => json_encode($gkTemplatesArr, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP),
             'gk_template_count'   => count($gkTemplatesArr),
             'configAjaxUrl'       => $configAjaxUrl,
             'orderStatuses'       => $orderStatuses,

@@ -129,10 +129,10 @@
 {literal}
 <script type="text/javascript">
     $(function(){
-        var buttonShippingContainer = $('#new-glob-parcel');
+        const buttonShippingContainer = $('#new-glob-parcel');
         $('#addressShipping .well').append(buttonShippingContainer.contents());
 
-        var buttonInvoiceContainer = $('#new-glob-invoice-parcel');
+        const buttonInvoiceContainer = $('#new-glob-invoice-parcel');
         $('#addressInvoice .well').append(buttonInvoiceContainer.contents());
     });
 </script>

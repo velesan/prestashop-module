@@ -547,6 +547,11 @@
         </div>
     </div>
 
+    {* JSON goes through a real HTML-escaped attribute (browser-decoded before JS reads it)
+       instead of straight into <script> text, which HTML-escaping cannot pass through
+       without corrupting the JSON's own quote characters. *}
+    <div id="gk-all-templates-data" data-json="{$gk_all_templates_json|escape:'html':'UTF-8'}" style="display:none" aria-hidden="true"></div>
+
     <script type="text/javascript">
         // Note: These will be mapped to Globkurier country IDs in JavaScript via ISO codes
         let package = [];
@@ -654,7 +659,11 @@
             langNoTemplate: '{l s='-- no template --' mod='globkuriermodule'}',
         };
 
-        window.GkTemplates = {$gk_all_templates_json};
+        try {
+            window.GkTemplates = JSON.parse(document.getElementById('gk-all-templates-data').getAttribute('data-json') || '[]');
+        } catch (e) {
+            window.GkTemplates = [];
+        }
         window.GkSelectedTemplateId = {if $selected_template}{$selected_template.id_template|intval}{else}0{/if};
         window.GkSelectedTemplateServiceId = {if $selected_template && $selected_template.gk_product_id}{$selected_template.gk_product_id|intval}{else}0{/if};
 

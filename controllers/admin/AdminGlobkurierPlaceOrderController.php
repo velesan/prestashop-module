@@ -88,7 +88,9 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
             'service' => 'PICKUP',
             'iso_code' => $lang->iso_code,
             'sender_country_iso' => $sender_country_iso,
-            'gk_all_templates_json' => json_encode($allTemplatesArr),
+            // HEX flags neutralize <, >, ', ", & so this is safe to output as-is inside
+            // a script tag in the template, without disabling Smarty's escaping there.
+            'gk_all_templates_json' => json_encode($allTemplatesArr, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP),
         ]);
 
         if (Tools::getValue('order_id')) {
