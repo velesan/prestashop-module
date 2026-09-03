@@ -354,8 +354,7 @@ class Globkuriermodule extends Module
                     }
                     $isoToIdSync = $this->getGkCountriesMap($config);
                     $idToIsoSync = array_flip($isoToIdSync);
-                    $raw = $api->getTemplates();
-                    $list = is_array($raw) ? $raw : [];
+                    $list = $api->getTemplates();
                     $stats = $tm->syncFromApi($list, $idToIsoSync);
                     echo json_encode(['success' => true] + $stats);
                     break;
@@ -996,7 +995,14 @@ class Globkuriermodule extends Module
 
     public function hookDisplayBackOfficeHeader($params)
     {
-        $this->context->controller->addCSS($this->_path . 'views/css/back.css', 'all');
+        // Without a version query string, a CDN/reverse-proxy/browser cache in front
+        // of the shop can keep serving a stale back.css indefinitely after an update -
+        // same cache-busting approach as configApp.jquery.js below.
+        $backCssFile = _PS_MODULE_DIR_ . 'globkuriermodule/views/css/back.css';
+        $this->context->controller->addCSS(
+            $this->_path . 'views/css/back.css?v=' . (@filemtime($backCssFile) ?: $this->version),
+            'all'
+        );
     }
 
     public function hookDisplayAdminAfterHeader($params)
