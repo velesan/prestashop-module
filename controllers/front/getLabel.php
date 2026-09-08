@@ -68,7 +68,10 @@ class GlobkuriermoduleGetLabelModuleFrontController extends ModuleFrontControlle
                 echo json_encode($return);
                 exit;
             }
-            $dir = __DIR__ . '/../../files/' . $hash . '.pdf';
+            // basename() on top of the already-whitelisted $hash is redundant in practice
+            // (the regex above only allows [a-zA-Z0-9_-]) but makes the path-traversal
+            // mitigation unambiguous to static analyzers scanning this sink.
+            $dir = __DIR__ . '/../../files/' . basename($hash) . '.pdf';
             file_put_contents($dir, $request);
             $size = filesize($dir);
             header('Content-Type: application/pdf');

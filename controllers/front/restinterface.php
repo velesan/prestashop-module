@@ -239,7 +239,10 @@ class GlobkuriermoduleRestinterfaceModuleFrontController extends ModuleFrontCont
 
             return true;
         }
-        $fileContent = Tools::file_get_contents($this->pathForCachedPoints . '/' . $serviceCode . '.json');
+        // basename() on top of the already-whitelisted $serviceCode is redundant in
+        // practice (the regex above only allows [a-zA-Z0-9_-]) but makes the
+        // path-traversal mitigation unambiguous to static analyzers scanning this sink.
+        $fileContent = Tools::file_get_contents($this->pathForCachedPoints . '/' . basename($serviceCode) . '.json');
         if ($fileContent == false) {
             $responseData = [
                 'success' => false,

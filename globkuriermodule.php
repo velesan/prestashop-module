@@ -541,9 +541,16 @@ class Globkuriermodule extends Module
                         echo json_encode(['success' => false, 'contents' => [], 'allowOtherContent' => true]);
                         break;
                     }
-                    $token       = $api->getToken();
-                    $senderIso   = strtoupper(preg_replace('/[^A-Za-z]/', '', (string)Tools::getValue('sender_country', 'PL')));
-                    $receiverIso = strtoupper(preg_replace('/[^A-Za-z]/', '', (string)Tools::getValue('recipient_country', 'PL')));
+                    $token = $api->getToken();
+                    // Not an SSRF vector: the request's host/scheme (getBaseApiUrl()) comes
+                    // from stored module config, never from user input - sender_country/
+                    // recipient_country only ever become query STRING values on that fixed
+                    // host. Still whitelisted to a strict 2-letter code (default 'PL' for
+                    // anything else) rather than just stripping non-letters.
+                    $rawSenderIso = strtoupper((string) Tools::getValue('sender_country', 'PL'));
+                    $senderIso = preg_match('/^[A-Z]{2}$/', $rawSenderIso) ? $rawSenderIso : 'PL';
+                    $rawReceiverIso = strtoupper((string) Tools::getValue('recipient_country', 'PL'));
+                    $receiverIso = preg_match('/^[A-Z]{2}$/', $rawReceiverIso) ? $rawReceiverIso : 'PL';
                     $params = http_build_query([
                         'productId'       => (int)Tools::getValue('product_id', 0),
                         'senderCountry'   => $senderIso,
@@ -870,7 +877,7 @@ class Globkuriermodule extends Module
                 [
                     'media' => 'all',
                     'priority' => 200,
-                ],
+                ]
             );
             $this->context->controller->registerStylesheet(
                 'module-' . $this->name . '-select2-style',
@@ -879,7 +886,7 @@ class Globkuriermodule extends Module
                     'server' => 'remote',
                     'media' => 'all',
                     'priority' => 200,
-                ],
+                ]
             );
 
             // Load Leaflet Maps CSS - high priority to load before other styles
@@ -890,7 +897,7 @@ class Globkuriermodule extends Module
                     'server' => 'remote',
                     'media' => 'all',
                     'priority' => 150,
-                ],
+                ]
             );
 
             $this->context->controller->registerStylesheet(
@@ -900,7 +907,7 @@ class Globkuriermodule extends Module
                     'server' => 'remote',
                     'media' => 'all',
                     'priority' => 150,
-                ],
+                ]
             );
 
             $this->context->controller->registerStylesheet(
@@ -910,7 +917,7 @@ class Globkuriermodule extends Module
                     'server' => 'remote',
                     'media' => 'all',
                     'priority' => 150,
-                ],
+                ]
             );
 
             // Load Leaflet Maps JavaScript
@@ -921,7 +928,7 @@ class Globkuriermodule extends Module
                     'server' => 'remote',
                     'position' => 'bottom',
                     'priority' => 180,
-                ],
+                ]
             );
             $this->context->controller->registerJavascript(
                 'leaflet-markercluster-js',
@@ -930,7 +937,7 @@ class Globkuriermodule extends Module
                     'server' => 'remote',
                     'position' => 'bottom',
                     'priority' => 185,
-                ],
+                ]
             );
 
             // Load Select2 JavaScript
@@ -942,7 +949,7 @@ class Globkuriermodule extends Module
                     'position' => 'bottom',
                     'priority' => 200,
                     'attribute' => 'defer',
-                ],
+                ]
             );
 
             // Load main module JavaScript
@@ -952,7 +959,7 @@ class Globkuriermodule extends Module
                 [
                     'position' => 'bottom',
                     'priority' => 250,
-                ],
+                ]
             );
         } elseif (version_compare(_PS_VERSION_, '1.7.0', '>=') === true) {
             // PrestaShop 1.7.x
@@ -962,7 +969,7 @@ class Globkuriermodule extends Module
                 [
                     'media' => 'all',
                     'priority' => 200,
-                ],
+                ]
             );
             $this->context->controller->registerStylesheet(
                 'module-' . $this->name . '-select2-style',
@@ -971,7 +978,7 @@ class Globkuriermodule extends Module
                     'server' => 'remote',
                     'media' => 'all',
                     'priority' => 200,
-                ],
+                ]
             );
 
             // Load Leaflet Maps CSS - high priority to load before other styles
@@ -982,7 +989,7 @@ class Globkuriermodule extends Module
                     'server' => 'remote',
                     'media' => 'all',
                     'priority' => 150,
-                ],
+                ]
             );
 
             $this->context->controller->registerStylesheet(
@@ -992,7 +999,7 @@ class Globkuriermodule extends Module
                     'server' => 'remote',
                     'media' => 'all',
                     'priority' => 150,
-                ],
+                ]
             );
 
             $this->context->controller->registerStylesheet(
@@ -1002,7 +1009,7 @@ class Globkuriermodule extends Module
                     'server' => 'remote',
                     'media' => 'all',
                     'priority' => 150,
-                ],
+                ]
             );
 
             // Load Leaflet Maps JavaScript
@@ -1013,7 +1020,7 @@ class Globkuriermodule extends Module
                     'server' => 'remote',
                     'position' => 'bottom',
                     'priority' => 180,
-                ],
+                ]
             );
 
             $this->context->controller->registerJavascript(
@@ -1023,7 +1030,7 @@ class Globkuriermodule extends Module
                     'server' => 'remote',
                     'position' => 'bottom',
                     'priority' => 185,
-                ],
+                ]
             );
 
             $this->context->controller->registerJavascript(
@@ -1034,7 +1041,7 @@ class Globkuriermodule extends Module
                     'position' => 'bottom',
                     'priority' => 200,
                     'attribute' => 'defer',
-                ],
+                ]
             );
             $this->context->controller->registerJavascript(
                 'modules-globkuriermodule',
@@ -1042,7 +1049,7 @@ class Globkuriermodule extends Module
                 [
                     'position' => 'bottom',
                     'priority' => 250,
-                ],
+                ]
             );
         } else {
             $this->context->controller->addCSS($this->_path . 'views/css/front.css', 'all');
