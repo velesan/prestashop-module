@@ -271,6 +271,12 @@ $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_da189bdb72d336aeb4af0343
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_fee21300d53188ce80065339a6951089'] = 'Kod pocztowy i miasto';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_1a394e3fd5c81e593f37b2adbc64ef9b'] = 'Kwota ubezpieczenia';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_7703d35702a9e49be902e435b45a4796'] = 'Zadeklarowana wartość';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_7b71aca1828efdc4c0593c93b13b8427'] = 'Przesyłka standardowa';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_2de1239f236684c5bee75bd524a38a51'] = 'Popraw';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_4aa5a4427c2bba1d7273dca2de67cdcc'] = 'Popraw poniższe dane';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_411b77de7f1e317029408e321dab13a2'] = 'Przesyłka niestandardowa';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_f4d1fa042d701f73ec82c425819659c5'] = 'Dla wybranych opcji wymagane jest ubezpieczenie - podaj kwotę i wybierz opcję ubezpieczenia';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_1ccb7bd123bb46ded9f20de12bc6a65f'] = 'Numer SENT';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_f58d7f5b40a3efc41780c9f2cb329090'] = 'Cel wysyłki';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_11e81635f72815d36eb73c7ae70942e5'] = 'Stany/regiony';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_12a637c24a585f97ab66d017d6f756ec'] = 'Stany/regiony nadawcy';

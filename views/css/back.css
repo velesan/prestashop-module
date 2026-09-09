@@ -597,3 +597,22 @@ body[class*="controller-adminglobkurier"] h4.modal-title span.closeModal {
       margin-top: 20px;
     }
   }
+
+/* order/validate field errors on the new shipment order form */
+#senderBox .panel.gk-panel-error,
+#receiverBox .panel.gk-panel-error {
+    border: 2px solid #c0392b;
+}
+.gk-field-error {
+    border: 2px solid #c0392b !important;
+    box-shadow: 0 0 0 3px rgba(192, 57, 43, 0.15) !important;
+}
+.gk-inline-field-error {
+    color: #c0392b;
+    font-size: 12px;
+    margin-top: 2px;
+}
+#validationErrorsList a.gk-fix-address-error {
+    margin-left: 6px;
+    white-space: nowrap;
+}

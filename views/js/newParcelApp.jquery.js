@@ -78,9 +78,11 @@ function setProcessing(on) {
 				// keep as chosen by user; do nothing
 			}
 		}
-		// CASH_ON_DELIVERY → show COD fields
+		// CASH_ON_DELIVERY → show COD bank-detail fields
+		// (the COD amount input itself lives in the value-range addon group and is
+		// managed by renderAddonsList()/applyValueRangeFilter(), not here)
 		const hasCOD = activeCategories.indexOf('CASH_ON_DELIVERY') !== -1;
-		$('#codAmountGroup, #codSwiftGroup, #codAccountGroup, #codAccountHolderGroup, #codAccountAddr1Group, #codAccountAddr2Group').toggle(hasCOD);
+		$('#codSwiftGroup, #codAccountGroup, #codAccountHolderGroup, #codAccountAddr1Group, #codAccountAddr2Group').toggle(hasCOD);
 		if (hasCOD) {
 			// Fill all COD fields with defaults like Angular does
 			if (window.InitialValues && window.InitialValues.defaultCodSwiftCode) {
@@ -109,20 +111,15 @@ function setProcessing(on) {
 				GK.state.additionalInfo.codAccountAddr2 = window.InitialValues.defaultCodAccountHolderAddr2;
 			}
 		} else {
-			$('#codAmountInput, #codSwiftInput, #codAccountInput, #codAccountHolderInput, #codAccountAddr1Input, #codAccountAddr2Input').val('');
+			$('#codSwiftInput, #codAccountInput, #codAccountHolderInput, #codAccountAddr1Input, #codAccountAddr2Input').val('');
 		}
-		// INSURANCE / INSURANCE_CARGO → show insurance amount
-		const hasInsurance =
-			activeCategories.indexOf('INSURANCE') !== -1 ||
-			activeCategories.indexOf('INSURANCE_CARGO') !== -1;
-		$('#insuranceAmountGroup').toggle(hasInsurance);
-		if (!hasInsurance) { $('#insuranceAmountInput').val(''); }
-		// International → declared value + purpose when receiver ISO != PL
+		// International → purpose when receiver ISO != PL
+		// (insurance / declared value amount inputs live in the value-range addon
+		// groups and are managed by renderAddonsList()/applyValueRangeFilter())
 		const receiverIso = (s.receiver && s.receiver.country && (s.receiver.country.isoCode || s.receiver.country.code || s.receiver.country.iso)) || (window.InitialValues && window.InitialValues.receiver && window.InitialValues.receiver.countryCode) || null;
 		const isInternational = receiverIso && (receiverIso.toUpperCase() !== 'PL');
-		$('#declaredValueGroup, #purposeGroup').toggle(!!isInternational);
+		$('#purposeGroup').toggle(!!isInternational);
 		if (!isInternational) {
-			$('#declaredValueInput').val('');
 			$('#purposeSelect').val('');
 			if (s.additionalInfo) s.additionalInfo.purpose = '';
 		} else {
@@ -131,6 +128,13 @@ function setProcessing(on) {
 			s.additionalInfo.purpose = selectedPurpose;
 			$('#purposeSelect').val(selectedPurpose);
 		}
+
+		// insuranceRequired: some addons (e.g. certain NOT_STANDARD/COD tiers) require the
+		// merchant to also carry insurance. Neither reference app (shoper/shopify) blocks
+		// order submission on this - just a visible nudge - so we do the same here.
+		const insuranceRequiredActive = $('.addon-checkbox[data-insurance-required="1"]:checked').length > 0;
+		const hasInsurance = activeCategories.indexOf('INSURANCE') !== -1 || activeCategories.indexOf('INSURANCE_CARGO') !== -1;
+		$('.gk-insurance-required-warning').toggle(insuranceRequiredActive && !hasInsurance);
 
 		// Terminal label "InPost za pobraniem" for COD-inpost.
 		// We don't rely on terminalType being COD-specific (DB usually stores only 'inpost').
@@ -517,6 +521,264 @@ function showOrderErrors(obj) {
 		return data;
 	}
 
+	// Lightweight senderAddress/receiverAddress-only payload for GK's partial order
+	// validation (POST order/validate), used before a service is even picked (page
+	// load, sender/receiver edit) - full buildOrderData() isn't safe to call yet
+	// since it depends on GK.state.pickedService.
+	function buildAddressOnlyPayload() {
+		const s = GK.state;
+		const build = function(src) {
+			src = src || {};
+			const dst = {
+				name: src.name,
+				city: src.city,
+				street: src.street,
+				houseNumber: src.houseNumber,
+				postCode: src.postalCode,
+				countryId: src.country && src.country.id,
+				phone: src.phone,
+				email: src.email,
+				contactPerson: src.contactPerson
+			};
+			if (src.apartmentNumber) { dst.apartmentNumber = src.apartmentNumber; }
+			return dst;
+		};
+		return { senderAddress: build(s.sender), receiverAddress: build(s.receiver) };
+	}
+
+	// GK reports sender/receiver field errors as flat keys like "receiverAddress[phone]"
+	// (confirmed from a real 400 response: {"fields":{"receiverAddress[phone]":"..."}})
+	// rather than a nested object, so match that shape explicitly and only fall back to
+	// generic flattening for anything else (other top-level fields, or a differently
+	// shaped body) instead of assuming one or the other everywhere.
+	const ADDRESS_ERROR_KEY_RE = /^(sender|receiver)Address\[([A-Za-z0-9]+)\]$/;
+
+	// Maps a GK address API field name to the "<role>_edit_<suffix>" input id used in
+	// the sender/receiver edit modals (a couple of names differ: postCode -> postalCode
+	// input, contactPerson -> contact input).
+	const ADDRESS_FIELD_TO_EDIT_SUFFIX = {
+		name: 'name', city: 'city', street: 'street', houseNumber: 'houseNumber',
+		apartmentNumber: 'apartmentNumber', postCode: 'postalCode', phone: 'phone',
+		email: 'email', contactPerson: 'contact'
+	};
+
+	// GK also reports addon field errors as flat keys like "addons[1][bankAccountNumber]"
+	// or "addons[1][id]" (the "addon not selected/invalid" case) - the index is the
+	// position of that entry in the `addons` array we sent, i.e. GK.state.serviceOptions[index].
+	const ADDON_ERROR_KEY_RE = /^addons\[(\d+)\]\[([A-Za-z0-9]+)\]$/;
+
+	// COD bank-detail fields are fixed, single inputs on the main form (not per
+	// addon-instance), so a field name maps straight to one input id.
+	const ADDON_FIELD_TO_INPUT_ID = {
+		bankAccountNumber: 'codAccountInput',
+		swiftCode: 'codSwiftInput',
+		name: 'codAccountHolderInput',
+		addressLine1: 'codAccountAddr1Input',
+		addressLine2: 'codAccountAddr2Input'
+	};
+
+	// Reads the human, already-translated label straight from the edit modal's own
+	// <label> instead of maintaining a second copy of those translations here.
+	function addressFieldLabel(role, apiField) {
+		const suffix = ADDRESS_FIELD_TO_EDIT_SUFFIX[apiField];
+		const $input = suffix ? $('#' + role + '_edit_' + suffix) : $();
+		const label = $input.length ? $input.closest('.form-group').find('label').first().text().trim() : '';
+		return label || apiField;
+	}
+
+	function parseValidationErrors(errors) {
+		const addressErrors = [];
+		const addonErrors = [];
+		const otherMessages = [];
+		function prettifyKey(k) {
+			return k.replace(/\[([A-Za-z0-9]+)\]/g, ' → $1').replace(/\./g, ' → ');
+		}
+		function walk(obj, keyPath) {
+			if (obj == null) return;
+			if (typeof obj === 'string') {
+				const addrMatch = keyPath.match(ADDRESS_ERROR_KEY_RE);
+				const addonMatch = !addrMatch && keyPath.match(ADDON_ERROR_KEY_RE);
+				if (addrMatch) {
+					addressErrors.push({ role: addrMatch[1], field: addrMatch[2], message: obj });
+				} else if (addonMatch) {
+					const index = parseInt(addonMatch[1], 10);
+					addonErrors.push({ index: index, field: addonMatch[2], message: obj, option: (GK.state.serviceOptions || [])[index] || null });
+				} else {
+					otherMessages.push(keyPath ? (prettifyKey(keyPath) + ': ' + obj) : obj);
+				}
+			} else if (Array.isArray(obj)) {
+				obj.forEach(function(m) { walk(m, keyPath); });
+			} else if (typeof obj === 'object') {
+				Object.keys(obj).forEach(function(k) { walk(obj[k], keyPath ? (keyPath + '.' + k) : k); });
+			}
+		}
+		walk(errors, '');
+		return { addressErrors: addressErrors, addonErrors: addonErrors, otherMessages: otherMessages };
+	}
+
+	const MANAGED_FIELD_ERROR_IDS = ['codSwiftInput', 'codAccountInput', 'codAccountHolderInput', 'codAccountAddr1Input', 'codAccountAddr2Input', 'codAmountInput', 'insuranceAmountInput', 'declaredValueInput'];
+
+	function clearAddressValidationErrors() {
+		$('#validationErrorsList').empty();
+		$('#validationErrors').hide();
+		$('#senderBox .panel, #receiverBox .panel').removeClass('gk-panel-error');
+		$('#senderEditModal, #receiverEditModal').find('.gk-field-error').removeClass('gk-field-error');
+		MANAGED_FIELD_ERROR_IDS.forEach(function(id) { $('#' + id).removeClass('gk-field-error'); });
+		$('.gk-inline-field-error').remove();
+	}
+
+	// Highlights the specific input inside the (already open, or about to be opened)
+	// edit modal, so fixing an error doesn't require hunting for which field it means.
+	function highlightAddressField(role, field, message) {
+		const suffix = ADDRESS_FIELD_TO_EDIT_SUFFIX[field];
+		if (!suffix) return;
+		const $input = $('#' + role + '_edit_' + suffix);
+		if (!$input.length) return;
+		$input.addClass('gk-field-error');
+		if (!$input.next('.gk-inline-field-error').length) {
+			$('<div class="gk-inline-field-error"></div>').text(message).insertAfter($input);
+		}
+	}
+
+	function highlightFieldById(inputId, message) {
+		const $input = $('#' + inputId);
+		if (!$input.length) return;
+		$input.addClass('gk-field-error');
+		if (!$input.next('.gk-inline-field-error').length) {
+			$('<div class="gk-inline-field-error"></div>').text(message).insertAfter($input);
+		}
+	}
+
+	// For an "addon not selected/invalid" (field "id") error: highlight the amount
+	// input driving that addon category (Additional options), since that's what the
+	// merchant actually needs to fix (e.g. no in-range insurance addon matched yet).
+	function highlightValueGroupInputForCategory(category, message) {
+		const groupKey = Object.keys(VALUE_CATEGORY_GROUPS).find(function(gk) { return VALUE_CATEGORY_GROUPS[gk].categories.indexOf(category) !== -1; });
+		if (!groupKey) return;
+		highlightFieldById(VALUE_CATEGORY_GROUPS[groupKey].inputId, message);
+	}
+
+	// Renders order/validate's raw error body as a friendly, translated summary
+	// ("Receiver - Phone: <message> [Fix]") instead of dumping technical API field
+	// paths like "receiverAddress[phone]" or "addons[1][bankAccountNumber]", and ties
+	// each error to its source: the sender/receiver panel (red outline, "Fix" link to
+	// the edit modal) or the relevant COD/insurance/declared-value input on the main
+	// form (red border + inline message under it).
+	function showAddressValidationErrors(rawErrors) {
+		clearAddressValidationErrors();
+		const parsed = parseValidationErrors(rawErrors || {});
+		if (!parsed.addressErrors.length && !parsed.addonErrors.length && !parsed.otherMessages.length) return;
+
+		const iv = window.InitialValues || {};
+		const $ul = $('#validationErrorsList');
+
+		parsed.addressErrors.forEach(function(err) {
+			const roleLabel = err.role === 'sender' ? (iv.langSender || 'Sender') : (iv.langReceiver || 'Receiver');
+			const fieldLabel = addressFieldLabel(err.role, err.field);
+			const $li = $('<li></li>').text(roleLabel + ' — ' + fieldLabel + ': ' + err.message + ' ');
+			$('<a href="#" class="gk-fix-address-error"></a>')
+				.attr('data-role', err.role)
+				.attr('data-field', err.field)
+				.attr('data-message', err.message)
+				.text(iv.langFix || 'Fix')
+				.appendTo($li);
+			$ul.append($li);
+
+			$('#' + err.role + 'Box .panel').addClass('gk-panel-error');
+			highlightAddressField(err.role, err.field, err.message);
+		});
+
+		parsed.addonErrors.forEach(function(err) {
+			const optionName = err.option && err.option.name ? err.option.name : ('#' + (err.index + 1));
+			const inputId = ADDON_FIELD_TO_INPUT_ID[err.field];
+			// "id" errors (addon missing/invalid) already name the addon in the message
+			// itself (e.g. "Dodatek ubezpieczenie musi być wybrany.") - prefixing the
+			// addon name again would just be redundant noise.
+			const text = inputId
+				? (optionName + ' — ' + $('#' + inputId).closest('.form-group').find('label').first().text().trim() + ': ' + err.message)
+				: err.message;
+			$ul.append($('<li></li>').text(text));
+
+			if (inputId) {
+				highlightFieldById(inputId, err.message);
+			} else if (err.option && err.option.category) {
+				highlightValueGroupInputForCategory(err.option.category, err.message);
+			}
+		});
+
+		parsed.otherMessages.forEach(function(msg) {
+			$ul.append($('<li></li>').text(msg));
+		});
+
+		$('#validationErrors').show();
+	}
+
+	// Fire-and-forget partial validation: independent of order/price (mirrors how
+	// the sibling shoper app runs them side by side, rather than gating price on it),
+	// since this admin form recalculates price on nearly every keystroke and a hard
+	// gate would make the whole form feel sluggish.
+	function postOrderValidate(payload) {
+		const token = window.InitialValues && window.InitialValues.token;
+		const headers = {
+			'Content-Type': 'application/json',
+			'accept-language': (window.InitialValues && window.InitialValues.isoCode === 'pl') ? 'pl' : 'en',
+			'x-auth-token': token || ''
+		};
+		return fetch(gkApiBase() + 'order/validate', {
+			method: 'POST',
+			headers: headers,
+			body: JSON.stringify(payload)
+		}).then(function(resp) {
+			if (resp.status === 204) {
+				clearAddressValidationErrors();
+				return;
+			}
+			return resp.json().then(function(body) {
+				const errors = (body && (body.fields || body.errors || body.violations)) || body || {};
+				showAddressValidationErrors(errors);
+			});
+		}).catch(function() {
+			// Network hiccup on a non-blocking pre-check - ignore, the final
+			// order/validate call before actual submission still guards placeOrder().
+		});
+	}
+
+	let _fullValidateAbortController = null;
+	let _fullValidateDebounceTimer = null;
+
+	// Debounced/abortable order/validate using the full buildOrderData() payload,
+	// called alongside order/price once a service is picked (recalcOrderPrice()).
+	function debouncedFullOrderValidate() {
+		if (_fullValidateDebounceTimer) clearTimeout(_fullValidateDebounceTimer);
+		_fullValidateDebounceTimer = setTimeout(function() {
+			if (_fullValidateAbortController) { _fullValidateAbortController.abort(); }
+			_fullValidateAbortController = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+			const token = window.InitialValues && window.InitialValues.token;
+			const headers = {
+				'Content-Type': 'application/json',
+				'accept-language': (window.InitialValues && window.InitialValues.isoCode === 'pl') ? 'pl' : 'en',
+				'x-auth-token': token || ''
+			};
+			fetch(gkApiBase() + 'order/validate', {
+				method: 'POST',
+				headers: headers,
+				body: JSON.stringify(buildOrderData()),
+				signal: _fullValidateAbortController ? _fullValidateAbortController.signal : undefined
+			}).then(function(resp) {
+				if (resp.status === 204) {
+					clearAddressValidationErrors();
+					return;
+				}
+				return resp.json().then(function(body) {
+					const errors = (body && (body.fields || body.errors || body.violations)) || body || {};
+					showAddressValidationErrors(errors);
+				});
+			}).catch(function(e) {
+				if (e && e.name === 'AbortError') return;
+			});
+		}, 800);
+	}
+
 	function generatePickup(additionalInfo) {
 		const pickup = {
 			date: additionalInfo.sendDate || (window.InitialValues && window.InitialValues.todayDate) || new Date().toISOString().split('T')[0]
@@ -549,6 +811,10 @@ function showOrderErrors(obj) {
 				if (additionalInfo.codAccountAddr2) addon.addressLine2 = additionalInfo.codAccountAddr2;
 			} else if (option.category === 'INSURANCE' || option.category === 'INSURANCE_CARGO') {
 				addon.value = additionalInfo.insuranceAmount || '';
+			} else if (option.category === 'DECLARED_VALUE') {
+				addon.value = additionalInfo.declaredValue || '';
+			} else if (option.category === 'SENT' && option.sentNumber) {
+				addon.sentNumber = option.sentNumber;
 			}
 			// For other addons, don't add value field unless explicitly provided
 
@@ -568,6 +834,7 @@ function showOrderErrors(obj) {
 		const collectionType = getSelectedCollectionTypeForApi();
 		const $orderedCbValidate = $('.addon-checkbox[data-category="ORDERED_COURIER"]');
 		const orderedCourierSelected = $orderedCbValidate.length > 0 && $orderedCbValidate.is(':checked');
+
 		if (collectionType === 'PICKUP' && !orderedCourierSelected) {
 			const sendDate = $('#sendDateInput').val();
 			const timeRange = $('#pickupTimeSelect').val();
@@ -585,20 +852,20 @@ function showOrderErrors(obj) {
 				showOrderErrors({ pickup: 'Pickup date cannot be in the past' });
 				return;
 			}
-		// Check if date is in available dates
-		if (GK.state.availablePickupDates && GK.state.availablePickupDates.length > 0) {
-			if (!GK.state.availablePickupDates.includes(sendDate)) {
-				showOrderErrors({ pickup: 'Pickup date is not available, please select another date' });
-				return;
+			// Check if date is in available dates
+			if (GK.state.availablePickupDates && GK.state.availablePickupDates.length > 0) {
+				if (!GK.state.availablePickupDates.includes(sendDate)) {
+					showOrderErrors({ pickup: 'Pickup date is not available, please select another date' });
+					return;
+				}
+			} else {
+				// If no available dates fetched, use today or tomorrow as fallback
+				const today = new Date().toISOString().split('T')[0];
+				const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+				if (sendDate < today) {
+					sendDate = today; // Use today if date is in the past
+				}
 			}
-		} else {
-			// If no available dates fetched, use today or tomorrow as fallback
-			const today = new Date().toISOString().split('T')[0];
-			const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-			if (sendDate < today) {
-				sendDate = today; // Use today if date is in the past
-			}
-		}
 		}
 
 		// Validate international shipment fields
@@ -687,6 +954,16 @@ function showOrderErrors(obj) {
 	function bind() {
 		$(document).on('click', '#orderErrorClose', function(){ $('#orderErrorBox').hide(); });
 		$(document).on('click', '#validationErrorClose', function(){ $('#validationErrorBox').hide(); });
+		// "Fix" link inside the address validation summary: opens the relevant edit
+		// modal (reusing its own open/populate handler) and highlights the exact field.
+		$(document).on('click', '.gk-fix-address-error', function(e){
+			e.preventDefault();
+			const role = $(this).data('role');
+			const field = $(this).data('field');
+			const message = $(this).data('message');
+			$('#' + role + 'ChangeLink').trigger('click');
+			setTimeout(function(){ highlightAddressField(role, field, message); }, 0);
+		});
 		$(document).on('click', '#sendOrderBtn', placeOrder);
 		$(document).on('click', '#downloadLabelBtn', function(){
 			const order = GK.state.orderPlaced;
@@ -975,6 +1252,8 @@ function bindEditModals() {
         GK.state.sender.email = $('#sender_edit_email').val();
         populateDisplayPanels();
         if (GK.state.sender.phone && GK.state.receiver.phone) { $('#validationErrorBox').hide(); }
+        try { ensureCountryIdsFromIso(); } catch(e) {}
+        postOrderValidate(buildAddressOnlyPayload());
     });
 
     // Open Receiver edit
@@ -1005,6 +1284,8 @@ function bindEditModals() {
         GK.state.receiver.email = $('#receiver_edit_email').val();
         populateDisplayPanels();
         if (GK.state.sender.phone && GK.state.receiver.phone) { $('#validationErrorBox').hide(); }
+        try { ensureCountryIdsFromIso(); } catch(e) {}
+        postOrderValidate(buildAddressOnlyPayload());
     });
 }
 	// ============ Services and Options (MVP) ============
@@ -1197,6 +1478,24 @@ function renderServiceOptionsContainer() {
     $(document)
       .off('input change', '#declaredValueInput')
       .on('input change', '#declaredValueInput', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.declaredValue = $(this).val(); });
+    // Value-range-driven addon groups (COD / insurance / declared value) live inside
+    // #addonsList and get torn down and rebuilt by renderAddonsList() on every service
+    // or pickup-type change - bound on document so they survive that.
+    $(document)
+      .off('input change', '.gk-value-addon-input')
+      .on('input change', '.gk-value-addon-input', function(){ applyValueRangeFilter($(this).data('group')); });
+    // Standard/non-standard shipment radio toggle, same lifecycle as the value-range groups above.
+    $(document)
+      .off('change', '.gk-shipment-type-radio')
+      .on('change', '.gk-shipment-type-radio', function(){ applyShipmentTypeSelection($(this).val()); });
+    // Per-addon SENT number field, injected into .addon-attributes when a SENT addon is checked.
+    $(document)
+      .off('input change', '.gk-sent-number-input')
+      .on('input change', '.gk-sent-number-input', function(){
+        const addonId = String($(this).data('id'));
+        const value = $(this).val();
+        (GK.state.serviceOptions || []).forEach(function(o){ if (String(o.id) === addonId) { o.sentNumber = value; } });
+      });
     $(document)
       .off('input change', '#commentsInput')
       .on('input change', '#commentsInput', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.notes = $(this).val(); });
@@ -1296,6 +1595,204 @@ function renderServiceOptionsContainer() {
 			});
 	}
 
+	// Categories whose addons come in value-range tiers (e.g. "Insurance up to 5,000 PLN")
+	// instead of being picked directly: the merchant types an amount in Additional options
+	// and the matching addon(s) are derived from it, rather than checked by hand first.
+	// INSURANCE and INSURANCE_CARGO share one input/selection since they cover the same
+	// concept (GK just splits it into two API categories).
+	const VALUE_CATEGORY_GROUPS = {
+		CASH_ON_DELIVERY: { categories: ['CASH_ON_DELIVERY'], inputId: 'codAmountInput', showAllMatches: true },
+		INSURANCE: { categories: ['INSURANCE', 'INSURANCE_CARGO'], inputId: 'insuranceAmountInput', showAllMatches: false },
+		DECLARED_VALUE: { categories: ['DECLARED_VALUE'], inputId: 'declaredValueInput', showAllMatches: false }
+	};
+	const VALUE_CATEGORY_NAMES = ['CASH_ON_DELIVERY', 'INSURANCE', 'INSURANCE_CARGO', 'DECLARED_VALUE'];
+	const VALUE_GROUP_STATE_FIELD = { CASH_ON_DELIVERY: 'codAmount', INSURANCE: 'insuranceAmount', DECLARED_VALUE: 'declaredValue' };
+	const VALUE_GROUP_LABEL_KEY = { CASH_ON_DELIVERY: 'langCodAmount', INSURANCE: 'langInsuranceAmount', DECLARED_VALUE: 'langDeclaredValue' };
+
+	function escapeHtml(str) {
+		return (str + '').replace(/[&<>"']/g, function(ch) {
+			return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+		});
+	}
+
+	// Same markup/attributes the existing global .addon-checkbox change handler expects
+	// (data-id/data-category/data-price/data-attributes, sibling .addon-attributes box).
+	// The description (when provided by the API) is shown as a native-tooltip info icon,
+	// like the "hint" icon in the sibling shoper/shopify apps.
+	function renderAddonCheckboxHtml(opt) {
+		const p = (opt.priceGross != null ? opt.priceGross : opt.price);
+		const curr = (opt.currency || '').trim();
+		const priceTxt = (p != null) ? (' <span class="text-muted">(+' + p + (curr ? (' ' + curr) : '') + ')</span>') : '';
+		const label = opt.addonName || opt.name || opt.symbol || ('#' + opt.id);
+		const attrsEncoded = opt.attributes ? encodeURIComponent(opt.attributes) : '';
+		const descTxt = (opt.description || '').trim();
+		// Plain unicode symbol instead of an icon font glyph: the admin theme's icon
+		// set differs between PS 1.6/1.7/8/9, so this avoids depending on any of them.
+		const descIcon = descTxt
+			? ' <span class="text-muted" style="cursor:help; border:1px solid; border-radius:50%; padding:0 5px; font-size:11px;" title="' + escapeHtml(descTxt) + '">i</span>'
+			: '';
+		return '' +
+			'<div class="col-lg-12">' +
+				'<label>' +
+					'<input type="checkbox" class="addon-checkbox" data-id="' + opt.id + '" data-category="' + (opt.category || '') + '" data-price="' + (p != null ? p : '') + '" data-attributes="' + attrsEncoded + '" data-insurance-required="' + (opt.insuranceRequired ? '1' : '0') + '"> ' +
+					'<span class="addon-name-text">' + label + '</span>' + priceTxt + descIcon +
+				'</label>' +
+				'<div class="addon-attributes" style="display:none;"></div>' +
+			'</div>';
+	}
+
+	// Builds #addonsList: standard/non-standard shipment toggle first (if NOT_STANDARD
+	// addons exist), then value-range-driven groups (with their amount input), then
+	// every other addon rendered as a plain checkbox like before.
+	function renderAddonsList(list, requiredAlternativeAddonsGroups) {
+		GK.state.requiredAlternativeAddonsGroups = Array.isArray(requiredAlternativeAddonsGroups) ? requiredAlternativeAddonsGroups : [];
+		GK.state.valueAddonsByCategory = {};
+		VALUE_CATEGORY_NAMES.forEach(function(cat) { GK.state.valueAddonsByCategory[cat] = []; });
+		GK.state.notStandardAddons = [];
+		const generic = [];
+		(list || []).forEach(function(opt) {
+			if (VALUE_CATEGORY_NAMES.indexOf(opt.category) !== -1) {
+				GK.state.valueAddonsByCategory[opt.category].push(opt);
+			} else if (opt.category === 'NOT_STANDARD') {
+				GK.state.notStandardAddons.push(opt);
+			} else {
+				generic.push(opt);
+			}
+		});
+
+		const iv = window.InitialValues || {};
+		const groupsHtml = Object.keys(VALUE_CATEGORY_GROUPS).map(function(groupKey) {
+			const group = VALUE_CATEGORY_GROUPS[groupKey];
+			const hasAny = group.categories.some(function(cat) { return GK.state.valueAddonsByCategory[cat].length > 0; });
+			if (!hasAny) return '';
+			const labelText = iv[VALUE_GROUP_LABEL_KEY[groupKey]] || groupKey;
+			return '' +
+				'<div class="col-lg-12 gk-value-addon-group" data-group="' + groupKey + '" style="margin-bottom:14px;">' +
+					'<label>' + labelText + '</label>' +
+					'<input type="text" class="form-control gk-value-addon-input" id="' + group.inputId + '" data-group="' + groupKey + '" style="max-width:220px;">' +
+					(groupKey === 'INSURANCE' ? '<div class="gk-insurance-required-warning text-danger" style="display:none; margin-top:4px;">' + escapeHtml(iv.langInsuranceRequiredWarning || '') + '</div>' : '') +
+					'<div class="gk-value-addon-options" style="margin-top:6px;"></div>' +
+				'</div>';
+		}).join('');
+
+		// Standard vs non-standard shipment radio toggle. Always shown; the
+		// "non-standard" choice (and its reveal-able options) only appears when the
+		// API actually returned NOT_STANDARD addons for this route/package - otherwise
+		// "standard" is the only option.
+		const hasNotStandard = GK.state.notStandardAddons.length > 0;
+		const notStandardHtml = '' +
+			'<div class="col-lg-12 gk-not-standard-group" style="margin-bottom:14px;">' +
+				'<div class="radio"><label><input type="radio" name="gkShipmentType" class="gk-shipment-type-radio" value="standard" checked> ' + (iv.langStandardShipment || 'Standard shipment') + '</label></div>' +
+				(hasNotStandard ? '<div class="radio"><label><input type="radio" name="gkShipmentType" class="gk-shipment-type-radio" value="nonstandard"> ' + (iv.langNonStandardShipment || 'Non-standard shipment') + '</label></div>' : '') +
+				(hasNotStandard ? '<div class="gk-not-standard-options row" style="display:none; margin-top:6px;"></div>' : '') +
+			'</div>';
+
+		const genericHtml = generic.map(renderAddonCheckboxHtml).join('');
+		const html = notStandardHtml + groupsHtml + genericHtml;
+		$('#addonsList').html(html);
+		if (html) { $('#addonsListContainer').show(); } else { $('#addonsListContainer').hide(); }
+
+		Object.keys(VALUE_CATEGORY_GROUPS).forEach(function(groupKey) {
+			// Re-apply whatever amount is already tracked in state (e.g. surviving a
+			// pickup-type change) instead of always starting blank.
+			const stateField = VALUE_GROUP_STATE_FIELD[groupKey];
+			const existingValue = GK.state.additionalInfo && GK.state.additionalInfo[stateField];
+			if (existingValue) {
+				$('#' + VALUE_CATEGORY_GROUPS[groupKey].inputId).val(existingValue);
+			}
+			applyValueRangeFilter(groupKey);
+		});
+	}
+
+	// Filters a value-range group's addons to those whose [minValue, maxValue] contains
+	// the amount currently typed in its input, and (re)renders the matching checkbox(es).
+	function applyValueRangeFilter(groupKey) {
+		const group = VALUE_CATEGORY_GROUPS[groupKey];
+		if (!group) return;
+		const $input = $('#' + group.inputId);
+		const $wrapper = $input.closest('.gk-value-addon-group');
+		const $container = $wrapper.find('.gk-value-addon-options');
+		const value = parseFloat((($input.val() || '') + '').replace(',', '.'));
+
+		const previousIds = $container.find('.addon-checkbox').map(function() { return String($(this).data('id')); }).get();
+		const previousCheckedId = $container.find('.addon-checkbox:checked').data('id');
+
+		let addons = [];
+		group.categories.forEach(function(cat) {
+			addons = addons.concat((GK.state.valueAddonsByCategory && GK.state.valueAddonsByCategory[cat]) || []);
+		});
+
+		const purgeUnrendered = function(renderedIds) {
+			previousIds.forEach(function(id) {
+				if (renderedIds.indexOf(id) === -1) {
+					GK.state.serviceOptions = (GK.state.serviceOptions || []).filter(function(o) { return String(o.id) !== id; });
+				}
+			});
+		};
+
+		if (!value || isNaN(value) || value <= 0) {
+			$container.empty();
+			purgeUnrendered([]);
+			updateEnabledOptionsUI();
+			recalcOrderPrice();
+			refreshPayments();
+			return;
+		}
+
+		const inRange = addons.filter(function(a) {
+			const min = (a.minValue != null) ? parseFloat(a.minValue) : null;
+			const max = (a.maxValue != null) ? parseFloat(a.maxValue) : null;
+			if (min != null && value < min) return false;
+			if (max != null && value > max) return false;
+			return true;
+		}).sort(function(a, b) {
+			const pa = (a.priceGross != null ? a.priceGross : a.price) || 0;
+			const pb = (b.priceGross != null ? b.priceGross : b.price) || 0;
+			return pa - pb;
+		});
+
+		if (!inRange.length) {
+			$container.empty();
+			purgeUnrendered([]);
+			updateEnabledOptionsUI();
+			recalcOrderPrice();
+			refreshPayments();
+			return;
+		}
+
+		const toRender = group.showAllMatches ? inRange : [inRange[0]];
+		const renderedIds = toRender.map(function(a) { return String(a.id); });
+		purgeUnrendered(renderedIds);
+
+		$container.html(toRender.map(renderAddonCheckboxHtml).join(''));
+
+		// Keep the merchant's own pick if it's still a valid match; otherwise default
+		// to the cheapest (first, since toRender is price-sorted).
+		const idToCheck = (previousCheckedId && renderedIds.indexOf(String(previousCheckedId)) !== -1)
+			? String(previousCheckedId)
+			: renderedIds[0];
+		$container.find('.addon-checkbox[data-id="' + idToCheck + '"]').prop('checked', true).trigger('change');
+	}
+
+	// Standard/non-standard shipment toggle: "non-standard" reveals the NOT_STANDARD
+	// addons fetched for this route as plain (multi-select) checkboxes; switching back
+	// to "standard" hides and unchecks them, removing any from GK.state.serviceOptions.
+	function applyShipmentTypeSelection(type) {
+		const $container = $('.gk-not-standard-options');
+		if (type === 'nonstandard') {
+			$container.html((GK.state.notStandardAddons || []).map(renderAddonCheckboxHtml).join('')).show();
+		} else {
+			$container.find('.addon-checkbox:checked').each(function(){
+				const otherId = String($(this).data('id'));
+				GK.state.serviceOptions = (GK.state.serviceOptions || []).filter(function(o){ return String(o.id) !== otherId; });
+			});
+			$container.hide().empty();
+			updateEnabledOptionsUI();
+			refreshPayments();
+			recalcOrderPrice();
+		}
+	}
+
 	function fetchAddonsAndPayments() {
 		const s = GK.state;
 		if (!s.pickedService) return;
@@ -1311,23 +1808,7 @@ function renderServiceOptionsContainer() {
 			.then(function(r){ return r.json(); })
 			.then(function(data){
 				const list = (data && Array.isArray(data.addons)) ? data.addons : (Array.isArray(data) ? data : []);
-				const html = list.map(function(opt){
-					const p = (opt.priceGross != null ? opt.priceGross : opt.price);
-					const curr = (opt.currency || '').trim();
-					const priceTxt = (p != null) ? (' <span class="text-muted">(+' + p + (curr ? (' ' + curr) : '') + ')</span>') : '';
-					const label = opt.addonName || opt.name || opt.symbol || ('#' + opt.id);
-					const attrsEncoded = opt.attributes ? encodeURIComponent(opt.attributes) : '';
-					return '' +
-						'<div class="col-lg-12">' +
-							'<label>' +
-								'<input type="checkbox" class="addon-checkbox" data-id="' + opt.id + '" data-category="' + (opt.category || '') + '" data-price="' + (p != null ? p : '') + '" data-attributes="' + attrsEncoded + '"> ' +
-								label + priceTxt +
-							'</label>' +
-							'<div class="addon-attributes" style="display:none;"></div>' +
-						'</div>';
-				}).join('');
-				$('#addonsList').html(html);
-				if (html) { $('#addonsListContainer').show(); } else { $('#addonsListContainer').hide(); }
+				renderAddonsList(list, data && data.requiredAlternativeAddonsGroups);
 				// Matched by category, not id: the GK API assigns a different numeric
 				// id to the same conceptual addon (e.g. COD) depending on the
 				// product/route, but its category (CASH_ON_DELIVERY, DECLARED_VALUE,
@@ -1600,21 +2081,7 @@ function updateChosenServiceUI() {
 			.then(function(r){ return r.json(); })
 			.then(function(data){
 				const list = (data && Array.isArray(data.addons)) ? data.addons : (Array.isArray(data) ? data : []);
-				const html = list.map(function(opt){
-					const price = (opt.price != null) ? (' <span class="text-muted">(+' + opt.price + ')</span>') : '';
-					const label = opt.addonName || opt.name || opt.symbol || ('#' + opt.id);
-					const attrsEncoded = opt.attributes ? encodeURIComponent(opt.attributes) : '';
-					return '' +
-						'<div class="col-lg-12">' +
-							'<label>' +
-								'<input type="checkbox" class="addon-checkbox" data-id="' + opt.id + '" data-category="' + (opt.category || '') + '" data-price="' + (opt.price != null ? opt.price : '') + '" data-attributes="' + attrsEncoded + '"> ' +
-								label + price +
-							'</label>' +
-							'<div class="addon-attributes" style="display:none;"></div>' +
-						'</div>';
-				}).join('');
-				$('#addonsList').html(html);
-				if (html) { $('#addonsListContainer').show(); } else { $('#addonsListContainer').hide(); }
+				renderAddonsList(list, data && data.requiredAlternativeAddonsGroups);
 				applyPickupMethodAddonLogic();
 			});
 	}
@@ -1850,17 +2317,15 @@ function fetchStates(countryId, opts) {
 			.then(function(r){ return r.json(); })
 			.then(function(json){
 				GK.state.customRequired = json || {};
-				// declared value and purpose
+				// declared value default (visibility of its addon group is driven entirely
+				// by renderAddonsList()/applyValueRangeFilter() based on the fetched addons)
 				if (json.declaredValue) {
-					$('#declaredValueGroup').show();
 					// Initialize declaredValue with default value if not set
 					if (!GK.state.additionalInfo || !GK.state.additionalInfo.declaredValue) {
 						GK.state.additionalInfo = GK.state.additionalInfo || {};
 						GK.state.additionalInfo.declaredValue = '0'; // Default value
 						$('#declaredValueInput').val('0');
 					}
-				} else {
-					$('#declaredValueGroup').hide();
 				}
 				if (json.purpose) {
 					$('#purposeGroup').show();
@@ -1960,6 +2425,9 @@ function renderSummaryContainer() {
 		const s = GK.state;
 		try { ensureCountryIdsFromIso(); } catch(e) {}
 		if (!s.pickedService || !s.additionalInfo || !s.additionalInfo.paymentType) return;
+		// Independent of the price fetch below (not gating it) - just a proactive
+		// pre-check so address/addon problems surface before the merchant hits "send".
+		debouncedFullOrderValidate();
 		const p = s.packageInfo || {};
 		const usp = new URLSearchParams();
 		usp.append('productId', s.pickedService.id);
@@ -2222,21 +2690,30 @@ function renderServicesAndBind() {
 			const price = $current.data('price');
 			const category = $current.data('category');
 			const rawAttrs = $current.data('attributes');
-			const addonName = $current.closest('label').text().trim();
+			// Read just the addon name span, not the whole <label> text - that also
+			// contains the price suffix and the description tooltip icon.
+			const $nameSpan = $current.closest('label').find('.addon-name-text');
+			const addonName = ($nameSpan.length ? $nameSpan.text() : $current.closest('label').text()).trim();
 			const $attrBox = $current.closest('.col-lg-12').find('.addon-attributes');
 			const isChecked = $current.is(':checked');
 
-			// Categories limited to a single choice *within that category*
-			// (CASH_ON_DELIVERY: only one COD, INSURANCE: only one, INSURANCE_CARGO: only one)
-			const singlePerCategory = ['CASH_ON_DELIVERY', 'INSURANCE', 'INSURANCE_CARGO'];
+			// Categories limited to a single choice *within their exclusivity group*
+			// (CASH_ON_DELIVERY: only one COD; INSURANCE + INSURANCE_CARGO share one
+			// amount field, so they're a single combined exclusivity group)
+			const exclusivityGroups = {
+				'CASH_ON_DELIVERY': 'CASH_ON_DELIVERY',
+				'INSURANCE': 'INSURANCE',
+				'INSURANCE_CARGO': 'INSURANCE'
+			};
+			const currentGroup = exclusivityGroups[category];
 
-			// When checking an option from one of the categories above, uncheck others in THE SAME category
-			if (isChecked && singlePerCategory.indexOf(category) !== -1) {
+			// When checking an option from one of the groups above, uncheck others in THE SAME group
+			if (isChecked && currentGroup) {
 				$('.addon-checkbox').each(function(){
 					const $other = $(this);
 					if ($other[0] === $current[0]) return;
 					const otherCat = $other.data('category');
-					if (otherCat !== category) return; // only within the same category
+					if (exclusivityGroups[otherCat] !== currentGroup) return; // only within the same exclusivity group
 					if ($other.is(':checked')) {
 						const otherId = $other.data('id');
 						const $otherAttrBox = $other.closest('.col-lg-12').find('.addon-attributes');
@@ -2268,8 +2745,39 @@ function renderServicesAndBind() {
 				updatePickupMetaVisibility();
 			}
 
-			// Render attributes HTML (if provided) under the checkbox
-			if (rawAttrs) {
+			// requiredAlternativeAddonsGroups: addon ids GlobKurier reports as mutually
+			// exclusive alternatives (e.g. RECEIVER_TYPE_COMPANY vs RECEIVER_TYPE_PRIVATE_PERSON).
+			// Checking one unchecks any other addon that shares a group with it.
+			if (isChecked && Array.isArray(GK.state.requiredAlternativeAddonsGroups)) {
+				const myGroups = GK.state.requiredAlternativeAddonsGroups.filter(function(g){ return Array.isArray(g) && g.some(function(gid){ return String(gid) === String(id); }); });
+				if (myGroups.length) {
+					$('.addon-checkbox').each(function(){
+						const $other = $(this);
+						if ($other[0] === $current[0]) return;
+						const otherId = $other.data('id');
+						const inSameGroup = myGroups.some(function(g){ return g.some(function(gid){ return String(gid) === String(otherId); }); });
+						if (!inSameGroup) return;
+						if ($other.is(':checked')) {
+							const $otherAttrBox = $other.closest('.col-lg-12').find('.addon-attributes');
+							$other.prop('checked', false);
+							$otherAttrBox.hide().empty();
+							GK.state.serviceOptions = (GK.state.serviceOptions || []).filter(function(o){ return (o.id + '') !== (otherId + ''); });
+						}
+					});
+				}
+			}
+
+			// SENT addon: show a free-text "SENT number" field instead of the generic
+			// decoded attributes box (SENT addons don't carry an `attributes` payload).
+			if (category === 'SENT') {
+				if (isChecked) {
+					const iv = window.InitialValues || {};
+					$attrBox.html('<input type="text" class="form-control gk-sent-number-input" data-id="' + id + '" placeholder="' + escapeHtml(iv.langSentNumber || 'SENT number') + '">').show();
+				} else {
+					$attrBox.hide().empty();
+				}
+			} else if (rawAttrs) {
+				// Render attributes HTML (if provided) under the checkbox
 				try {
 					const decoded = decodeURIComponent(rawAttrs);
 					$attrBox.html(decoded);
@@ -2284,12 +2792,14 @@ function renderServicesAndBind() {
 			if (isChecked) {
 				if (!Array.isArray(GK.state.serviceOptions)) GK.state.serviceOptions = [];
 				if (!GK.state.serviceOptions.some(function(o){ return (o.id + '') === (id + ''); })) {
-					GK.state.serviceOptions.push({
+					const newOption = {
 						id: id,
 						price: price,
 						category: category,
 						name: addonName
-					});
+					};
+					if (category === 'SENT') { newOption.sentNumber = ''; }
+					GK.state.serviceOptions.push(newOption);
 				}
 			} else {
 				GK.state.serviceOptions = (GK.state.serviceOptions || []).filter(function(o){ return (o.id + '') !== (id + ''); });
@@ -2640,6 +3150,18 @@ function renderServicesAndBind() {
 		initTemplateSelector();
 		renderAddressBoxes();
         populateDisplayPanels();
+        // Validate the pre-filled sender/receiver addresses as soon as the form
+        // loads, rather than waiting for the merchant to reach pricing/submit -
+        // wait for the country-id map (kicked off inside initStateFromInitialValues())
+        // so countryId isn't missing on this very first check.
+        try {
+            preloadCountriesMap().then(function(){
+                try { ensureCountryIdsFromIso(); } catch(e) {}
+                postOrderValidate(buildAddressOnlyPayload());
+            });
+        } catch(e) {
+            postOrderValidate(buildAddressOnlyPayload());
+        }
         bindEditModals();
 		renderServicesAndBind();
 		bind();

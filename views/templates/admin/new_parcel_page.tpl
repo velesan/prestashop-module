@@ -51,6 +51,11 @@
         {/if}
     </div>
 
+    <div class="alert alert-danger" id="validationErrors" style="display:none; margin:10px 20px 0;">
+        <strong>{l s='Please correct the following before continuing' mod='globkuriermodule'}</strong>
+        <ul id="validationErrorsList" style="margin-bottom:0;"></ul>
+    </div>
+
     {if $gk_all_templates_json && $gk_all_templates_json != '[]'}
     <div style="background:#f8f9fa; border-bottom:1px solid #e5e5e5; padding:10px 20px;">
         <div class="form-horizontal">
@@ -325,10 +330,6 @@
                             <div class="col-sm-8"><select id="paymentSelect" class="form-control"></select></div>
                         </div>
 
-                        <div class="form-group row" id="codAmountGroup" style="display:none;">
-                            <label class="col-sm-4 col-form-label">{l s='COD amount' mod='globkuriermodule'}</label>
-                            <div class="col-sm-8"><input type="text" id="codAmountInput" class="form-control" /></div>
-                        </div>
                         <div class="form-group row" id="codSwiftGroup" style="display:none;">
                             <label class="col-sm-4 col-form-label">{l s='SWIFT/BIC code' mod='globkuriermodule'}</label>
                             <div class="col-sm-8">
@@ -351,14 +352,6 @@
                         <div class="form-group row" id="codAccountAddr2Group" style="display:none;">
                             <label class="col-sm-4 col-form-label">{l s='Postcode and city account owner' mod='globkuriermodule'}</label>
                             <div class="col-sm-8"><input type="text" id="codAccountAddr2Input" class="form-control" placeholder="00-000 Miasto" /></div>
-                        </div>
-                        <div class="form-group row" id="insuranceAmountGroup" style="display:none;">
-                            <label class="col-sm-4 col-form-label">{l s='Insurance amount' mod='globkuriermodule'}</label>
-                            <div class="col-sm-8"><input type="text" id="insuranceAmountInput" class="form-control" /></div>
-                        </div>
-                        <div class="form-group row" id="declaredValueGroup" style="display:none;">
-                            <label class="col-sm-4 col-form-label">{l s='Declared value' mod='globkuriermodule'}</label>
-                            <div class="col-sm-8"><input type="text" id="declaredValueInput" class="form-control" /></div>
                         </div>
                         <div class="form-group row" id="purposeGroup" style="display:none;">
                             <label class="col-sm-4 col-form-label">{l s='Purpose of the shipment' mod='globkuriermodule'}</label>
@@ -657,6 +650,16 @@
             langFromTemplate: '{l s='From template' mod='globkuriermodule'}',
             langFromTemplateTitle: '{l s='This is the service saved in your selected template' mod='globkuriermodule'}',
             langNoTemplate: '{l s='-- no template --' mod='globkuriermodule'}',
+            langCodAmount: '{l s='COD amount' mod='globkuriermodule'}',
+            langInsuranceAmount: '{l s='Insurance amount' mod='globkuriermodule'}',
+            langDeclaredValue: '{l s='Declared value' mod='globkuriermodule'}',
+            langStandardShipment: '{l s='Standard shipment' mod='globkuriermodule'}',
+            langNonStandardShipment: '{l s='Non-standard shipment' mod='globkuriermodule'}',
+            langInsuranceRequiredWarning: '{l s='Insurance is required for the selected options - please enter a value and select an insurance option' mod='globkuriermodule'}',
+            langSentNumber: '{l s='SENT number' mod='globkuriermodule'}',
+            langSender: '{l s='Sender' mod='globkuriermodule'}',
+            langReceiver: '{l s='Receiver' mod='globkuriermodule'}',
+            langFix: '{l s='Fix' mod='globkuriermodule'}',
         };
 
         try {
