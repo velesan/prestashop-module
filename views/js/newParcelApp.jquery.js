@@ -84,34 +84,40 @@ function setProcessing(on) {
 		const hasCOD = activeCategories.indexOf('CASH_ON_DELIVERY') !== -1;
 		$('#codSwiftGroup, #codAccountGroup, #codAccountHolderGroup, #codAccountAddr1Group, #codAccountAddr2Group').toggle(hasCOD);
 		if (hasCOD) {
-			// Fill all COD fields with defaults like Angular does
-			if (window.InitialValues && window.InitialValues.defaultCodSwiftCode) {
+			if (!GK.state.additionalInfo) GK.state.additionalInfo = {};
+			// Fill COD fields with defaults only the first time COD becomes active for
+			// this field (i.e. it has no value yet) - this function re-runs on every
+			// addon selection change, so re-checking/re-filtering a COD addon must NOT
+			// keep clobbering whatever the merchant already typed here.
+			if (!GK.state.additionalInfo.codSwiftCode && window.InitialValues && window.InitialValues.defaultCodSwiftCode) {
 				$('#codSwiftInput').val(window.InitialValues.defaultCodSwiftCode);
-				if (!GK.state.additionalInfo) GK.state.additionalInfo = {};
 				GK.state.additionalInfo.codSwiftCode = window.InitialValues.defaultCodSwiftCode;
 			}
-			if (window.InitialValues && window.InitialValues.defaultCodAccount) {
+			if (!GK.state.additionalInfo.codAccount && window.InitialValues && window.InitialValues.defaultCodAccount) {
 				$('#codAccountInput').val(window.InitialValues.defaultCodAccount);
-				if (!GK.state.additionalInfo) GK.state.additionalInfo = {};
 				GK.state.additionalInfo.codAccount = window.InitialValues.defaultCodAccount;
 			}
-			if (window.InitialValues && window.InitialValues.defaultCodAccountHolderName) {
+			if (!GK.state.additionalInfo.codAccountHolder && window.InitialValues && window.InitialValues.defaultCodAccountHolderName) {
 				$('#codAccountHolderInput').val(window.InitialValues.defaultCodAccountHolderName);
-				if (!GK.state.additionalInfo) GK.state.additionalInfo = {};
 				GK.state.additionalInfo.codAccountHolder = window.InitialValues.defaultCodAccountHolderName;
 			}
-			if (window.InitialValues && window.InitialValues.defaultCodAccountHolderAddr1) {
+			if (!GK.state.additionalInfo.codAccountAddr1 && window.InitialValues && window.InitialValues.defaultCodAccountHolderAddr1) {
 				$('#codAccountAddr1Input').val(window.InitialValues.defaultCodAccountHolderAddr1);
-				if (!GK.state.additionalInfo) GK.state.additionalInfo = {};
 				GK.state.additionalInfo.codAccountAddr1 = window.InitialValues.defaultCodAccountHolderAddr1;
 			}
-			if (window.InitialValues && window.InitialValues.defaultCodAccountHolderAddr2) {
+			if (!GK.state.additionalInfo.codAccountAddr2 && window.InitialValues && window.InitialValues.defaultCodAccountHolderAddr2) {
 				$('#codAccountAddr2Input').val(window.InitialValues.defaultCodAccountHolderAddr2);
-				if (!GK.state.additionalInfo) GK.state.additionalInfo = {};
 				GK.state.additionalInfo.codAccountAddr2 = window.InitialValues.defaultCodAccountHolderAddr2;
 			}
 		} else {
 			$('#codSwiftInput, #codAccountInput, #codAccountHolderInput, #codAccountAddr1Input, #codAccountAddr2Input').val('');
+			if (GK.state.additionalInfo) {
+				GK.state.additionalInfo.codSwiftCode = '';
+				GK.state.additionalInfo.codAccount = '';
+				GK.state.additionalInfo.codAccountHolder = '';
+				GK.state.additionalInfo.codAccountAddr1 = '';
+				GK.state.additionalInfo.codAccountAddr2 = '';
+			}
 		}
 		// International → purpose when receiver ISO != PL
 		// (insurance / declared value amount inputs live in the value-range addon
@@ -747,8 +753,11 @@ function showOrderErrors(obj) {
 	let _fullValidateDebounceTimer = null;
 
 	// Debounced/abortable order/validate using the full buildOrderData() payload,
-	// called alongside order/price once a service is picked (recalcOrderPrice()).
+	// called alongside order/price once a service is picked (recalcOrderPrice()), and
+	// directly by any other field that feeds buildOrderData() but doesn't affect price
+	// (COD bank details, purpose, SENT number, states, pickup date/time).
 	function debouncedFullOrderValidate() {
+		if (!GK.state.pickedService) return;
 		if (_fullValidateDebounceTimer) clearTimeout(_fullValidateDebounceTimer);
 		_fullValidateDebounceTimer = setTimeout(function() {
 			if (_fullValidateAbortController) { _fullValidateAbortController.abort(); }
@@ -1449,6 +1458,7 @@ function renderServiceOptionsContainer() {
       if (!GK.state.additionalInfo) GK.state.additionalInfo = {};
       GK.state.additionalInfo.sendDate = $(this).val();
       fetchTimeRanges();
+      debouncedFullOrderValidate();
     });
     // bind new inputs to state
     $(document)
@@ -1456,25 +1466,25 @@ function renderServiceOptionsContainer() {
       .on('input change', '#codAmountInput', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.codAmount = $(this).val(); recalcOrderPrice(); });
     $(document)
       .off('input change', '#codSwiftInput')
-      .on('input change', '#codSwiftInput', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.codSwiftCode = $(this).val(); });
+      .on('input change', '#codSwiftInput', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.codSwiftCode = $(this).val(); debouncedFullOrderValidate(); });
     $(document)
       .off('input change', '#codAccountInput')
-      .on('input change', '#codAccountInput', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.codAccount = $(this).val(); });
+      .on('input change', '#codAccountInput', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.codAccount = $(this).val(); debouncedFullOrderValidate(); });
     $(document)
       .off('input change', '#codAccountHolderInput')
-      .on('input change', '#codAccountHolderInput', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.codAccountHolder = $(this).val(); });
+      .on('input change', '#codAccountHolderInput', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.codAccountHolder = $(this).val(); debouncedFullOrderValidate(); });
     $(document)
       .off('input change', '#codAccountAddr1Input')
-      .on('input change', '#codAccountAddr1Input', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.codAccountAddr1 = $(this).val(); });
+      .on('input change', '#codAccountAddr1Input', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.codAccountAddr1 = $(this).val(); debouncedFullOrderValidate(); });
     $(document)
       .off('input change', '#codAccountAddr2Input')
-      .on('input change', '#codAccountAddr2Input', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.codAccountAddr2 = $(this).val(); });
+      .on('input change', '#codAccountAddr2Input', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.codAccountAddr2 = $(this).val(); debouncedFullOrderValidate(); });
     $(document)
       .off('input change', '#insuranceAmountInput')
       .on('input change', '#insuranceAmountInput', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.insuranceAmount = $(this).val(); recalcOrderPrice(); });
     $(document)
       .off('change', '#purposeSelect')
-      .on('change', '#purposeSelect', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.purpose = $(this).val(); });
+      .on('change', '#purposeSelect', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.purpose = $(this).val(); debouncedFullOrderValidate(); });
     $(document)
       .off('input change', '#declaredValueInput')
       .on('input change', '#declaredValueInput', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.declaredValue = $(this).val(); });
@@ -1495,16 +1505,17 @@ function renderServiceOptionsContainer() {
         const addonId = String($(this).data('id'));
         const value = $(this).val();
         (GK.state.serviceOptions || []).forEach(function(o){ if (String(o.id) === addonId) { o.sentNumber = value; } });
+        debouncedFullOrderValidate();
       });
     $(document)
       .off('input change', '#commentsInput')
       .on('input change', '#commentsInput', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.notes = $(this).val(); });
     $(document)
       .off('change', '#statesSelect')
-      .on('change', '#statesSelect', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.stateType = $(this).val(); });
+      .on('change', '#statesSelect', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.stateType = $(this).val(); debouncedFullOrderValidate(); });
     $(document)
       .off('change', '#senderStatesSelect')
-      .on('change', '#senderStatesSelect', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.senderStateType = $(this).val(); });
+      .on('change', '#senderStatesSelect', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.senderStateType = $(this).val(); debouncedFullOrderValidate(); });
     $(document)
       .off('change', '#pickupTimeSelect')
       .on('change', '#pickupTimeSelect', function(){
@@ -1519,6 +1530,7 @@ function renderServiceOptionsContainer() {
         } else {
           GK.state.additionalInfo.timeRange = null;
         }
+        debouncedFullOrderValidate();
       });
     $('input[name=pickup_type]').off('change').on('change', function(){
         fetchTimeRanges();
@@ -2196,6 +2208,18 @@ function updateChosenServiceUI() {
 			GK.state.availablePickupDates = availableDates;
 			// Refresh datepicker to apply new restrictions
 			$('#sendDateInput').datepicker('refresh');
+
+			// Pre-fill the nearest available pickup date instead of leaving "today"
+			// selected when it isn't actually a bookable pickup date.
+			const sorted = (availableDates || []).slice().sort();
+			const currentDate = $('#sendDateInput').val();
+			if (sorted.length && sorted.indexOf(currentDate) === -1) {
+				const nearest = sorted[0];
+				$('#sendDateInput').val(nearest);
+				if (!GK.state.additionalInfo) GK.state.additionalInfo = {};
+				GK.state.additionalInfo.sendDate = nearest;
+			}
+			fetchTimeRanges();
 		});
 	}
 
@@ -2275,6 +2299,21 @@ function updateChosenServiceUI() {
 					return '<option value="' + encodeURIComponent(value) + '">' + label + '</option>';
 				}).join('');
 				$('#pickupTimeSelect').html(html);
+
+				// Pre-fill the nearest (first) available time range by default, but
+				// keep the merchant's own pick if it's still offered for this date -
+				// this list gets rebuilt on every date/weight/dimension change.
+				if (!GK.state.additionalInfo) GK.state.additionalInfo = {};
+				if (selectedDateRanges.length) {
+					const existing = GK.state.additionalInfo.timeRange;
+					const stillValid = existing && selectedDateRanges.some(function(t){ return t.timeFrom === existing.timeFrom && t.timeTo === existing.timeTo; });
+					const chosen = stillValid ? existing : selectedDateRanges[0];
+					$('#pickupTimeSelect').val(encodeURIComponent(JSON.stringify({ timeFrom: chosen.timeFrom, timeTo: chosen.timeTo })));
+					GK.state.additionalInfo.timeRange = chosen;
+				} else {
+					GK.state.additionalInfo.timeRange = null;
+				}
+				debouncedFullOrderValidate();
 			});
 	}
 
