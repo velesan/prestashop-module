@@ -47,7 +47,10 @@
 		packageInfo: null,
 		availablePayments: [],
 		forModal: false,
-		forceShowAll: false
+		forceShowAll: false,
+		customsFields: [],
+		customsData: null,
+		orderHash: null
 	};
 
 
@@ -367,11 +370,14 @@ function showOrderErrors(obj) {
 			receiverAddress: {},
 			content: s.pickedService && s.pickedService.packageInfo ? s.pickedService.packageInfo.content : '',
 			paymentId: s.additionalInfo.paymentType,
-			addons: addons,
 			collectionType: collectionType,
 			agreements: {},
 			originId: "PRESTASHOP_API"
 		};
+		// GK's validate/order endpoints reject an explicit empty array ("Pole nie może
+		// być puste" / "field cannot be empty") - omit the key entirely instead of
+		// sending `addons: []` when nothing is selected yet.
+		if (addons.length) { data.addons = addons; }
 
 		// Add pickup data for PICKUP collection type, but skip when ORDERED_COURIER is selected
 		// (courier is already booked — API does not require time range in that case)
@@ -487,37 +493,17 @@ function showOrderErrors(obj) {
 			}
 		}
 
-		// Add customs section only when API reports orderCustoms requirements
-		const hasOrderCustomsRequirements = !!(
-			GK.state.customRequired &&
-			GK.state.customRequired.orderCustoms &&
-			Object.keys(GK.state.customRequired.orderCustoms).length
-		);
-		if (hasOrderCustomsRequirements) {
-			data.customs = {
-				currency: (GK.state.orderSummary && GK.state.orderSummary.currency) || 'EUR',
-				total: s.additionalInfo && s.additionalInfo.declaredValue ? parseFloat(s.additionalInfo.declaredValue) : 0,
-				totalWeight: s.pickedService && s.pickedService.packageInfo ? s.pickedService.packageInfo.weight : 0,
-				sender: {
-					eori: 'PL812350554600000' // Default EORI for testing
-				},
-				receiver: {
-					eori: 'PL107194088600000' // Default EORI for testing
-				},
-				commodities: [{
-					description: s.pickedService && s.pickedService.packageInfo ? s.pickedService.packageInfo.content : 'Goods',
-					hsCode: '96081099', // Default HS code from API example
-					countryOfOrigin: 'PL', // Use country code instead of ID
-					quantity: s.pickedService && s.pickedService.packageInfo ? s.pickedService.packageInfo.count : 1,
-					unitValue: s.additionalInfo && s.additionalInfo.declaredValue ? parseFloat(s.additionalInfo.declaredValue) : 0,
-					subTotalValue: s.additionalInfo && s.additionalInfo.declaredValue ? parseFloat(s.additionalInfo.declaredValue) : 0,
-					unitWeight: s.pickedService && s.pickedService.packageInfo ? s.pickedService.packageInfo.weight : 0
-				}],
-				exportReasonType: 'SALE', // Default export reason
-				invoiceNumber: 'INV-' + new Date().getTime(), // Generate invoice number
-				invoiceDate: new Date().toISOString().split('T')[0] // Today's date
-			};
+		// Add the customs section only when GET /customs/config actually returned
+		// fields for this route/carrier (see fetchCustomsConfig()/renderCustomsSection()).
+		if (Array.isArray(GK.state.customsFields) && GK.state.customsFields.length && GK.state.customsData) {
+			data.customs = buildCustomsPayload(GK.state.customsFields, GK.state.customsData);
 		}
+		// orderHash is NOT added here on purpose: this same object is also POSTed to
+		// order/validate (both from placeOrder()'s pre-flight check and from
+		// debouncedFullOrderValidate()), and that endpoint rejects it outright
+		// (confirmed live: {"orderHash":"Nadmiarowe pole."}). It only belongs on the
+		// real POST order call - see placeOrder(), which adds it to its own copy of
+		// this data right before that specific request.
 
 		// Add declared value if exists (regardless of international)
 		if (s.additionalInfo && s.additionalInfo.declaredValue) {
@@ -549,7 +535,13 @@ function showOrderErrors(obj) {
 			if (src.apartmentNumber) { dst.apartmentNumber = src.apartmentNumber; }
 			return dst;
 		};
-		return { senderAddress: build(s.sender), receiverAddress: build(s.receiver) };
+		const senderAddress = build(s.sender);
+		const receiverAddress = build(s.receiver);
+		// stateId matters for customs (e.g. US state) even though it's not needed for
+		// the plain address-only validation this was originally built for.
+		if (s.additionalInfo && s.additionalInfo.senderStateType > 0) { senderAddress.stateId = s.additionalInfo.senderStateType; }
+		if (s.additionalInfo && s.additionalInfo.stateType > 0) { receiverAddress.stateId = s.additionalInfo.stateType; }
+		return { senderAddress: senderAddress, receiverAddress: receiverAddress };
 	}
 
 	// GK reports sender/receiver field errors as flat keys like "receiverAddress[phone]"
@@ -803,6 +795,41 @@ function showOrderErrors(obj) {
 		return pickup;
 	}
 
+	// Some addon categories need extra data captured only once the addon is checked,
+	// mirroring GK's own web app (its Angular UI renders an "ardn-product-addon-
+	// category-fields" block for these, e.g. marketplace name + IOSS/OMP number for
+	// DUTY_DDP_MARKETPLACE_UK - "VAT settled by marketplace (UK)"). GK's own API docs
+	// only document this pattern for CASH_ON_DELIVERY (bankAccountNumber/swiftCode/
+	// name/addressLine1 - handled separately above) and explicitly say "for specific
+	// add-on categories, additional parameters are required" without listing them, so
+	// these key names are a best-effort guess from the field's on-screen label, NOT
+	// a confirmed API contract - verify with GlobKurier support before relying on this
+	// for real UK IOSS/VAT compliance data.
+	// RETURN_SHIPMENT_ADDRESS field names/shape confirmed against two independent
+	// real sources: shoper's own working production payload (kafelman/index.php)
+	// and GlobKurier's backend OrderValidator/AddonsFactory/DTO code in the
+	// globkurier.pl repo - both agree on a flat name/street/houseNumber/
+	// apartmentNumber/postCode/city set with no phone/email/surname, despite
+	// GK's own public API docs listing those as required (confirmed stale there:
+	// the validator, DTO and passing Behat feature scenarios all omit them).
+	// `countryId` isn't user-typed here - it's auto-set from the sender's own
+	// country when the addon is built (see generateAdditionalServices), matching
+	// shoper's UI which locks this to the merchant's own (PL-only there) country.
+	const ADDON_CATEGORY_EXTRA_FIELDS = {
+		DUTY_DDP_MARKETPLACE_UK: [
+			{ key: 'marketplaceName', labelKey: 'langMarketplaceName', placeholder: 'np. Amazon' },
+			{ key: 'iossNumber', labelKey: 'langIossNumber', placeholder: 'np. IM1234567890' }
+		],
+		RETURN_SHIPMENT_ADDRESS: [
+			{ key: 'name', labelKey: 'langReturnShipmentName', placeholder: 'np. Magazyn zwrotów' },
+			{ key: 'street', labelKey: 'langReturnShipmentStreet', placeholder: 'np. Kwiatowa' },
+			{ key: 'houseNumber', labelKey: 'langReturnShipmentHouseNumber', placeholder: 'np. 12' },
+			{ key: 'apartmentNumber', labelKey: 'langReturnShipmentApartmentNumber', placeholder: '' },
+			{ key: 'postCode', labelKey: 'langReturnShipmentPostCode', placeholder: 'np. 00-001' },
+			{ key: 'city', labelKey: 'langReturnShipmentCity', placeholder: 'np. Warszawa' }
+		]
+	};
+
 	function generateAdditionalServices(serviceOptions, additionalInfo) {
 		if (!Array.isArray(serviceOptions)) return [];
 
@@ -824,6 +851,19 @@ function showOrderErrors(obj) {
 				addon.value = additionalInfo.declaredValue || '';
 			} else if (option.category === 'SENT' && option.sentNumber) {
 				addon.sentNumber = option.sentNumber;
+			} else if (option.category === 'RETURN_SHIPMENT_ADDRESS') {
+				addon.name = option.name || '';
+				addon.street = option.street || '';
+				addon.houseNumber = option.houseNumber || '';
+				if (option.apartmentNumber) { addon.apartmentNumber = option.apartmentNumber; }
+				addon.postCode = option.postCode || '';
+				addon.city = option.city || '';
+				addon.countryId = (GK.state.sender && GK.state.sender.country && GK.state.sender.country.id) || 1;
+				addon.fields = [];
+			} else if (ADDON_CATEGORY_EXTRA_FIELDS[option.category]) {
+				ADDON_CATEGORY_EXTRA_FIELDS[option.category].forEach(function(f) {
+					if (option[f.key]) { addon[f.key] = option[f.key]; }
+				});
 			}
 			// For other addons, don't add value field unless explicitly provided
 
@@ -890,6 +930,17 @@ function showOrderErrors(obj) {
 			}
 		}
 
+		// Block placing the order while a customs declaration is required (this route
+		// returned fields from /customs/config) but not yet complete - opens the
+		// modal and highlights exactly what's missing instead of letting the order
+		// go through and fail server-side on POST /order.
+		if (GK.state.customsFields && GK.state.customsFields.length && !isCustomsFormComplete()) {
+			showOrderErrors({ customs: 'Customs declaration must be completed before placing the order' });
+			$('#customsModal').modal('show');
+			highlightIncompleteCustomsFields();
+			return;
+		}
+
 		// Validate required addons
 		if (GK.state.customRequired && GK.state.customRequired.requiredAddons) {
 			const requiredAddons = GK.state.customRequired.requiredAddons;
@@ -920,10 +971,15 @@ function showOrderErrors(obj) {
 			if (validateResp.status !== 204) {
 				return validateResp.json().then(function(body) { throw body || {}; });
 			}
+			// orderHash only goes on the real order-creation call (order/validate
+			// rejects it) - reuses the id from order/customs/calculation, if that ran,
+			// so GK can serve the already-computed duty estimate instead of redoing it.
+			const createData = Object.assign({}, orderData);
+			if (GK.state.orderHash && createData.customs) { createData.orderHash = GK.state.orderHash; }
 			return fetch(gkApiBase() + 'order', {
 				method: 'POST',
 				headers: reqHeaders,
-				body: JSON.stringify(orderData)
+				body: JSON.stringify(createData)
 			}).then(function(r){ return r.json(); })
 			.then(function(resp){
 				if (!resp || !resp.number) throw resp || {};
@@ -973,6 +1029,178 @@ function showOrderErrors(obj) {
 			$('#' + role + 'ChangeLink').trigger('click');
 			setTimeout(function(){ highlightAddressField(role, field, message); }, 0);
 		});
+		// --- Customs clearance form ------------------------------------------------
+		$(document).on('click', '#openCustomsModalBtn', function(){ $('#customsModal').modal('show'); });
+		// The modal has no dismiss/backdrop-close (data-backdrop="static", data-keyboard=
+		// "false" on #customsModal) - the only way out is this button, which blocks
+		// closing while required fields are still missing instead of silently losing
+		// the merchant's not-yet-valid declaration.
+		$(document).on('click', '#customsModalSaveBtn', function(){
+			const hasFields = GK.state.customsFields && GK.state.customsFields.length;
+			if (!hasFields || isCustomsFormComplete()) {
+				$('#customsModalValidationMsg').hide();
+				$('.gk-customs-field').removeClass('has-error');
+				$('#customsModal').modal('hide');
+				return;
+			}
+			highlightIncompleteCustomsFields();
+			$('#customsModalValidationMsg').show();
+			const $first = $('.gk-customs-field.has-error').first();
+			if ($first.length) { $first[0].scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+		});
+		$(document).on('input change', '.gk-customs-input', function(){
+			const $el = $(this);
+			$el.closest('.form-group').removeClass('has-error');
+			const path = parseCustomsPath($el.data('path'));
+			if ($el.hasClass('gk-customs-multi')) {
+				const arr = customsPathGet(GK.state.customsData, path) || [];
+				const val = $el.val();
+				const idx = arr.indexOf(val);
+				if ($el.is(':checked') && idx === -1) { arr.push(val); }
+				else if (!$el.is(':checked') && idx !== -1) { arr.splice(idx, 1); }
+				customsPathSet(GK.state.customsData, path, arr);
+			} else {
+				customsPathSet(GK.state.customsData, path, $el.val());
+			}
+			// Dual-language fields: the counter reflects the COMBINED "PL ;; EN" wire
+			// value (see customsDualCombinedLength), so it has to be recomputed off both
+			// sibling inputs together rather than this input's own length alone.
+			const lastSeg = path[path.length - 1];
+			if (lastSeg === 'pl' || lastSeg === 'en') {
+				const rowPath = path.slice(0, -1);
+				const field = customsFieldByPath(rowPath.join('.'));
+				const maxLen = field && customsLengthMax(field);
+				if (maxLen != null) {
+					const rowVal = customsPathGet(GK.state.customsData, rowPath) || {};
+					const combinedLen = customsDualCombinedLength(rowVal.pl, rowVal.en);
+					$el.closest('.gk-customs-field').find('.gk-customs-charcount')
+						.text(combinedLen + '/' + maxLen)
+						.toggleClass('gk-customs-charcount-over', combinedLen > maxLen);
+				}
+			}
+			if (path.length === 1 && path[0] === 'currency') {
+				$('.gk-customs-currency-addon').text($el.val());
+			}
+			validateCustomsFieldPattern($el);
+			recalcCustomsComputedFields();
+			debouncedFullOrderValidate();
+		});
+		$(document).on('click', '.gk-customs-add-row', function(){
+			const collPath = parseCustomsPath($(this).data('collection-path'));
+			const field = (GK.state.customsFields || []).find(function(f){ return f.name === collPath[0]; });
+			if (!field) return;
+			const arr = customsPathGet(GK.state.customsData, collPath) || [];
+			arr.push(buildCustomsDefaultValue({ compound: true, fields: field.fields }));
+			customsPathSet(GK.state.customsData, collPath, arr);
+			const idx = arr.length - 1;
+			$('.gk-customs-collection-rows[data-collection-path="' + collPath.join('.') + '"]').append(renderCustomsCollectionRow(field, collPath, idx));
+			updateCustomsRemoveButtons(collPath.join('.'));
+			recalcCustomsComputedFields();
+			debouncedFullOrderValidate();
+		});
+		$(document).on('click', '.gk-customs-remove-row', function(){
+			const collPath = parseCustomsPath($(this).data('collection-path'));
+			const field = (GK.state.customsFields || []).find(function(f){ return f.name === collPath[0]; });
+			if (!field) return;
+			const arr = customsPathGet(GK.state.customsData, collPath) || [];
+			if (arr.length <= 1) return; // always keep at least one commodity row
+			const idx = parseInt($(this).data('row-index'), 10);
+			arr.splice(idx, 1);
+			customsPathSet(GK.state.customsData, collPath, arr);
+			const $rowsContainer = $('.gk-customs-collection-rows[data-collection-path="' + collPath.join('.') + '"]').empty();
+			arr.forEach(function(_, i){ $rowsContainer.append(renderCustomsCollectionRow(field, collPath, i)); });
+			updateCustomsRemoveButtons(collPath.join('.'));
+			recalcCustomsComputedFields();
+			debouncedFullOrderValidate();
+		});
+		// PL -> EN translation for the dual-language commodity fields (description/composition/purpose).
+		$(document).on('click', '.gk-customs-translate', function(){
+			const $btn = $(this);
+			const pathStr = $btn.data('path');
+			const $plInput = $('.gk-customs-input[data-path="' + pathStr + '.pl"]');
+			const plVal = $plInput.val();
+			if (!plVal) {
+				// Silently doing nothing here (the old behavior) reads as a broken
+				// button when composition/purpose haven't been typed in yet - flash the
+				// PL field instead so it's clear WHY nothing happened.
+				$plInput.trigger('focus').closest('.form-group').addClass('has-error');
+				setTimeout(function(){ $plInput.closest('.form-group').removeClass('has-error'); }, 1200);
+				return;
+			}
+			$btn.prop('disabled', true);
+			$btn.find('.gk-customs-translate-icon').hide();
+			$btn.find('.gk-customs-translate-spinner').show();
+			fetch(gkApiBase() + 'translate', {
+				method: 'POST',
+				headers: Object.assign({ 'Content-Type': 'application/json' }, buildHeaders()),
+				body: JSON.stringify({ text: plVal, sourceLanguage: 'pl', targetLanguage: 'en' })
+			}).then(function(r){
+				// Confirmed live: /translate works fine with a valid token. Without this
+				// check, an error response (e.g. an expired token, returned as 401 or
+				// even a bare 500 per this API's own inconsistency observed elsewhere
+				// this session) still has no `translatedText` field, so the old code
+				// silently "succeeded" with an empty string instead of surfacing the
+				// failure - looked exactly like the button doing nothing.
+				if (!r.ok) { throw new Error('translate request failed: ' + r.status); }
+				return r.json();
+			}).then(function(resp){
+				let en = (resp && resp.translatedText) || '';
+				// The combined "PL ;; EN" wire value shares one Length budget (see
+				// customsDualCombinedLength) - a translation that would push the pair
+				// over it gets truncated to whatever room is actually left for EN.
+				const field = customsFieldByPath(pathStr);
+				const maxLen = field && customsLengthMax(field);
+				if (maxLen != null) {
+					const budget = Math.max(0, maxLen - plVal.length - 4);
+					en = en.substring(0, budget);
+				}
+				customsPathSet(GK.state.customsData, parseCustomsPath(pathStr).concat(['en']), en);
+				const $enInput = $('.gk-customs-input[data-path="' + pathStr + '.en"]').val(en);
+				if (maxLen != null) {
+					$enInput.closest('.gk-customs-field').find('.gk-customs-charcount')
+						.text(customsDualCombinedLength(plVal, en) + '/' + maxLen)
+						.toggleClass('gk-customs-charcount-over', false);
+				}
+				debouncedFullOrderValidate();
+			}).catch(function(){
+				// Leaves whatever EN already had (never overwrite good data with an
+				// empty/failed translation) and flashes the EN field red so the
+				// merchant knows the click did register but the call failed - a stale
+				// token (see gkApiBase()'s callers elsewhere) is the most likely cause.
+				const $enInput = $('.gk-customs-input[data-path="' + pathStr + '.en"]');
+				$enInput.closest('.form-group').addClass('has-error');
+				setTimeout(function(){ $enInput.closest('.form-group').removeClass('has-error'); }, 2000);
+			}).finally(function(){
+				$btn.prop('disabled', false);
+				$btn.find('.gk-customs-translate-spinner').hide();
+				$btn.find('.gk-customs-translate-icon').show();
+			});
+		});
+		// HS code suggestion, built from the commodity row's own PL description/composition/purpose.
+		$(document).on('click', '.gk-customs-hs-lookup', function(){
+			const $btn = $(this);
+			const path = parseCustomsPath($btn.data('path'));
+			const rowPath = path.slice(0, -1);
+			const row = customsPathGet(GK.state.customsData, rowPath) || {};
+			const itemDescription = [row.description, row.composition, row.purpose]
+				.map(function(f){ return f && f.pl; })
+				.filter(Boolean)
+				.join(', ');
+			const receiverCountryId = GK.state.receiver && GK.state.receiver.country && GK.state.receiver.country.id;
+			if (!itemDescription || !receiverCountryId) return;
+			$btn.prop('disabled', true);
+			const params = new URLSearchParams({ receiverCountryId: receiverCountryId, itemDescription: itemDescription });
+			fetch(gkApiBase() + 'order/customs/hsCode?' + params.toString(), { headers: buildHeaders() })
+				.then(function(r){ return r.json(); })
+				.then(function(resp){
+					if (resp && resp.hsCode) {
+						customsPathSet(GK.state.customsData, path, resp.hsCode);
+						$('.gk-customs-input[data-path="' + $btn.data('path') + '"]').val(resp.hsCode);
+						debouncedFullOrderValidate();
+					}
+				}).catch(function(){}).finally(function(){ $btn.prop('disabled', false); });
+		});
+
 		$(document).on('click', '#sendOrderBtn', placeOrder);
 		$(document).on('click', '#downloadLabelBtn', function(){
 			const order = GK.state.orderPlaced;
@@ -1065,6 +1293,40 @@ function initStateFromInitialValues() {
 	}
 
 // Maps country.id by isoCode using /countries list (no hardcoded exceptions)
+// Ports shoper's normalizeGkPhone()/GK_COUNTRY_CALLING_CODES logic: GK's API rejects
+// a bare local-format number (e.g. PrestaShop's raw "0102030405" from a US address)
+// with a generic "Nieprawidłowa wartość" - it expects the destination country's
+// international calling code prepended. Idempotent: a number that's already
+// "+<known calling code>..." or "00..." is trusted and returned unchanged, so this
+// is safe to re-run on every country resolution instead of only once.
+function normalizeGkPhone(raw, isoCode) {
+    let value = (raw || '').replace(/[\s()-]/g, '');
+    if (!value) return value;
+    const codes = (window.GK && window.GK.countryCallingCodes) ? window.GK.countryCallingCodes : {};
+    const callingCode = isoCode ? codes[isoCode.toUpperCase()] : null;
+
+    if (value.substring(0, 3) === '+00') { return '+' + value.substring(3); }
+    if (value.substring(0, 2) === '00') { return '+' + value.substring(2); }
+    if (value[0] === '+') {
+        const rest = value.substring(1);
+        const knownCodes = Object.keys(codes).map(function(k){ return codes[k]; }).sort(function(a, b){ return b.length - a.length; });
+        for (let i = 0; i < knownCodes.length; i++) {
+            if (rest.substring(0, knownCodes[i].length) === knownCodes[i]) { return '+' + rest; }
+        }
+        value = rest;
+    }
+    if (!callingCode) { return value; }
+    // A leading "0" is only a trunk prefix to strip under European-style local
+    // dialing conventions. Italy already excepted itself (its numbers keep the 0
+    // even internationally); NANP numbers (calling code "1": US, Canada...) don't
+    // use a leading-0 trunk prefix at all - stripping one there just produces a
+    // too-short number instead of fixing anything (confirmed live: a 10-digit US
+    // number lost a digit here, GK then rejected it as "9 digits, expected 10").
+    const skipLeadingZeroStrip = (isoCode && isoCode.toUpperCase() === 'IT') || callingCode === '1';
+    if (value[0] === '0' && !skipLeadingZeroStrip) { value = value.substring(1); }
+    return '+' + callingCode + value;
+}
+
 function ensureCountryIdsFromIso() {
     const s = GK.state;
     if (!s) return;
@@ -1088,11 +1350,17 @@ function ensureCountryIdsFromIso() {
         country.id = 1;
         return country;
     }
-    if (s.sender && s.sender.country) s.sender.country = normalizeCountry(s.sender.country, null);
-    if (s.receiver && s.receiver.country) s.receiver.country = normalizeCountry(s.receiver.country, null);
+    if (s.sender && s.sender.country) {
+        s.sender.country = normalizeCountry(s.sender.country, null);
+        if (s.sender.phone) { s.sender.phone = normalizeGkPhone(s.sender.phone, s.sender.country.isoCode); }
+    }
+    if (s.receiver && s.receiver.country) {
+        s.receiver.country = normalizeCountry(s.receiver.country, null);
+        if (s.receiver.phone) { s.receiver.phone = normalizeGkPhone(s.receiver.phone, s.receiver.country.isoCode); }
+    }
 }
 
-// Fetch countries once and build ISO -> ID map
+// Fetch countries once and build ISO -> ID and ISO -> calling-code maps
 function preloadCountriesMap() {
     if (!window.GK) window.GK = {};
     if (window.GK.countriesMapLoaded) return Promise.resolve(window.GK.countriesMap || {});
@@ -1101,10 +1369,17 @@ function preloadCountriesMap() {
         .then(function(r){ return r.json(); })
         .then(function(list){
             const map = {};
+            const callingCodes = {};
             if (Array.isArray(list)) {
-                list.forEach(function(c){ if (c && c.isoCode) { map[(c.isoCode + '').toUpperCase()] = c.id; } });
+                list.forEach(function(c){
+                    if (!c || !c.isoCode) return;
+                    const iso = (c.isoCode + '').toUpperCase();
+                    map[iso] = c.id;
+                    if (c.phonePrefix) { callingCodes[iso] = (c.phonePrefix + '').replace('+', ''); }
+                });
             }
             window.GK.countriesMap = map;
+            window.GK.countryCallingCodes = callingCodes;
             window.GK.countriesMapLoaded = true;
             return map;
         })
@@ -1263,6 +1538,10 @@ function bindEditModals() {
         if (GK.state.sender.phone && GK.state.receiver.phone) { $('#validationErrorBox').hide(); }
         try { ensureCountryIdsFromIso(); } catch(e) {}
         postOrderValidate(buildAddressOnlyPayload());
+        // A fixed address/phone can turn a previously-failing customs calculation
+        // into a successful one (e.g. the phone-format error GK returns from this
+        // same endpoint) - re-run it instead of leaving the estimate hidden forever.
+        debouncedCustomsCalculation();
     });
 
     // Open Receiver edit
@@ -1295,6 +1574,10 @@ function bindEditModals() {
         if (GK.state.sender.phone && GK.state.receiver.phone) { $('#validationErrorBox').hide(); }
         try { ensureCountryIdsFromIso(); } catch(e) {}
         postOrderValidate(buildAddressOnlyPayload());
+        // A fixed address/phone can turn a previously-failing customs calculation
+        // into a successful one (e.g. the phone-format error GK returns from this
+        // same endpoint) - re-run it instead of leaving the estimate hidden forever.
+        debouncedCustomsCalculation();
     });
 }
 	// ============ Services and Options (MVP) ============
@@ -1507,6 +1790,17 @@ function renderServiceOptionsContainer() {
         (GK.state.serviceOptions || []).forEach(function(o){ if (String(o.id) === addonId) { o.sentNumber = value; } });
         debouncedFullOrderValidate();
       });
+    // Per-addon extra fields (see ADDON_CATEGORY_EXTRA_FIELDS), e.g. marketplace
+    // name / IOSS number for DUTY_DDP_MARKETPLACE_UK.
+    $(document)
+      .off('input change', '.gk-addon-extra-field')
+      .on('input change', '.gk-addon-extra-field', function(){
+        const addonId = String($(this).data('id'));
+        const field = $(this).data('field');
+        const value = $(this).val();
+        (GK.state.serviceOptions || []).forEach(function(o){ if (String(o.id) === addonId) { o[field] = value; } });
+        debouncedFullOrderValidate();
+      });
     $(document)
       .off('input change', '#commentsInput')
       .on('input change', '#commentsInput', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.notes = $(this).val(); });
@@ -1540,6 +1834,7 @@ function renderServiceOptionsContainer() {
         updateCarrierDependentUI();
         updateEnabledOptionsUI();
         fetchCustomRequiredFields();
+        fetchCustomsConfig();
     });
 }
 
@@ -1610,11 +1905,14 @@ function renderServiceOptionsContainer() {
 	// Categories whose addons come in value-range tiers (e.g. "Insurance up to 5,000 PLN")
 	// instead of being picked directly: the merchant types an amount in Additional options
 	// and the matching addon(s) are derived from it, rather than checked by hand first.
-	// INSURANCE and INSURANCE_CARGO share one input/selection since they cover the same
-	// concept (GK just splits it into two API categories).
+	// INSURANCE and INSURANCE_CARGO share one amount input (both are tiered by the same
+	// declared shipment value) but are complementary, not alternatives - a client can buy
+	// regular insurance AND additional cargo insurance on top of it - so `perCategory`
+	// shows/keeps the cheapest match from each category as its own independent pick
+	// instead of blending them into a single either/or selection.
 	const VALUE_CATEGORY_GROUPS = {
 		CASH_ON_DELIVERY: { categories: ['CASH_ON_DELIVERY'], inputId: 'codAmountInput', showAllMatches: true },
-		INSURANCE: { categories: ['INSURANCE', 'INSURANCE_CARGO'], inputId: 'insuranceAmountInput', showAllMatches: false },
+		INSURANCE: { categories: ['INSURANCE', 'INSURANCE_CARGO'], inputId: 'insuranceAmountInput', showAllMatches: false, perCategory: true },
 		DECLARED_VALUE: { categories: ['DECLARED_VALUE'], inputId: 'declaredValueInput', showAllMatches: false }
 	};
 	const VALUE_CATEGORY_NAMES = ['CASH_ON_DELIVERY', 'INSURANCE', 'INSURANCE_CARGO', 'DECLARED_VALUE'];
@@ -1628,28 +1926,92 @@ function renderServiceOptionsContainer() {
 	}
 
 	// Same markup/attributes the existing global .addon-checkbox change handler expects
-	// (data-id/data-category/data-price/data-attributes, sibling .addon-attributes box).
-	// The description (when provided by the API) is shown as a native-tooltip info icon,
-	// like the "hint" icon in the sibling shoper/shopify apps.
+	// (data-id/data-category/data-price, sibling .addon-attributes box - now reserved
+	// for the SENT-number/marketplace-extra-field inputs, which DO need the addon to
+	// be checked first since they're inputs for a choice the merchant just made).
+	// `description` is a hover-only tooltip (icon), while `attributes` (rich HTML info
+	// text from GK, e.g. the DDP Premium terms) is rendered immediately/always-visible
+	// right under the label, since it's informational, not gated by selection.
 	function renderAddonCheckboxHtml(opt) {
 		const p = (opt.priceGross != null ? opt.priceGross : opt.price);
 		const curr = (opt.currency || '').trim();
 		const priceTxt = (p != null) ? (' <span class="text-muted">(+' + p + (curr ? (' ' + curr) : '') + ')</span>') : '';
 		const label = opt.addonName || opt.name || opt.symbol || ('#' + opt.id);
-		const attrsEncoded = opt.attributes ? encodeURIComponent(opt.attributes) : '';
+		const attrsBlock = opt.attributes ? ('<div class="gk-addon-attributes-block">' + opt.attributes + '</div>') : '';
 		const descTxt = (opt.description || '').trim();
 		// Plain unicode symbol instead of an icon font glyph: the admin theme's icon
 		// set differs between PS 1.6/1.7/8/9, so this avoids depending on any of them.
 		const descIcon = descTxt
 			? ' <span class="text-muted" style="cursor:help; border:1px solid; border-radius:50%; padding:0 5px; font-size:11px;" title="' + escapeHtml(descTxt) + '">i</span>'
 			: '';
+		// isRequired addons (e.g. SEASONAL_SURCHARGE, RECEIVER_REMOTE_AREA) are forced
+		// by GK for this route/carrier - the merchant can't opt out. Deliberately NOT
+		// using the `disabled` attribute here: a checked+disabled checkbox renders
+		// with no visible checkmark in this admin theme (confirmed - the state was
+		// correct, it just wasn't shown), so it stays a normal, visibly-checked
+		// checkbox and unchecking is blocked in the change handler instead (see
+		// data-required there). data-required also drives the post-render trigger
+		// that registers it into GK.state.serviceOptions on first render.
+		const requiredAttrs = opt.isRequired ? ' checked data-required="1"' : '';
+		const requiredNote = opt.isRequired
+			? ' <span class="text-muted">(' + escapeHtml((window.InitialValues || {}).langRequired || 'required') + ')</span>'
+			: '';
 		return '' +
 			'<div class="col-lg-12">' +
 				'<label>' +
-					'<input type="checkbox" class="addon-checkbox" data-id="' + opt.id + '" data-category="' + (opt.category || '') + '" data-price="' + (p != null ? p : '') + '" data-attributes="' + attrsEncoded + '" data-insurance-required="' + (opt.insuranceRequired ? '1' : '0') + '"> ' +
+					'<input type="checkbox" class="addon-checkbox" data-id="' + opt.id + '" data-category="' + (opt.category || '') + '" data-price="' + (p != null ? p : '') + '" data-insurance-required="' + (opt.insuranceRequired ? '1' : '0') + '"' + requiredAttrs + '> ' +
+					'<span class="addon-name-text">' + label + '</span>' + priceTxt + descIcon + requiredNote +
+				'</label>' +
+				attrsBlock +
+				'<div class="addon-attributes" style="display:none;"></div>' +
+			'</div>';
+	}
+
+	// Triggers 'change' on any freshly-rendered isRequired addon checkbox, and on
+	// whichever radio a requiredAlternativeAddonsGroups block pre-selected, so both
+	// register into GK.state.serviceOptions the same way a manual click would -
+	// setting `checked`/`disabled` as raw HTML attributes doesn't fire that event.
+	// The explicit .prop('checked', true) (not just relying on the parsed HTML
+	// attribute) matters here: a disabled checkbox's checked *attribute* can render
+	// inconsistently across browsers, but forcing the property is always reliable.
+	function triggerPreselectedAddonChecks($container) {
+		$container.find('.addon-checkbox[data-required="1"]').prop('checked', true).trigger('change');
+		$container.find('.gk-alt-addon-group .addon-checkbox:checked').prop('checked', true).trigger('change');
+	}
+
+	// requiredAlternativeAddonsGroups render as an actual radio group (browser
+	// enforces the mutual exclusivity natively) instead of independent checkboxes
+	// only kept exclusive by JS - a separate function from renderAddonCheckboxHtml
+	// rather than adding a 2nd parameter to it, since that function is called via
+	// bare `.map(renderAddonCheckboxHtml)` elsewhere and Array#map passes the
+	// current index as a callback's 2nd argument (the classic `.map(parseInt)` bug).
+	function renderAlternativeAddonRadioHtml(opt, radioName, checked) {
+		const p = (opt.priceGross != null ? opt.priceGross : opt.price);
+		const curr = (opt.currency || '').trim();
+		const priceTxt = (p != null) ? (' <span class="text-muted">(+' + p + (curr ? (' ' + curr) : '') + ')</span>') : '';
+		const label = opt.addonName || opt.name || opt.symbol || ('#' + opt.id);
+		const attrsBlock = opt.attributes ? ('<div class="gk-addon-attributes-block">' + opt.attributes + '</div>') : '';
+		const descTxt = (opt.description || '').trim();
+		const descIcon = descTxt
+			? ' <span class="text-muted" style="cursor:help; border:1px solid; border-radius:50%; padding:0 5px; font-size:11px;" title="' + escapeHtml(descTxt) + '">i</span>'
+			: '';
+		return '' +
+			'<div class="col-lg-12">' +
+				'<label>' +
+					'<input type="radio" class="addon-checkbox" name="' + radioName + '" data-id="' + opt.id + '" data-category="' + (opt.category || '') + '" data-price="' + (p != null ? p : '') + '" data-insurance-required="' + (opt.insuranceRequired ? '1' : '0') + '"' + (checked ? ' checked' : '') + '> ' +
 					'<span class="addon-name-text">' + label + '</span>' + priceTxt + descIcon +
 				'</label>' +
+				attrsBlock +
 				'<div class="addon-attributes" style="display:none;"></div>' +
+			'</div>';
+	}
+
+	function renderAlternativeAddonGroupHtml(group, groupIndex) {
+		const radioName = 'gk-alt-group-' + groupIndex;
+		const defaultOpt = group.find(function(o) { return o.isSelectedByDefault; }) || group[0];
+		return '' +
+			'<div class="col-lg-12 gk-alt-addon-group" style="margin-bottom:10px; padding:8px; border:1px dashed #ccc; border-radius:4px;">' +
+				group.map(function(opt) { return renderAlternativeAddonRadioHtml(opt, radioName, opt.id === defaultOpt.id); }).join('') +
 			'</div>';
 	}
 
@@ -1657,12 +2019,36 @@ function renderServiceOptionsContainer() {
 	// addons exist), then value-range-driven groups (with their amount input), then
 	// every other addon rendered as a plain checkbox like before.
 	function renderAddonsList(list, requiredAlternativeAddonsGroups) {
+		// Reset any addon selections that no longer exist in this fetch - switching to
+		// a different courier product/service can offer a completely different addon
+		// set (including which ones are isRequired), so a stale, no-longer-offered
+		// addon (required or not) must not stay silently selected in the background
+		// just because it isn't purged anywhere else once its checkbox is gone.
+		const validIds = {};
+		(list || []).forEach(function(opt) { validIds[String(opt.id)] = true; });
+		GK.state.serviceOptions = (GK.state.serviceOptions || []).filter(function(o) { return validIds[String(o.id)]; });
+
 		GK.state.requiredAlternativeAddonsGroups = Array.isArray(requiredAlternativeAddonsGroups) ? requiredAlternativeAddonsGroups : [];
 		GK.state.valueAddonsByCategory = {};
 		VALUE_CATEGORY_NAMES.forEach(function(cat) { GK.state.valueAddonsByCategory[cat] = []; });
 		GK.state.notStandardAddons = [];
 		const generic = [];
+		const idToAddon = {};
+		(list || []).forEach(function(opt) { idToAddon[String(opt.id)] = opt; });
+		// requiredAlternativeAddonsGroups ids are an either/or choice (e.g. "sender
+		// pays duty (DDP)" vs "receiver pays duty (DAP)") - pull them out of the plain
+		// checkbox list entirely so they can render as an actual radio group below,
+		// instead of two independent checkboxes only kept exclusive by JS.
+		const alternativeGroups = GK.state.requiredAlternativeAddonsGroups
+			.map(function(idGroup) { return (idGroup || []).map(function(id) { return idToAddon[String(id)]; }).filter(Boolean); })
+			.filter(function(g) { return g.length > 1; });
+		const alternativeIds = {};
+		alternativeGroups.forEach(function(g) { g.forEach(function(opt) { alternativeIds[String(opt.id)] = true; }); });
+
 		(list || []).forEach(function(opt) {
+			if (alternativeIds[String(opt.id)]) {
+				return; // rendered via alternativeGroupsHtml instead
+			}
 			if (VALUE_CATEGORY_NAMES.indexOf(opt.category) !== -1) {
 				GK.state.valueAddonsByCategory[opt.category].push(opt);
 			} else if (opt.category === 'NOT_STANDARD') {
@@ -1676,10 +2062,25 @@ function renderServiceOptionsContainer() {
 		const groupsHtml = Object.keys(VALUE_CATEGORY_GROUPS).map(function(groupKey) {
 			const group = VALUE_CATEGORY_GROUPS[groupKey];
 			const hasAny = group.categories.some(function(cat) { return GK.state.valueAddonsByCategory[cat].length > 0; });
-			if (!hasAny) return '';
+			// DECLARED_VALUE renders unconditionally, just hidden when no priced addon
+			// tier exists for this route - confirmed live (and in shoper's own
+			// #declaredValue, always in the DOM) that GK can require a declared value
+			// for customs purposes via order/customRequiredFields even when it doesn't
+			// expose a purchasable DECLARED_VALUE addon here, so gating the input's very
+			// existence on "does an addon exist" left the merchant with no field to fill
+			// in - fetchCustomRequiredFields() shows it when json.declaredValue is true.
+			// CASH_ON_DELIVERY/INSURANCE stay addon-gated: there's nothing to configure
+			// if GK doesn't offer that addon on this route at all.
+			if (!hasAny && groupKey !== 'DECLARED_VALUE') return '';
 			const labelText = iv[VALUE_GROUP_LABEL_KEY[groupKey]] || groupKey;
+			// fetchCustomRequiredFields() and this addons-list render are two independent
+			// fetches that can resolve in either order - re-check its already-cached flag
+			// here too, so a DECLARED_VALUE-required response that arrived BEFORE this
+			// render (instead of after) still ends up visible instead of staying hidden.
+			const requiredByGk = groupKey === 'DECLARED_VALUE' && !!(GK.state.customRequired && GK.state.customRequired.declaredValue);
+			const hideStyle = (groupKey === 'DECLARED_VALUE' && !hasAny && !requiredByGk) ? ' display:none;' : '';
 			return '' +
-				'<div class="col-lg-12 gk-value-addon-group" data-group="' + groupKey + '" style="margin-bottom:14px;">' +
+				'<div class="col-lg-12 gk-value-addon-group" data-group="' + groupKey + '" style="margin-bottom:14px;' + hideStyle + '">' +
 					'<label>' + labelText + '</label>' +
 					'<input type="text" class="form-control gk-value-addon-input" id="' + group.inputId + '" data-group="' + groupKey + '" style="max-width:220px;">' +
 					(groupKey === 'INSURANCE' ? '<div class="gk-insurance-required-warning text-danger" style="display:none; margin-top:4px;">' + escapeHtml(iv.langInsuranceRequiredWarning || '') + '</div>' : '') +
@@ -1699,10 +2100,12 @@ function renderServiceOptionsContainer() {
 				(hasNotStandard ? '<div class="gk-not-standard-options row" style="display:none; margin-top:6px;"></div>' : '') +
 			'</div>';
 
+		const alternativeGroupsHtml = alternativeGroups.map(renderAlternativeAddonGroupHtml).join('');
 		const genericHtml = generic.map(renderAddonCheckboxHtml).join('');
-		const html = notStandardHtml + groupsHtml + genericHtml;
+		const html = notStandardHtml + groupsHtml + alternativeGroupsHtml + genericHtml;
 		$('#addonsList').html(html);
 		if (html) { $('#addonsListContainer').show(); } else { $('#addonsListContainer').hide(); }
+		triggerPreselectedAddonChecks($('#addonsList'));
 
 		Object.keys(VALUE_CATEGORY_GROUPS).forEach(function(groupKey) {
 			// Re-apply whatever amount is already tracked in state (e.g. surviving a
@@ -1727,7 +2130,7 @@ function renderServiceOptionsContainer() {
 		const value = parseFloat((($input.val() || '') + '').replace(',', '.'));
 
 		const previousIds = $container.find('.addon-checkbox').map(function() { return String($(this).data('id')); }).get();
-		const previousCheckedId = $container.find('.addon-checkbox:checked').data('id');
+		const previousCheckedIds = $container.find('.addon-checkbox:checked').map(function() { return String($(this).data('id')); }).get();
 
 		let addons = [];
 		group.categories.forEach(function(cat) {
@@ -1772,18 +2175,43 @@ function renderServiceOptionsContainer() {
 			return;
 		}
 
-		const toRender = group.showAllMatches ? inRange : [inRange[0]];
+		// perCategory (INSURANCE group): INSURANCE and INSURANCE_CARGO are complementary,
+		// not alternatives - a client can buy regular insurance AND additional cargo
+		// insurance on top of it - so show the cheapest match from EACH category as its
+		// own independent, non-exclusive pick, instead of blending both lists together
+		// and offering only one selection overall.
+		const toRender = group.perCategory
+			? group.categories.map(function(cat) { return inRange.find(function(a) { return a.category === cat; }); }).filter(Boolean)
+			: (group.showAllMatches ? inRange : [inRange[0]]);
 		const renderedIds = toRender.map(function(a) { return String(a.id); });
 		purgeUnrendered(renderedIds);
 
 		$container.html(toRender.map(renderAddonCheckboxHtml).join(''));
 
-		// Keep the merchant's own pick if it's still a valid match; otherwise default
-		// to the cheapest (first, since toRender is price-sorted).
-		const idToCheck = (previousCheckedId && renderedIds.indexOf(String(previousCheckedId)) !== -1)
-			? String(previousCheckedId)
-			: renderedIds[0];
-		$container.find('.addon-checkbox[data-id="' + idToCheck + '"]').prop('checked', true).trigger('change');
+		if (group.perCategory) {
+			group.categories.forEach(function(cat, idx) {
+				const catIds = toRender.filter(function(a) { return a.category === cat; }).map(function(a) { return String(a.id); });
+				if (!catIds.length) return;
+				// Keep the merchant's own pick for this category if it's still a valid
+				// match; only the first (primary) category defaults to auto-checked -
+				// the rest (e.g. cargo) are opt-in extras left unchecked by default.
+				const stillValidPrevious = previousCheckedIds.find(function(id) { return catIds.indexOf(id) !== -1; });
+				if (stillValidPrevious) {
+					$container.find('.addon-checkbox[data-id="' + stillValidPrevious + '"]').prop('checked', true).trigger('change');
+				} else if (idx === 0) {
+					$container.find('.addon-checkbox[data-id="' + catIds[0] + '"]').prop('checked', true).trigger('change');
+				}
+			});
+		} else {
+			// Keep the merchant's own pick if it's still a valid match; otherwise default
+			// to the cheapest (first, since toRender is price-sorted).
+			const previousCheckedId = previousCheckedIds[0];
+			const idToCheck = (previousCheckedId && renderedIds.indexOf(previousCheckedId) !== -1)
+				? previousCheckedId
+				: renderedIds[0];
+			$container.find('.addon-checkbox[data-id="' + idToCheck + '"]').prop('checked', true).trigger('change');
+		}
+		triggerPreselectedAddonChecks($container);
 	}
 
 	// Standard/non-standard shipment toggle: "non-standard" reveals the NOT_STANDARD
@@ -1793,6 +2221,7 @@ function renderServiceOptionsContainer() {
 		const $container = $('.gk-not-standard-options');
 		if (type === 'nonstandard') {
 			$container.html((GK.state.notStandardAddons || []).map(renderAddonCheckboxHtml).join('')).show();
+			triggerPreselectedAddonChecks($container);
 		} else {
 			$container.find('.addon-checkbox:checked').each(function(){
 				const otherId = String($(this).data('id'));
@@ -1898,6 +2327,7 @@ function renderServiceOptionsContainer() {
 		setTimeout(function(){
 			fetchTimeRanges();
 			fetchCustomRequiredFields();
+			fetchCustomsConfig();
 			// Refresh available dates when service changes
 			fetchAvailablePickupDates().then(function(availableDates) {
 				GK.state.availablePickupDates = availableDates;
@@ -2356,9 +2786,12 @@ function fetchStates(countryId, opts) {
 			.then(function(r){ return r.json(); })
 			.then(function(json){
 				GK.state.customRequired = json || {};
-				// declared value default (visibility of its addon group is driven entirely
-				// by renderAddonsList()/applyValueRangeFilter() based on the fetched addons)
+				// This flag is authoritative for visibility - a purchasable DECLARED_VALUE
+				// addon tier existing (renderAddonsList) is a separate, independent reason
+				// to show the same field, not the only one (see the comment where
+				// groupsHtml builds this block).
 				if (json.declaredValue) {
+					$('.gk-value-addon-group[data-group="DECLARED_VALUE"]').show();
 					// Initialize declaredValue with default value if not set
 					if (!GK.state.additionalInfo || !GK.state.additionalInfo.declaredValue) {
 						GK.state.additionalInfo = GK.state.additionalInfo || {};
@@ -2422,22 +2855,911 @@ function fetchStates(countryId, opts) {
                     GK.state.customRequired.requiredAddons = null;
                 }
 
-				// Handle orderCustoms fields (customs section requirements)
-				if (json.orderCustoms && typeof json.orderCustoms === 'object') {
-					// Filter out 'fields' key as it's not needed in the request
-					const filteredCustoms = {};
-					Object.keys(json.orderCustoms).forEach(function(key) {
-						if (key !== 'fields') {
-							filteredCustoms[key] = json.orderCustoms[key];
-						}
-					});
-					GK.state.customRequired.orderCustoms = filteredCustoms;
-				} else {
-					GK.state.customRequired.orderCustoms = null;
-				}
-
 				updateCarrierDependentUI();
 			});
+	}
+
+	// --- Customs clearance (GET /customs/config) -----------------------------------
+	// Replaces the deprecated `orderCustoms` key from order/customRequiredFields (GK
+	// docs: "this endpoint replaces the customs key from customRequiredFields").
+	// Field sets vary a lot by carrier (confirmed live: UPS/FedEx/CrossBorder on the
+	// same PL->GB route each return a different subset - sender-only eori vs
+	// sender+receiver, purpose vs no purpose, vatRegistrationNumber for CrossBorder
+	// only, etc.), so this renders generically off each field's metadata
+	// (compound/collection/frontType/disabled) instead of hardcoding known field
+	// names like the sibling shoper/shopify-app integrations do - they don't render
+	// several fields (customsInvoiceType, isStrategic, transportIncluded/Amount/
+	// Currency, declarantName, totalWeight) that the live API already returns.
+
+	function customsPathGet(obj, path) {
+		let cur = obj;
+		for (let i = 0; i < path.length; i++) {
+			if (cur == null) return undefined;
+			cur = cur[path[i]];
+		}
+		return cur;
+	}
+
+	function customsPathSet(obj, path, value) {
+		let cur = obj;
+		for (let i = 0; i < path.length - 1; i++) {
+			const seg = path[i];
+			const nextSeg = path[i + 1];
+			if (cur[seg] == null) { cur[seg] = (typeof nextSeg === 'number') ? [] : {}; }
+			cur = cur[seg];
+		}
+		cur[path[path.length - 1]] = value;
+	}
+
+	function parseCustomsPath(str) {
+		return String(str).split('.').map(function(seg) { return /^\d+$/.test(seg) ? parseInt(seg, 10) : seg; });
+	}
+
+	// The field's own top-level `min`/`max` don't always match what the API actually
+	// enforces (confirmed live: "description" reports max:35 at the field level but
+	// its real `constraints[].Length` says max:50, and the live order/validate error
+	// for a 51-char description cites "50 znaków" - matching the constraint, not
+	// the field-level max). Read the Symfony constraint directly instead of trusting
+	// the field-level min/max hints.
+	function customsFindConstraint(field, shortClassName) {
+		return (field.constraints || []).find(function(c) {
+			return c.class && c.class.split('\\').pop() === shortClassName;
+		});
+	}
+	function customsLengthMax(field) {
+		const c = customsFindConstraint(field, 'Length');
+		const max = c && c.arguments && c.arguments.max;
+		return (max != null && max !== '') ? parseInt(max, 10) : null;
+	}
+	// Mirrors buildCustomsPayloadValue's own dual_description wire format exactly -
+	// the two must never diverge, since this is what the Length constraint actually
+	// measures server-side.
+	function customsDualCombinedLength(pl, en) {
+		return en ? ((pl || '').length + 4 + en.length) : (pl || '').length;
+	}
+	// Finds a field's own definition by its rendered dot-path (e.g.
+	// "commodities.0.description" -> the "description" sub-field of "commodities"),
+	// skipping numeric array-index segments, so length-limited fields can be looked
+	// up again outside of renderCustomsLeafField (translate button, input handler).
+	function customsFieldByPath(pathStr) {
+		const segs = String(pathStr).split('.');
+		let fields = GK.state.customsFields || [];
+		let field = null;
+		for (let i = 0; i < segs.length; i++) {
+			const seg = segs[i];
+			if (/^\d+$/.test(seg)) { continue; }
+			field = (fields || []).find(function(f) { return f.name === seg; });
+			if (!field) return null;
+			fields = field.fields || [];
+		}
+		return field;
+	}
+
+	// Builds the default value for a field definition, respecting the API's own
+	// `value` default and `options[].selected` (the real mechanism the live API uses
+	// for locked/suggested values - the `predefined` concept from older docs does not
+	// appear anywhere in real /customs/config responses; `disabled: true` + `value`
+	// covers computed/locked fields instead).
+	function buildCustomsDefaultValue(field) {
+		if (field.type === 'collection') {
+			return field.disabled ? buildCustomsDefaultValue({ compound: true, fields: field.fields }) : [];
+		}
+		if (field.compound) {
+			const obj = {};
+			(field.fields || []).forEach(function(sub) { obj[sub.name] = buildCustomsDefaultValue(sub); });
+			return obj;
+		}
+		if (field.frontType === 'dual_description') {
+			return { pl: '', en: '' };
+		}
+		if (field.type === 'choice' && field.multi) {
+			return (field.options || []).filter(function(o) { return o.selected; }).map(function(o) { return o.value; });
+		}
+		if (field.type === 'choice') {
+			if (field.value != null) return field.value;
+			const sel = (field.options || []).find(function(o) { return o.selected; });
+			return sel ? sel.value : '';
+		}
+		return field.value != null ? field.value : '';
+	}
+
+	// Overlays a real order line item (name/quantity/unit price/weight, from
+	// window.GkOrderProducts - see AdminGlobkurierPlaceOrderController.php) onto an
+	// otherwise-default commodity row, but only for the specific field names that
+	// carry that data. Stays generic/safe for any carrier: a schema missing one of
+	// these names (e.g. no "unitValue" field) just leaves that part at its normal
+	// default instead of assuming the field exists.
+	function buildCommodityRowFromOrderProduct(field, product) {
+		const row = buildCustomsDefaultValue({ compound: true, fields: field.fields });
+		const fieldByName = {};
+		(field.fields || []).forEach(function(f) { fieldByName[f.name] = f; });
+		if (fieldByName.description && product.name) {
+			const maxLen = customsLengthMax(fieldByName.description);
+			row.description = { pl: maxLen ? product.name.substring(0, maxLen) : product.name, en: '' };
+		}
+		if (fieldByName.quantity && product.quantity) {
+			row.quantity = product.quantity;
+		}
+		if (fieldByName.unitValue && product.unitValue != null) {
+			row.unitValue = product.unitValue;
+		}
+		if (fieldByName.unitWeightGross && product.unitWeight != null) {
+			row.unitWeightGross = product.unitWeight;
+		}
+		if (fieldByName.unitWeightNet && product.unitWeight != null) {
+			row.unitWeightNet = product.unitWeight;
+		}
+		return row;
+	}
+
+	function fetchCustomsConfig() {
+		const s = GK.state;
+		try { ensureCountryIdsFromIso(); } catch (e) {}
+		if (!s.pickedService) return;
+		const senderCountryId = s.sender && s.sender.country && s.sender.country.id;
+		const receiverCountryId = s.receiver && s.receiver.country && s.receiver.country.id;
+		const carrierName = s.pickedService.carrierName;
+		if (!senderCountryId || !receiverCountryId || !carrierName) { hideCustomsSection(); return; }
+		const params = new URLSearchParams({ name: carrierName, senderCountry: senderCountryId, receiverCountry: receiverCountryId });
+		return fetch(gkApiBase() + 'customs/config?' + params.toString(), { headers: buildHeaders() })
+			.then(function(r) { return (r.status === 404) ? { fields: [] } : r.json(); })
+			.then(function(json) {
+				const fields = (json && Array.isArray(json.fields)) ? json.fields : [];
+				GK.state.customsFields = fields;
+				if (!fields.length) { hideCustomsSection(); return; }
+				renderCustomsSection(fields);
+			})
+			.catch(function() { hideCustomsSection(); });
+	}
+
+	function hideCustomsSection() {
+		GK.state.customsFields = [];
+		GK.state.customsData = null;
+		$('#customsContainer').hide();
+		$('#customsBody').empty();
+		$('#customsSummaryTable').hide();
+		$('#customsSummaryTableBody').empty();
+		hideCustomsCalculation();
+	}
+
+	// Drives the status badge next to the "Customs clearance" button and gates
+	// "Save and close" - both need the exact same definition of "done" (required
+	// fields filled AND nothing over its Length limit), so this just checks whether
+	// collectIncompleteCustomsPaths (below) found anything, instead of maintaining a
+	// second parallel traversal that can silently drift out of sync with it (as the
+	// required-vs-length-only-checked-in-one-of-them bug demonstrated).
+	function isCustomsFormComplete() {
+		const fields = GK.state.customsFields || [];
+		const data = GK.state.customsData || {};
+		return fields.every(function(field) { return collectIncompleteCustomsPaths(field, data[field.name], [field.name]).length === 0; });
+	}
+
+	// Mirrors isCustomsFieldFilled's traversal but collects the dot-paths of every
+	// unfilled required field instead of a single boolean, so "Save and close" can
+	// point at exactly what's missing instead of just refusing to close.
+	function collectIncompleteCustomsPaths(field, value, path) {
+		if (field.type === 'collection') {
+			if (field.disabled) return [];
+			const rows = value || [];
+			if (!rows.length) { return [path.join('.')]; }
+			let missing = [];
+			rows.forEach(function(row, idx) {
+				(field.fields || []).forEach(function(sub) {
+					missing = missing.concat(collectIncompleteCustomsPaths(sub, row[sub.name], path.concat([idx, sub.name])));
+				});
+			});
+			return missing;
+		}
+		if (field.compound) {
+			let missing = [];
+			(field.fields || []).forEach(function(sub) {
+				missing = missing.concat(collectIncompleteCustomsPaths(sub, (value || {})[sub.name], path.concat([sub.name])));
+			});
+			return missing;
+		}
+		// Length overflow blocks the real order/validate call regardless of `required`
+		// (confirmed live: a too-long description gets rejected by the API even though
+		// the same constraint mechanism also covers required fields) - checked before
+		// the required-gate below rather than inside it.
+		if (field.frontType === 'dual_description') {
+			// Paths must carry the .pl/.en suffix to match the actual rendered
+			// input's data-path (renderCustomsLeafField), otherwise the has-error
+			// selector below silently matches nothing and these fields never
+			// visibly highlight despite blocking the "Save and close" gate.
+			const missing = [];
+			const plVal = (value && value.pl) || '';
+			const enVal = (value && value.en) || '';
+			if (field.required && !plVal) { missing.push(path.concat(['pl']).join('.')); }
+			if (field.required && !enVal) { missing.push(path.concat(['en']).join('.')); }
+			const maxLen = customsLengthMax(field);
+			// The constraint measures the combined "PL ;; EN" wire value (see
+			// customsDualCombinedLength), not each language independently - flagging
+			// both inputs when it's exceeded since either one could be shortened to fix it.
+			if (maxLen != null && customsDualCombinedLength(plVal, enVal) > maxLen) {
+				missing.push(path.concat(['pl']).join('.'));
+				missing.push(path.concat(['en']).join('.'));
+			}
+			return missing;
+		}
+		if (field.type === 'choice' && field.multi) { return []; }
+		const missing = [];
+		if (field.required && (value == null || value === '')) { missing.push(path.join('.')); }
+		const maxLen = customsLengthMax(field);
+		if (maxLen != null && typeof value === 'string' && value.length > maxLen) { missing.push(path.join('.')); }
+		return missing;
+	}
+
+	// Runs continuously (every recalcCustomsComputedFields pass - initial render and
+	// every field edit) rather than only when "Save and close" is clicked, matching
+	// GK's own panel which shows required-but-empty fields as invalid immediately,
+	// not just on a submit attempt. Returns the count of still-missing fields so the
+	// save button can decide whether to actually close the modal.
+	function highlightIncompleteCustomsFields() {
+		$('.gk-customs-field').removeClass('has-error');
+		const fields = GK.state.customsFields || [];
+		const data = GK.state.customsData || {};
+		let missing = [];
+		fields.forEach(function(field) {
+			missing = missing.concat(collectIncompleteCustomsPaths(field, data[field.name], [field.name]));
+		});
+		missing.forEach(function(pathStr) {
+			$('.gk-customs-input[data-path="' + pathStr + '"]').closest('.form-group').addClass('has-error');
+		});
+		return missing.length;
+	}
+
+	// No separate "Filled in / Needs to be filled in" badge - the "Edit customs
+	// declaration" button's own color communicates the state (orange = incomplete,
+	// green = done), and placeOrder() blocks submission with an explicit error if
+	// it's still incomplete when the merchant tries to place the order.
+	function updateCustomsStatusBadge() {
+		const complete = isCustomsFormComplete();
+		$('#openCustomsModalBtn')
+			.toggleClass('btn-warning', !complete)
+			.toggleClass('btn-success btn-gk-success', complete);
+	}
+
+	// Section titles are our own translated labels (the API only labels individual
+	// fields, not the sections themselves), keyed off the same section names GK's
+	// own top-level `sections` array uses ("sender","receiver","commodities",
+	// "summary","details").
+	const CUSTOMS_SECTION_LABEL_KEYS = {
+		sender: 'langCustomsSectionSender',
+		receiver: 'langCustomsSectionReceiver',
+		commodities: 'langCustomsSectionCommodities',
+		summary: 'langCustomsSectionSummary',
+		details: 'langCustomsSectionDetails'
+	};
+
+	function customsSectionLabel(key) {
+		const iv = window.InitialValues || {};
+		const langKey = CUSTOMS_SECTION_LABEL_KEYS[key];
+		return (langKey && iv[langKey]) || key;
+	}
+
+	// A top-level field's own `section` is null for the sender/receiver/commodities
+	// wrapper fields themselves (only their sub-fields carry it), so fall back to the
+	// field's own name - which for those three IS the section key.
+	function groupCustomsFieldsBySection(fields) {
+		const groups = {};
+		const order = [];
+		fields.forEach(function(field) {
+			const key = field.section || field.name;
+			if (!groups[key]) { groups[key] = []; order.push(key); }
+			groups[key].push(field);
+		});
+		return { groups: groups, order: order };
+	}
+
+	function renderCustomsSection(fields) {
+		if (!GK.state.customsData) { GK.state.customsData = {}; }
+		fields.forEach(function(field) {
+			if (customsPathGet(GK.state.customsData, [field.name]) === undefined) {
+				customsPathSet(GK.state.customsData, [field.name], buildCustomsDefaultValue(field));
+			}
+		});
+		// Pre-fill sender EORI from the module's configured default (only if the
+		// merchant hasn't already typed/kept something there across a re-render).
+		const iv = window.InitialValues || {};
+		if (GK.state.customsData.sender && !GK.state.customsData.sender.eori && iv.defaultEoriNumber) {
+			GK.state.customsData.sender.eori = iv.defaultEoriNumber;
+		}
+		// Repeatable collections (commodities) always keep at least one row - the
+		// first time (no rows yet), seed one row per order line item when placing
+		// the shipment from a real PrestaShop order, instead of one blank row the
+		// merchant would have to fill in by hand for every product.
+		fields.forEach(function(field) {
+			if (field.type === 'collection' && !field.disabled) {
+				const arr = customsPathGet(GK.state.customsData, [field.name]) || [];
+				if (!arr.length) {
+					const orderProducts = (window.GkOrderProducts && window.GkOrderProducts.length) ? window.GkOrderProducts : null;
+					if (orderProducts) {
+						orderProducts.forEach(function(p) { arr.push(buildCommodityRowFromOrderProduct(field, p)); });
+					} else {
+						arr.push(buildCustomsDefaultValue({ compound: true, fields: field.fields }));
+					}
+					customsPathSet(GK.state.customsData, [field.name], arr);
+				}
+			}
+		});
+
+		const grouped = groupCustomsFieldsBySection(fields);
+		// Sender/receiver each arrive as their own section (one compound field per
+		// key), but read far better side by side than as two stacked full-width
+		// cards - receiver only takes a column when the API actually returned it
+		// for this route (e.g. Cross Border on PL->GB has it, UPS/FedEX don't).
+		const order = grouped.order.filter(function(key) { return key !== 'sender' && key !== 'receiver'; });
+		let html = (grouped.groups.sender || grouped.groups.receiver)
+			? renderCustomsSenderReceiverCard(grouped.groups.sender, grouped.groups.receiver)
+			: '';
+		html += order.map(function(key) { return renderCustomsSectionCard(key, grouped.groups[key]); }).join('');
+		$('#customsBody').html(html);
+		$('#customsContainer').show();
+		fields.forEach(function(field) {
+			if (field.type === 'collection' && !field.disabled) {
+				updateCustomsRemoveButtons(field.name);
+			}
+		});
+		recalcCustomsComputedFields();
+	}
+
+	// Sender and receiver each arrive from the API as their own single-field
+	// "section" (a compound field named after itself, e.g. sender.fields = [eori]),
+	// but showing them as two stacked full-width panels wastes space for what's
+	// usually a single field each - render them as one card, left column always
+	// sender, right column receiver only if the API actually returned it for this
+	// route/carrier (confirmed live: e.g. Cross Border on PL->GB has receiver.eori,
+	// UPS/FedEX on the same route and every carrier on PL->US don't).
+	function renderCustomsSenderReceiverCard(senderGroup, receiverGroup) {
+		function renderSide(group) {
+			const field = (group || [])[0];
+			if (!field) { return ''; }
+			return (field.fields || []).map(function(sub) {
+				return renderCustomsLeafField(sub, [field.name, sub.name]);
+			}).join('');
+		}
+		const hasReceiver = !!(receiverGroup && receiverGroup[0]);
+		const leftClass = hasReceiver ? 'col-sm-6' : 'col-sm-12';
+		let body = '<div class="row">';
+		body += '<div class="' + leftClass + '"><span class="gk-customs-subheading">' + escapeHtml(customsSectionLabel('sender')) + '</span>' + renderSide(senderGroup) + '</div>';
+		if (hasReceiver) {
+			body += '<div class="col-sm-6"><span class="gk-customs-subheading">' + escapeHtml(customsSectionLabel('receiver')) + '</span>' + renderSide(receiverGroup) + '</div>';
+		}
+		body += '</div>';
+		return '<div class="col-sm-12 gk-customs-section">' + body + '</div>';
+	}
+
+	// One card per remaining section (Commodities / Details / Summary). Within a
+	// card: dual PL/EN fields get their own full-width row (they already hold two
+	// inputs + a button, cramming them into a narrow column is what made the old
+	// layout unreadable); every other plain field sits in a 3-per-row grid; the
+	// commodities collection renders as a list of per-item cards. The "summary"
+	// section specifically pairs its read-only totals table (2/3 width) with
+	// whatever plain field(s) sit alongside it - currency, in every route seen so
+	// far - in the remaining 1/3, rather than stacking them full-width.
+	function renderCustomsSectionCard(sectionKey, fieldsInSection) {
+		let bodyHtml = '';
+		if (sectionKey === 'summary') {
+			const tableFields = fieldsInSection.filter(function(f) { return f.type === 'collection' && f.disabled; });
+			const otherFields = fieldsInSection.filter(function(f) { return !(f.type === 'collection' && f.disabled); });
+			const tableHtml = tableFields.map(function(f) { return renderCustomsSummaryField(f, [f.name]); }).join('');
+			const otherHtml = otherFields.map(function(f) { return renderCustomsLeafField(f, [f.name]); }).join('');
+			bodyHtml = (tableHtml && otherHtml)
+				? ('<div class="row"><div class="col-sm-8">' + tableHtml + '</div><div class="col-sm-4">' + otherHtml + '</div></div>')
+				: (tableHtml + otherHtml);
+		} else {
+			let gridBuffer = [];
+			const flushGrid = function() {
+				if (gridBuffer.length) {
+					bodyHtml += '<div class="row">' + gridBuffer.join('') + '</div>';
+					gridBuffer = [];
+				}
+			};
+			fieldsInSection.forEach(function(field) {
+				const path = [field.name];
+				if (field.type === 'collection' && !field.disabled) {
+					flushGrid();
+					bodyHtml += renderCustomsCollectionBlock(field, path);
+				} else if (field.type === 'collection' && field.disabled) {
+					flushGrid();
+					bodyHtml += renderCustomsSummaryField(field, path);
+				} else if (field.compound) {
+					flushGrid();
+					bodyHtml += '<div class="row">' + (field.fields || []).map(function(sub) {
+						return '<div class="col-sm-4">' + renderCustomsLeafField(sub, path.concat([sub.name])) + '</div>';
+					}).join('') + '</div>';
+				} else {
+					const colClass = (field.frontType === 'dual_description') ? 'col-sm-12' : 'col-sm-4';
+					gridBuffer.push('<div class="' + colClass + '">' + renderCustomsLeafField(field, path) + '</div>');
+				}
+			});
+			flushGrid();
+		}
+		return '' +
+			'<div class="col-sm-12 gk-customs-section">' +
+				'<div class="gk-customs-section-heading">' + escapeHtml(customsSectionLabel(sectionKey)) + '</div>' +
+				bodyHtml +
+			'</div>';
+	}
+
+	function renderCustomsCollectionBlock(field, path) {
+		const iv = window.InitialValues || {};
+		const arr = customsPathGet(GK.state.customsData, path) || [];
+		const rowsHtml = arr.map(function(_, idx) { return renderCustomsCollectionRow(field, path, idx); }).join('');
+		return '' +
+			'<div class="gk-customs-collection-rows" data-collection-path="' + path.join('.') + '">' + rowsHtml + '</div>' +
+			'<button type="button" class="btn btn-default btn-sm gk-customs-add-row" data-collection-path="' + path.join('.') + '">+ ' + escapeHtml(iv.langAddCommodity || 'Add item') + '</button>';
+	}
+
+	function renderCustomsCollectionRow(field, collPath, idx) {
+		const rowPath = collPath.concat([idx]);
+		const iv = window.InitialValues || {};
+		const subFields = field.fields || [];
+		// Dual PL/EN fields (description/composition/purpose) need the full row
+		// width for their two inputs + translate button; everything else (hsCode,
+		// countryOfOrigin, quantities, weights...) shares a compact 3-per-row grid.
+		const dualHtml = subFields.filter(function(f) { return f.frontType === 'dual_description'; })
+			.map(function(sub) { return '<div class="col-sm-12">' + renderCustomsLeafField(sub, rowPath.concat([sub.name])) + '</div>'; }).join('');
+		const gridHtml = subFields.filter(function(f) { return f.frontType !== 'dual_description'; })
+			.map(function(sub) { return '<div class="col-sm-4">' + renderCustomsLeafField(sub, rowPath.concat([sub.name])) + '</div>'; }).join('');
+		return '' +
+			'<div class="gk-customs-row gk-customs-card" data-row-index="' + idx + '">' +
+				'<div class="gk-customs-card-heading gk-customs-row-heading" style="display:flex; align-items:center; justify-content:space-between;">' +
+					'<strong>' + escapeHtml(iv.langCommodityItem || 'Item') + ' ' + (idx + 1) + '</strong>' +
+					'<button type="button" class="btn btn-danger btn-xs gk-customs-remove-row" data-collection-path="' + collPath.join('.') + '" data-row-index="' + idx + '">' + escapeHtml(iv.langRemoveCommodity || 'Remove') + '</button>' +
+				'</div>' +
+				'<div class="gk-customs-card-body">' +
+					(dualHtml ? ('<div class="row">' + dualHtml + '</div>') : '') +
+					(gridHtml ? ('<div class="row">' + gridHtml + '</div>') : '') +
+				'</div>' +
+			'</div>';
+	}
+
+	// GK's totalWeight field models one unit/weightGross/weightNet triple, but both
+	// sibling apps (shoper, shopify-app) correctly group by each commodity row's own
+	// unitOfMeasurement instead of blending everything into one bucket (a shipment
+	// with some items in "EA" and others in "KG" would otherwise sum incompatible
+	// units together) - one summary row per distinct unit actually in use.
+	function computeCustomsWeightsByUnit(commodities) {
+		const map = {};
+		const order = [];
+		(commodities || []).forEach(function(row) {
+			const unit = row.unitOfMeasurement || 'EA';
+			if (!map[unit]) { map[unit] = { unit: unit, weightGross: 0, weightNet: 0 }; order.push(unit); }
+			const qty = parseFloat(row.quantity) || 0;
+			map[unit].weightGross += qty * (parseFloat(row.unitWeightGross) || 0);
+			map[unit].weightNet += qty * (parseFloat(row.unitWeightNet) || 0);
+		});
+		return order.map(function(u) {
+			return { unit: map[u].unit, weightGross: Math.round(map[u].weightGross * 1000) / 1000, weightNet: Math.round(map[u].weightNet * 1000) / 1000 };
+		});
+	}
+
+	// unitOfMeasurement is stored/grouped by its raw code (e.g. "EA", "KG") - looks
+	// up the matching option's full label from the commodities field's own choice
+	// options (e.g. "Sztuki", "Kilogramy") instead of showing the bare code.
+	function customsUnitOfMeasurementName(code) {
+		const commoditiesField = (GK.state.customsFields || []).find(function(f) { return f.name === 'commodities'; });
+		const unitField = commoditiesField && (commoditiesField.fields || []).find(function(f) { return f.name === 'unitOfMeasurement'; });
+		const opt = unitField && (unitField.options || []).find(function(o) { return o.value === code; });
+		return opt ? opt.name : code;
+	}
+
+	// Renders the "Total weight" summary as its own small table (unit/gross/net per
+	// row), reusing the sub-fields' own translated labels/suffixes from the API
+	// instead of inventing new ones, plus a non-blocking warning (like both sibling
+	// apps show) when the declared customs weight exceeds the actual shipment weight.
+	function renderCustomsSummaryField(field, path) {
+		const subFieldByName = {};
+		(field.fields || []).forEach(function(f) { subFieldByName[f.name] = f; });
+		const unitLabel = (subFieldByName.unit && subFieldByName.unit.label) || 'Unit';
+		const grossLabel = (subFieldByName.weightGross && subFieldByName.weightGross.label) || 'Gross weight';
+		const netLabel = (subFieldByName.weightNet && subFieldByName.weightNet.label) || 'Net weight';
+		const grossSuffix = (subFieldByName.weightGross && subFieldByName.weightGross.suffix) || 'kg';
+		const netSuffix = (subFieldByName.weightNet && subFieldByName.weightNet.suffix) || 'kg';
+
+		const rows = computeCustomsWeightsByUnit(GK.state.customsData && GK.state.customsData.commodities);
+		const orderWeight = parseFloat(GK.state.pickedService && GK.state.pickedService.packageInfo && GK.state.pickedService.packageInfo.weight) || 0;
+		const totalGross = rows.reduce(function(sum, r) { return sum + r.weightGross; }, 0);
+		const exceeds = orderWeight > 0 && totalGross > orderWeight;
+
+		const bodyRows = rows.length
+			? rows.map(function(r) {
+				return '<tr><td>' + escapeHtml(customsUnitOfMeasurementName(r.unit)) + '</td><td>' + r.weightGross.toFixed(3) + ' ' + escapeHtml(grossSuffix) + '</td><td>' + r.weightNet.toFixed(3) + ' ' + escapeHtml(netSuffix) + '</td></tr>';
+			}).join('')
+			: '<tr><td colspan="3" class="text-muted">-</td></tr>';
+
+		const iv = window.InitialValues || {};
+		return '' +
+			'<div class="gk-customs-weight-summary" data-path="' + path.join('.') + '">' +
+				'<label><strong>' + escapeHtml(field.label || field.name) + '</strong></label>' +
+				'<table class="table table-condensed" style="margin-bottom:6px;">' +
+					'<thead><tr><th>' + escapeHtml(unitLabel) + '</th><th>' + escapeHtml(grossLabel) + '</th><th>' + escapeHtml(netLabel) + '</th></tr></thead>' +
+					'<tbody>' + bodyRows + '</tbody>' +
+				'</table>' +
+				(exceeds ? ('<div class="text-danger">' + escapeHtml(iv.langWeightExceedsOrder || 'Total customs weight exceeds the shipment weight') + '</div>') : '') +
+			'</div>';
+	}
+
+	function renderCustomsLeafField(field, path) {
+		const pathStr = path.join('.');
+		const iv = window.InitialValues || {};
+		const label = (field.label || field.name || '').split(' ;; ')[0];
+		const required = field.required ? ' <span class="text-danger">*</span>' : '';
+		const tooltip = field.tooltip ? ' <span class="gk-customs-tooltip" title="' + escapeHtml(field.tooltip) + '">i</span>' : '';
+		const currentVal = customsPathGet(GK.state.customsData, path);
+
+		if (field.disabled) {
+			return '' +
+				'<div class="form-group gk-customs-field">' +
+					'<label>' + escapeHtml(label) + required + tooltip + '</label>' +
+					'<input type="text" class="form-control gk-customs-input" data-path="' + pathStr + '" value="' + escapeHtml(currentVal != null ? currentVal : '') + '" readonly>' +
+				'</div>';
+		}
+
+		if (field.frontType === 'dual_description') {
+			const pl = (currentVal && currentVal.pl) || '';
+			const en = (currentVal && currentVal.en) || '';
+			// Confirmed live: the wire payload merges these into ONE string
+			// ("PL ;; EN", or just "PL" when EN is empty - see buildCustomsPayloadValue)
+			// and the API's Length constraint applies to THAT combined string, not to
+			// PL/EN independently (a 50-char max description rejected a "PL ;; EN" pair
+			// whose halves were each already under 50 on their own). `maxlength` on each
+			// input is only an outer safety net for the empty-EN case; the real
+			// enforcement is the combined counter + live truncation in the
+			// .gk-customs-input change handler below.
+			const maxLen = customsLengthMax(field);
+			const maxLenAttr = maxLen != null ? (' maxlength="' + maxLen + '"') : '';
+			const combinedLen = customsDualCombinedLength(pl, en);
+			const combinedCount = maxLen != null
+				? ('<span class="gk-customs-charcount' + (combinedLen > maxLen ? ' gk-customs-charcount-over' : '') + '" data-maxlen="' + maxLen + '">' + combinedLen + '/' + maxLen + '</span>')
+				: '';
+			return '' +
+				'<div class="form-group gk-customs-field gk-customs-dual">' +
+					'<label>' + escapeHtml(label) + required + tooltip + '</label>' +
+					'<div class="gk-customs-dual-row">' +
+						'<span class="gk-customs-dual-col">' +
+							'<input type="text" class="form-control gk-customs-input" data-path="' + pathStr + '.pl" value="' + escapeHtml(pl) + '" placeholder="' + escapeHtml(iv.langPl || 'PL') + '"' + maxLenAttr + '>' +
+						'</span>' +
+						'<button type="button" class="btn btn-primary btn-gk-primary gk-customs-translate" data-path="' + pathStr + '" title="' + escapeHtml(iv.langTranslateToEn || 'Translate to English') + '">' +
+							'<i class="icon-refresh icon-spin gk-customs-translate-spinner" style="display:none;"></i>' +
+							'<svg class="gk-customs-translate-icon" xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#ffffff" style="width:16px;height:16px;vertical-align:middle;"><path d="m488-96 171-456h82L912-96h-79l-41-117H608L567-96h-79ZM169-216l-50-51 192-190q-36-38-67-79t-54-89h82q18 32 36 54.5t52 60.5q38-42 70-87.5t52-98.5H48v-72h276v-96h72v96h276v72H558q-21 69-61 127.5T409-457l91 90-28 74-112-112-191 189Zm463-63h136l-66-189-70 189Z"></path></svg>' +
+						'</button>' +
+						'<span class="gk-customs-dual-col">' +
+							'<input type="text" class="form-control gk-customs-input" data-path="' + pathStr + '.en" value="' + escapeHtml(en) + '" placeholder="' + escapeHtml(iv.langEn || 'EN') + '"' + maxLenAttr + '>' +
+						'</span>' +
+					'</div>' +
+					combinedCount +
+				'</div>';
+		}
+
+		if (field.type === 'choice') {
+			const options = field.options || [];
+			if (field.multi) {
+				const selectedVals = Array.isArray(currentVal) ? currentVal : [];
+				const boxes = options.map(function(o) {
+					const checked = selectedVals.indexOf(o.value) !== -1 ? ' checked' : '';
+					return '<label class="checkbox"><input type="checkbox" class="gk-customs-input gk-customs-multi" data-path="' + pathStr + '" value="' + escapeHtml(o.value) + '"' + checked + '> ' + escapeHtml(o.name) + '</label>';
+				}).join('');
+				return '<div class="form-group gk-customs-field"><label>' + escapeHtml(label) + tooltip + '</label>' + boxes + '</div>';
+			}
+			if (field.expanded) {
+				const radios = options.map(function(o) {
+					const checked = (currentVal === o.value) ? ' checked' : '';
+					return '<label class="radio-inline"><input type="radio" name="gk-customs-' + pathStr.replace(/\./g, '-') + '" class="gk-customs-input" data-path="' + pathStr + '" value="' + escapeHtml(o.value) + '"' + checked + '> ' + escapeHtml(o.name) + '</label>';
+				}).join('');
+				return '<div class="form-group gk-customs-field"><label>' + escapeHtml(label) + required + tooltip + '</label><div>' + radios + '</div></div>';
+			}
+			const opts = options.map(function(o) {
+				return '<option value="' + escapeHtml(o.value) + '"' + (currentVal === o.value ? ' selected' : '') + '>' + escapeHtml(o.name) + '</option>';
+			}).join('');
+			return '' +
+				'<div class="form-group gk-customs-field">' +
+					'<label>' + escapeHtml(label) + required + tooltip + '</label>' +
+					'<select class="form-control gk-customs-input" data-path="' + pathStr + '">' + opts + '</select>' +
+				'</div>';
+		}
+
+		// HS code: optional per the live API (GK auto-matches it server-side when
+		// left blank) but a lookup button still lets the merchant confirm/override it.
+		const extraBtn = (field.name === 'hsCode')
+			? '<button type="button" class="btn btn-default gk-customs-hs-lookup" data-path="' + pathStr + '" title="' + escapeHtml(iv.langSuggestHsCode || 'Suggest HS code') + '">HS?</button>'
+			: '';
+		const inputType = (field.type === 'number') ? 'number' : (field.frontType === 'date' ? 'date' : 'text');
+		const stepAttr = (field.type === 'number' && field.precision != null) ? (' step="' + (1 / Math.pow(10, field.precision)) + '"') : '';
+		const patternAttrs = (field.pattern && field.pattern.regex) ? (' data-pattern="' + escapeHtml(field.pattern.regex) + '" data-pattern-error="' + escapeHtml(field.pattern.error || '') + '"') : '';
+		const leafMaxLen = customsLengthMax(field);
+		const maxLenAttr = (leafMaxLen != null && inputType === 'text') ? (' maxlength="' + leafMaxLen + '"') : '';
+		// Unit value / subtotal fields (frontType "currency") show the currently
+		// selected currency as a live suffix - updated in the .gk-customs-input
+		// change handler whenever the top-level "currency" field itself changes.
+		const currentCurrency = (GK.state.customsData && GK.state.customsData.currency) || '';
+		const suffixAddon = field.suffix
+			? ('<span class="input-group-addon">' + escapeHtml(field.suffix) + '</span>')
+			: (field.frontType === 'currency' ? ('<span class="input-group-addon gk-customs-currency-addon">' + escapeHtml(currentCurrency) + '</span>') : '');
+
+		return '' +
+			'<div class="form-group gk-customs-field">' +
+				'<label>' + escapeHtml(label) + required + tooltip + '</label>' +
+				'<div class="' + (extraBtn || suffixAddon ? 'input-group' : '') + '">' +
+					'<input type="' + inputType + '" class="form-control gk-customs-input" data-path="' + pathStr + '" value="' + escapeHtml(currentVal != null ? currentVal : '') + '" placeholder="' + escapeHtml(field.placeholder || '') + '"' + stepAttr + patternAttrs + maxLenAttr + '>' +
+					(extraBtn ? ('<span class="input-group-btn">' + extraBtn + '</span>') : suffixAddon) +
+				'</div>' +
+			'</div>';
+	}
+
+	function updateCustomsRemoveButtons(collPathStr) {
+		const $rows = $('.gk-customs-collection-rows[data-collection-path="' + collPathStr + '"] .gk-customs-row');
+		$rows.find('.gk-customs-remove-row').prop('disabled', $rows.length <= 1);
+	}
+
+	// Recomputes the two known GK customFunctions formulas seen live: "multiple"
+	// (subTotalValue = quantity x unitValue per commodity row) and the totalWeight
+	// summary (sum of quantity x unitWeightGross/Net across all rows). GK's own
+	// aggregation semantics for other/future customFunctions aren't documented, so
+	// unrecognized ones are just left as plain manual inputs rather than guessed at.
+	function recalcCustomsComputedFields() {
+		const commodities = (GK.state.customsData && GK.state.customsData.commodities) || [];
+		let sumGross = 0;
+		let sumNet = 0;
+		let sumValue = 0;
+		commodities.forEach(function(row, idx) {
+			const qty = parseFloat(row.quantity) || 0;
+			const unitValue = parseFloat(row.unitValue) || 0;
+			const subTotal = Math.round(qty * unitValue * 100) / 100;
+			row.subTotalValue = subTotal;
+			$('.gk-customs-input[data-path="commodities.' + idx + '.subTotalValue"]').val(subTotal);
+			sumGross += qty * (parseFloat(row.unitWeightGross) || 0);
+			sumNet += qty * (parseFloat(row.unitWeightNet) || 0);
+			sumValue += subTotal;
+		});
+		if (GK.state.customsData && GK.state.customsData.totalWeight) {
+			GK.state.customsData.totalWeight.weightGross = Math.round(sumGross * 1000) / 1000;
+			GK.state.customsData.totalWeight.weightNet = Math.round(sumNet * 1000) / 1000;
+			GK.state.customsData.totalWeight.unit = 'KG';
+			renderCustomsSummaryDisplays();
+		}
+		// The "Declared value" addon field (Additional options -> DECLARED_VALUE) must
+		// match what's actually being declared at customs, so keep it derived from the
+		// commodities total rather than asking the merchant to enter the same number
+		// twice - re-running the value-range filter re-selects the matching addon tier.
+		if (commodities.length) {
+			const roundedTotal = Math.round(sumValue * 100) / 100;
+			if (!GK.state.additionalInfo) GK.state.additionalInfo = {};
+			GK.state.additionalInfo.declaredValue = roundedTotal;
+			$('#declaredValueInput').val(roundedTotal);
+			applyValueRangeFilter('DECLARED_VALUE');
+		}
+		renderCustomsSummaryTable();
+		updateCustomsStatusBadge();
+		highlightIncompleteCustomsFields();
+		debouncedCustomsCalculation();
+	}
+
+	// A unique per-draft id the merchant's browser makes up (GK does not issue one -
+	// confirmed: any 64-128 char string works, the same value just needs to be reused
+	// across calls). Passing it to /order/customs/calculation lets GK cache that duty
+	// estimate under this id; passing the SAME id later in the real order lets GK's
+	// LandedCostCalculationService reuse the cached figure instead of recalculating.
+	function generateOrderHash() {
+		if (window.crypto && window.crypto.getRandomValues) {
+			const bytes = new Uint8Array(32);
+			window.crypto.getRandomValues(bytes);
+			return Array.prototype.map.call(bytes, function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+		}
+		let s = '';
+		for (let i = 0; i < 64; i++) { s += Math.floor(Math.random() * 16).toString(16); }
+		return s;
+	}
+
+	let _customsCalcDebounceTimer = null;
+	function debouncedCustomsCalculation() {
+		if (_customsCalcDebounceTimer) clearTimeout(_customsCalcDebounceTimer);
+		_customsCalcDebounceTimer = setTimeout(fetchCustomsCalculation, 900);
+	}
+
+	function hideCustomsCalculation() {
+		$('#customsCalculationPrice').hide().text('').removeAttr('title');
+		$('#customsCalculationBreakdown').hide();
+		$('#customsCalculationBreakdownBody').empty();
+	}
+
+	// Estimated customs duty/fees preview (POST order/customs/calculation) - shown
+	// next to the completeness badge. Best-effort only: GK's own docs/behavior treat
+	// this as informational (a failed calculation never blocks placing the real
+	// order), so any failure here just hides the estimate rather than showing an
+	// error - the merchant isn't blocked by it either.
+	function fetchCustomsCalculation() {
+		const s = GK.state;
+		if (!s.pickedService || !Array.isArray(s.customsFields) || !s.customsFields.length || !s.customsData) {
+			hideCustomsCalculation();
+			return;
+		}
+		if (!isCustomsFormComplete()) {
+			hideCustomsCalculation();
+			return;
+		}
+		if (!s.orderHash) { s.orderHash = generateOrderHash(); }
+		const addr = buildAddressOnlyPayload();
+		const postalCharges = (s.orderSummary && s.orderSummary.totalGrossPrice != null) ? s.orderSummary.totalGrossPrice : 0;
+		const postalChargesCurrency = (s.orderSummary && s.orderSummary.currency) || 'PLN';
+		const payload = {
+			productId: s.pickedService.id,
+			orderHash: s.orderHash,
+			force: true,
+			purpose: (s.additionalInfo && s.additionalInfo.purpose) || 'SOLD',
+			postalCharges: postalCharges,
+			postalChargesCurrency: postalChargesCurrency,
+			senderAddress: addr.senderAddress,
+			receiverAddress: addr.receiverAddress,
+			customs: buildCustomsPayload(s.customsFields, s.customsData)
+		};
+		const headers = Object.assign({ 'Content-Type': 'application/json' }, buildHeaders());
+		fetch(gkApiBase() + 'order/customs/calculation', {
+			method: 'POST',
+			headers: headers,
+			body: JSON.stringify(payload)
+		}).then(function(r) { return r.ok ? r.json() : null; })
+			.then(function(resp) {
+				if (!resp) { hideCustomsCalculation(); return; }
+				renderCustomsCalculation(resp);
+				// Now that GK has cached a duty estimate under s.orderHash, refetch
+				// order/price (which now sends that same hash) so the DUTY_DDP_PREMIUM/
+				// DUTY_DAP/CUSTOMS_CLEARANCE_FEE addon lines pick up the real amount
+				// instead of staying at 0.00 from the earlier, hash-less price call.
+				recalcOrderPrice();
+			})
+			.catch(function() { hideCustomsCalculation(); });
+	}
+
+	// Mirrors exactly how GK's own web panel presents this response (confirmed by
+	// the user against the live site): grouped by type (Fees/Duties/Taxes), each line
+	// headed by `description` (even when it's a raw code like
+	// "US_SEC301_FORCED_LABOR_EU_UPTO10PCT" - GK's own UI shows it verbatim too),
+	// amount always paired with its origin amount/currency and exchange rate, and
+	// `note` (the human-readable explanation) appended in parentheses at the end.
+	function renderCustomsCalculation(resp) {
+		const iv = window.InitialValues || {};
+		const sections = [
+			{ items: resp.fees || [], labelKey: 'langCustomsFees', fallback: 'Fees' },
+			{ items: resp.duties || [], labelKey: 'langCustomsDuties', fallback: 'Duties' },
+			{ items: resp.taxes || [], labelKey: 'langCustomsTaxes', fallback: 'Taxes' }
+		];
+		const allItems = [].concat(resp.fees || [], resp.duties || [], resp.taxes || []);
+		if (!allItems.length) { hideCustomsCalculation(); return; }
+
+		// Compact total (+ plain-text tooltip breakdown) shown next to the status badge.
+		const sumsByCurrency = {};
+		const tooltipLines = [];
+		allItems.forEach(function(item) {
+			const cur = item.currency || 'PLN';
+			const amount = parseFloat(item.amount) || 0;
+			sumsByCurrency[cur] = (sumsByCurrency[cur] || 0) + amount;
+			tooltipLines.push((item.description || '') + (item.note ? (' (' + item.note + ')') : '') + ': ' + (Math.round(amount * 100) / 100) + ' ' + cur);
+		});
+		const totalText = Object.keys(sumsByCurrency).map(function(cur) {
+			return (Math.round(sumsByCurrency[cur] * 100) / 100) + ' ' + cur;
+		}).join(' + ');
+		$('#customsCalculationPrice')
+			.attr('title', tooltipLines.join('\n'))
+			.text((iv.langEstimatedDuty || 'Estimated duty/fees') + ': ' + totalText)
+			.show();
+
+		// Full itemized breakdown, grouped by type, shown inside the modal.
+		const sectionsHtml = sections.filter(function(s) { return s.items.length; }).map(function(section) {
+			const itemsHtml = section.items.map(function(item) {
+				const amount = parseFloat(item.amount) || 0;
+				const originAmount = parseFloat(item.originAmount) || 0;
+				const noteTxt = item.note ? (' (' + escapeHtml(item.note) + ')') : '';
+				return '' +
+					'<div>' +
+						'<strong>' + escapeHtml(item.description || '') + ':</strong> ' +
+						amount.toFixed(2) + ' ' + escapeHtml(item.currency || '') +
+						' (' + originAmount.toFixed(2) + ' ' + escapeHtml(item.originCurrency || '') + ', ' + escapeHtml(iv.langRate || 'rate') + ': ' + (item.rate != null ? item.rate : '') + ')' +
+						noteTxt +
+					'</div>';
+			}).join('');
+			return '<div style="margin-top:6px;"><strong>' + escapeHtml(iv[section.labelKey] || section.fallback) + ':</strong>' + itemsHtml + '</div>';
+		}).join('');
+		$('#customsCalculationBreakdownBody').html(sectionsHtml);
+		$('#customsCalculationBreakdown').show();
+	}
+
+	// Read-only preview of the commodities list shown next to the "Customs
+	// clearance" button, so the merchant can see what's been declared without
+	// opening the modal - mirrors the summary table in the sibling shopify-app
+	// (there it only refreshes on Save; ours stays live since our modal has no
+	// separate save step - GK.state.customsData is already the live source of truth).
+	function renderCustomsSummaryTable() {
+		const commodities = (GK.state.customsData && GK.state.customsData.commodities) || [];
+		const currency = (GK.state.customsData && GK.state.customsData.currency) || '';
+		if (!commodities.length) { $('#customsSummaryTable').hide(); return; }
+		const rows = commodities.map(function(row) {
+			const desc = (row.description && row.description.pl) || '';
+			const comp = (row.composition && row.composition.pl) || '';
+			const purp = (row.purpose && row.purpose.pl) || '';
+			const hsCode = row.hsCode || '';
+			const qty = row.quantity != null ? row.quantity : '';
+			const subtotal = row.subTotalValue != null ? row.subTotalValue : '';
+			return '<tr>' +
+				'<td>' + escapeHtml(desc) + '</td>' +
+				'<td>' + escapeHtml(comp) + '</td>' +
+				'<td>' + escapeHtml(purp) + '</td>' +
+				'<td>' + escapeHtml(hsCode) + '</td>' +
+				'<td>' + escapeHtml(String(qty)) + '</td>' +
+				'<td>' + escapeHtml(String(subtotal)) + (currency ? (' ' + escapeHtml(currency)) : '') + '</td>' +
+			'</tr>';
+		}).join('');
+		$('#customsSummaryTableBody').html(rows);
+		$('#customsSummaryTable').show();
+	}
+
+	function renderCustomsSummaryDisplays() {
+		const field = (GK.state.customsFields || []).find(function(f) { return f.type === 'collection' && f.disabled; });
+		if (!field) return;
+		const $existing = $('.gk-customs-weight-summary[data-path="' + field.name + '"]');
+		if ($existing.length) {
+			$existing.replaceWith(renderCustomsSummaryField(field, [field.name]));
+		}
+	}
+
+	function validateCustomsFieldPattern($el) {
+		const pattern = $el.data('pattern');
+		$el.next('.gk-inline-field-error').remove();
+		if (!pattern) { $el.removeClass('gk-field-error'); return; }
+		const val = $el.val();
+		if (val && !(new RegExp(pattern)).test(val)) {
+			$el.addClass('gk-field-error');
+			$('<div class="gk-inline-field-error"></div>').text($el.data('pattern-error') || '').insertAfter($el);
+		} else {
+			$el.removeClass('gk-field-error');
+		}
+	}
+
+	// Builds the final `customs` payload for POST order/order validate from the
+	// collected editor state, using field metadata to know how to shape each value
+	// (join PL/EN dual fields with " ;; " per GK's own documented example, map
+	// collections/compounds, coerce numbers).
+	function buildCustomsPayloadValue(field, value) {
+		if (field.type === 'collection') {
+			if (field.disabled) {
+				// totalWeight: confirmed against a real working request/response pair that
+				// GK expects an ARRAY - one entry per distinct unitOfMeasurement actually
+				// used across the commodities - not the single blended object its own
+				// compound sub-fields (unit/weightGross/weightNet) would naively suggest.
+				if (field.name === 'totalWeight') {
+					return computeCustomsWeightsByUnit(GK.state.customsData && GK.state.customsData.commodities);
+				}
+				const obj = {};
+				(field.fields || []).forEach(function(sub) { obj[sub.name] = (value || {})[sub.name]; });
+				return obj;
+			}
+			return (value || []).map(function(row) {
+				const obj = {};
+				(field.fields || []).forEach(function(sub) { obj[sub.name] = buildCustomsPayloadValue(sub, row[sub.name]); });
+				return obj;
+			});
+		}
+		if (field.compound) {
+			const obj = {};
+			(field.fields || []).forEach(function(sub) { obj[sub.name] = buildCustomsPayloadValue(sub, (value || {})[sub.name]); });
+			return obj;
+		}
+		if (field.frontType === 'dual_description') {
+			const pl = (value && value.pl) || '';
+			const en = (value && value.en) || '';
+			return en ? (pl + ' ;; ' + en) : pl;
+		}
+		if (field.type === 'number') {
+			return (value === '' || value == null) ? null : parseFloat(value);
+		}
+		return value;
+	}
+
+	function buildCustomsPayload(fields, data) {
+		const out = {};
+		fields.forEach(function(field) { out[field.name] = buildCustomsPayloadValue(field, data[field.name]); });
+		return out;
 	}
 
 function renderSummaryContainer() {
@@ -2489,6 +3811,13 @@ function renderSummaryContainer() {
 		if (s.additionalInfo && s.additionalInfo.insuranceAmount) usp.append('insuranceValue', s.additionalInfo.insuranceAmount);
 		if (s.additionalInfo && s.additionalInfo.codAmount) usp.append('cashOnDeliveryValue', s.additionalInfo.codAmount);
 		if (s.discountCode) usp.append('discountCode', s.discountCode);
+		// Confirmed live: without this, /order/price assumes customs duty is zero -
+		// it has no way to estimate DUTY_DDP_PREMIUM/DUTY_DAP/CUSTOMS_CLEARANCE_FEE
+		// addon prices from the commodities alone. Passing the SAME orderHash already
+		// used in a successful POST order/customs/calculation (see
+		// fetchCustomsCalculation) lets it pull that cached duty estimate into the
+		// addon prices instead of showing 0.00.
+		if (s.orderHash) usp.append('orderHash', s.orderHash);
 
 		const url = gkApiBase() + 'order/price?' + usp.toString();
 		$('#priceErrorBox').hide().text('');
@@ -2721,6 +4050,7 @@ function renderServicesAndBind() {
             // preload time ranges if courier pickup selected
             if ($('input[name=pickup_type]:checked').val() === 'PICKUP') { fetchTimeRanges(); }
 		fetchCustomRequiredFields();
+		fetchCustomsConfig();
 		});
 
 		$(document).on('change', '.addon-checkbox', function(){
@@ -2728,21 +4058,40 @@ function renderServicesAndBind() {
 			const id = $current.data('id');
 			const price = $current.data('price');
 			const category = $current.data('category');
-			const rawAttrs = $current.data('attributes');
 			// Read just the addon name span, not the whole <label> text - that also
 			// contains the price suffix and the description tooltip icon.
 			const $nameSpan = $current.closest('label').find('.addon-name-text');
 			const addonName = ($nameSpan.length ? $nameSpan.text() : $current.closest('label').text()).trim();
 			const $attrBox = $current.closest('.col-lg-12').find('.addon-attributes');
-			const isChecked = $current.is(':checked');
+			let isChecked = $current.is(':checked');
 
-			// Categories limited to a single choice *within their exclusivity group*
-			// (CASH_ON_DELIVERY: only one COD; INSURANCE + INSURANCE_CARGO share one
-			// amount field, so they're a single combined exclusivity group)
+			// isRequired addons can't be turned off - re-check and bail out immediately
+			// on any attempt to uncheck one (mouse click, keyboard, whatever fired this
+			// 'change'), before any of the state-mutating logic below runs.
+			if (!isChecked && $current.data('required') == 1) {
+				$current.prop('checked', true);
+				isChecked = true;
+				return;
+			}
+
+			// This handler accumulated a lot of category-specific branches this session
+			// (isRequired, requiredAlternativeAddonsGroups, COD-requires-insurance,
+			// extra fields...) - wrap them so a bug in any one of them can never again
+			// silently skip the price refetch/validate that must always happen after an
+			// addon selection changes.
+			try {
+
+			// Categories limited to a single choice *within their own category* (only one
+			// COD tier, only one INSURANCE tier, only one INSURANCE_CARGO tier at a time).
+			// INSURANCE and INSURANCE_CARGO are deliberately NOT merged into one group
+			// here even though they share an amount field/input - a client can buy
+			// regular insurance AND additional cargo insurance at the same time, so
+			// checking one must not uncheck the other (see VALUE_CATEGORY_GROUPS.INSURANCE
+			// perCategory / applyValueRangeFilter for how both get offered together).
 			const exclusivityGroups = {
 				'CASH_ON_DELIVERY': 'CASH_ON_DELIVERY',
 				'INSURANCE': 'INSURANCE',
-				'INSURANCE_CARGO': 'INSURANCE'
+				'INSURANCE_CARGO': 'INSURANCE_CARGO'
 			};
 			const currentGroup = exclusivityGroups[category];
 
@@ -2784,30 +4133,56 @@ function renderServicesAndBind() {
 				updatePickupMetaVisibility();
 			}
 
+			// COD must be insured: auto-fill the insurance amount (from the COD amount
+			// itself, the money actually at risk) and let applyValueRangeFilter pick the
+			// cheapest matching INSURANCE tier - but only when the merchant hasn't
+			// already entered/kept an insurance value of their own, so this doesn't
+			// clobber a manual choice.
+			if (isChecked && category === 'CASH_ON_DELIVERY') {
+				const $insuranceInput = $('#insuranceAmountInput');
+				const currentInsuranceVal = parseFloat((($insuranceInput.val() || '') + '').replace(',', '.'));
+				const codAmount = GK.state.additionalInfo && GK.state.additionalInfo.codAmount;
+				if ((!currentInsuranceVal || currentInsuranceVal <= 0) && codAmount) {
+					$insuranceInput.val(codAmount);
+					if (!GK.state.additionalInfo) GK.state.additionalInfo = {};
+					GK.state.additionalInfo.insuranceAmount = codAmount;
+					applyValueRangeFilter('INSURANCE');
+				}
+			}
+
 			// requiredAlternativeAddonsGroups: addon ids GlobKurier reports as mutually
-			// exclusive alternatives (e.g. RECEIVER_TYPE_COMPANY vs RECEIVER_TYPE_PRIVATE_PERSON).
-			// Checking one unchecks any other addon that shares a group with it.
+			// exclusive alternatives (e.g. RECEIVER_TYPE_COMPANY vs RECEIVER_TYPE_PRIVATE_PERSON),
+			// rendered as real <input type="radio"> so the browser enforces exclusivity
+			// visually - but browsers only fire 'change' on the radio that BECOMES
+			// checked, never on the one that becomes unchecked. Relying on ":checked"
+			// here to decide what to remove is therefore a no-op for true radios (the
+			// previous pick is already unchecked in the DOM by the time this runs) and
+			// let a stale previous selection linger in GK.state.serviceOptions - two
+			// members of the same group both ended up in the real order payload,
+			// rejected server-side as "Dodatek z grupy wymaganych dodatków nie
+			// został przekazany" (confirmed live). Purge every other group member
+			// from state unconditionally instead of gating it on DOM :checked state.
 			if (isChecked && Array.isArray(GK.state.requiredAlternativeAddonsGroups)) {
 				const myGroups = GK.state.requiredAlternativeAddonsGroups.filter(function(g){ return Array.isArray(g) && g.some(function(gid){ return String(gid) === String(id); }); });
 				if (myGroups.length) {
+					const groupIds = [];
+					myGroups.forEach(function(g){ g.forEach(function(gid){ groupIds.push(String(gid)); }); });
+					GK.state.serviceOptions = (GK.state.serviceOptions || []).filter(function(o){
+						return (o.id + '') === (id + '') || groupIds.indexOf(o.id + '') === -1;
+					});
 					$('.addon-checkbox').each(function(){
 						const $other = $(this);
 						if ($other[0] === $current[0]) return;
-						const otherId = $other.data('id');
-						const inSameGroup = myGroups.some(function(g){ return g.some(function(gid){ return String(gid) === String(otherId); }); });
-						if (!inSameGroup) return;
-						if ($other.is(':checked')) {
-							const $otherAttrBox = $other.closest('.col-lg-12').find('.addon-attributes');
-							$other.prop('checked', false);
-							$otherAttrBox.hide().empty();
-							GK.state.serviceOptions = (GK.state.serviceOptions || []).filter(function(o){ return (o.id + '') !== (otherId + ''); });
-						}
+						if (groupIds.indexOf(String($other.data('id'))) === -1) return;
+						$other.prop('checked', false);
+						$other.closest('.col-lg-12').find('.addon-attributes').hide().empty();
 					});
 				}
 			}
 
 			// SENT addon: show a free-text "SENT number" field instead of the generic
 			// decoded attributes box (SENT addons don't carry an `attributes` payload).
+			const extraFieldsDef = ADDON_CATEGORY_EXTRA_FIELDS[category];
 			if (category === 'SENT') {
 				if (isChecked) {
 					const iv = window.InitialValues || {};
@@ -2815,16 +4190,26 @@ function renderServicesAndBind() {
 				} else {
 					$attrBox.hide().empty();
 				}
-			} else if (rawAttrs) {
-				// Render attributes HTML (if provided) under the checkbox
-				try {
-					const decoded = decodeURIComponent(rawAttrs);
-					$attrBox.html(decoded);
-				} catch(e) {
-					$attrBox.text('');
+			} else if (extraFieldsDef) {
+				if (isChecked) {
+					const iv = window.InitialValues || {};
+					const existing = (GK.state.serviceOptions || []).find(function(o){ return (o.id + '') === (id + ''); });
+					const fieldsHtml = extraFieldsDef.map(function(f) {
+						const val = existing ? (existing[f.key] || '') : '';
+						return '' +
+							'<div class="form-group" style="margin-top:6px;">' +
+								'<label>' + escapeHtml(iv[f.labelKey] || f.key) + '</label>' +
+								'<input type="text" class="form-control gk-addon-extra-field" data-id="' + id + '" data-field="' + f.key + '" value="' + escapeHtml(val) + '" placeholder="' + escapeHtml(f.placeholder || '') + '">' +
+							'</div>';
+					}).join('');
+					$attrBox.html(fieldsHtml).show();
+				} else {
+					$attrBox.hide().empty();
 				}
-				$attrBox.toggle(isChecked);
 			} else {
+				// Every other addon: no per-selection input needed in .addon-attributes -
+				// its `attributes` HTML (if any) is now rendered immediately/always-visible
+				// at build time (see renderAddonCheckboxHtml), not gated by isChecked here.
 				$attrBox.hide().empty();
 			}
 
@@ -2838,14 +4223,19 @@ function renderServicesAndBind() {
 						name: addonName
 					};
 					if (category === 'SENT') { newOption.sentNumber = ''; }
+					if (ADDON_CATEGORY_EXTRA_FIELDS[category]) {
+						ADDON_CATEGORY_EXTRA_FIELDS[category].forEach(function(f) { newOption[f.key] = ''; });
+					}
 					GK.state.serviceOptions.push(newOption);
 				}
 			} else {
 				GK.state.serviceOptions = (GK.state.serviceOptions || []).filter(function(o){ return (o.id + '') !== (id + ''); });
 			}
-			updateEnabledOptionsUI();
-			refreshPayments();
-			recalcOrderPrice();
+			} finally {
+				updateEnabledOptionsUI();
+				refreshPayments();
+				recalcOrderPrice();
+			}
 		});
 		// show all carriers toggle
 	GK.state.showAllCarriers = false;

@@ -229,8 +229,12 @@ class AddressSplitter
                 list($before, $after) = explode($found[0], $part);
                 $elementContent = $found[0];
 
-                $before = trim($before);
-                $after = trim($after);
+                // Trim stray separators (comma, dash) left dangling by the split, not
+                // just whitespace - e.g. "16, Main street" splitting on the house
+                // number "16" would otherwise leave the street as ", Main street"
+                // (GK's API rejects a leading comma as an invalid street character).
+                $before = trim($before, " \t\n\r\0\x0B,-");
+                $after = trim($after, " \t\n\r\0\x0B,-");
 
                 if (!empty($before)) {
                     $splittedParts[] = $before;

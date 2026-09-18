@@ -616,3 +616,124 @@ body[class*="controller-adminglobkurier"] h4.modal-title span.closeModal {
     margin-left: 6px;
     white-space: nowrap;
 }
+
+/* Customs clearance modal (#customsModal) */
+/* Kept only for repeatable commodity item rows - section-level groups (summary/
+   details/commodities/sender-receiver) render as plain headings instead, see
+   .gk-customs-section-heading, to cut down on nested boxes-within-boxes. */
+.gk-customs-section {
+    margin-bottom: 28px;
+}
+.gk-customs-card {
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    margin-bottom: 16px;
+}
+.gk-customs-card-heading {
+    padding: 6px 10px;
+    border-bottom: 1px solid #ddd;
+    background: #f5f5f5;
+    font-size: 13px;
+}
+.gk-customs-card-body {
+    padding: 15px 20px;
+}
+.gk-customs-section-heading {
+    font-size: 18px;
+    font-weight: 600;
+    padding-bottom: 6px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid #ddd;
+    color: #333;
+}
+.gk-customs-subheading {
+    display: block;
+    font-weight: 600;
+    font-size: 12px;
+    margin-bottom: 10px;
+    color: #666;
+}
+.gk-customs-field {
+    margin-bottom: 20px;
+}
+.gk-customs-field label {
+    font-weight: 600;
+    font-size: 12px;
+    display: block;
+}
+.gk-customs-field .checkbox,
+.gk-customs-field .radio-inline {
+    font-weight: normal;
+}
+.gk-customs-tooltip {
+    display: inline-block;
+    cursor: help;
+    border: 1px solid #999;
+    color: #999;
+    border-radius: 50%;
+    width: 14px;
+    height: 14px;
+    line-height: 12px;
+    text-align: center;
+    font-size: 10px;
+    font-weight: normal;
+    margin-left: 3px;
+}
+.gk-customs-dual-row {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+}
+.gk-customs-dual-col {
+    flex: 1 1 45%;
+    min-width: 0;
+}
+.gk-customs-dual-col input {
+    width: 100%;
+}
+.gk-customs-charcount {
+    display: block;
+    font-size: 11px;
+    color: #999;
+    text-align: right;
+    margin-top: 2px;
+}
+.gk-customs-charcount.gk-customs-charcount-over {
+    color: #ba151a;
+    font-weight: 600;
+}
+.gk-customs-dual-row button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+.gk-customs-row-heading strong {
+    font-size: 12px;
+}
+.gk-customs-weight-summary {
+    padding: 8px 4px;
+}
+.gk-customs-weight-summary table {
+    max-width: 480px;
+}
+.gk-addon-attributes-block {
+    font-size: 12px;
+    line-height: 1.4;
+    margin: 2px 0 8px 24px;
+}
+.gk-addon-attributes-block p {
+    margin: 0 0 6px;
+}
+.gk-customs-status-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+#customsCalculationPrice {
+    cursor: help;
+}
+@media (max-width: 767px) {
+    .gk-customs-status-col {
+        margin-top: 16px;
+    }
+}

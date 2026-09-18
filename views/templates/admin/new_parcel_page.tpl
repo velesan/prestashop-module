@@ -232,21 +232,13 @@
                         <div id="carrierLimitsWarning" class="alert alert-warning" style="display:none; margin-bottom: 10px;">
                             {l s='Some values exceed the maximum limits of the carrier.' mod='globkuriermodule'}
                         </div>
-                        <button type="button" id="getServicesBtn" class="btn btn-primary btn-gk-primary">{l s='Get services' mod='globkuriermodule'}</button>
+                        <button type="button" id="getServicesBtn" class="btn btn-primary btn-gk-primary">
+                            {l s='Get services' mod='globkuriermodule'}
+                            <i class="icon-cog icon-spin" style="display:none; margin-left:6px;"></i>
+                        </button>
                     </div>
                 </div>
             </div>
-            <div class="col-lg-12 row" id="addonsListContainer" style="display:none;">
-                <div class="panel">
-                    <div class="panel-heading">{l s='Additional options' mod='globkuriermodule'}</div>
-                    <div class="panel-body" id="addonsListBody">
-                        <div id="serviceLabels" class="well" style="display:none; margin-bottom:10px;"></div>
-                        <div id="addonsList" class="row" style="margin-bottom:10px;"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-4">
             <div class="col-lg-12" id="servicesListContainer" style="display:none;">
                 <div class="panel">
                     <div class="panel-heading">{l s='Shipping' mod='globkuriermodule'}</div>
@@ -357,12 +349,12 @@
                             <label class="col-sm-4 col-form-label">{l s='Purpose of the shipment' mod='globkuriermodule'}</label>
                             <div class="col-sm-8">
                                 <select id="purposeSelect" class="form-control">
-                                    <option value="SOLD">SOLD</option>
-                                    <option value="GIFT">GIFT</option>
-                                    <option value="SAMPLE">SAMPLE</option>
-                                    <option value="NOT_SOLD">NOT_SOLD</option>
-                                    <option value="PERSONAL_EFFECTS">PERSONAL_EFFECTS</option>
-                                    <option value="REPAIR_AND_RETURN">REPAIR_AND_RETURN</option>
+                                    <option value="SOLD">{l s='Sold' mod='globkuriermodule'}</option>
+                                    <option value="GIFT">{l s='Gift' mod='globkuriermodule'}</option>
+                                    <option value="SAMPLE">{l s='Sample' mod='globkuriermodule'}</option>
+                                    <option value="NOT_SOLD">{l s='Not for sale' mod='globkuriermodule'}</option>
+                                    <option value="PERSONAL_EFFECTS">{l s='Personal effects' mod='globkuriermodule'}</option>
+                                    <option value="REPAIR_AND_RETURN">{l s='Repair and return' mod='globkuriermodule'}</option>
                                 </select>
                             </div>
                         </div>
@@ -382,6 +374,50 @@
                 </div>
             </div>
         </div>
+        <div class="col-lg-4">
+            <div class="col-lg-12 row" id="addonsListContainer" style="display:none;">
+                <div class="panel">
+                    <div class="panel-heading">{l s='Additional options' mod='globkuriermodule'}</div>
+                    <div class="panel-body" id="addonsListBody">
+                        <div id="serviceLabels" class="well" style="display:none; margin-bottom:10px;"></div>
+                        <div id="addonsList" class="row" style="margin-bottom:10px;"></div>
+                    </div>
+                </div>
+            </div>
+            <!-- Section customs clearance: opens in a popup modal, see #customsModal below -->
+            <div class="col-lg-12" id="customsContainer" style="display:none; margin-top: 20px;">
+                <div class="panel">
+                    <div class="panel-heading">{l s='Customs clearance' mod='globkuriermodule'}</div>
+                    <div class="panel-body">
+                        <div class="row">
+                            <div class="col-lg-12">
+                                <table class="table table-condensed gk-customs-summary-table" id="customsSummaryTable" style="display:none;">
+                                    <thead>
+                                        <tr>
+                                            <th>{l s='Description' mod='globkuriermodule'}</th>
+                                            <th>{l s='Composition' mod='globkuriermodule'}</th>
+                                            <th>{l s='Purpose' mod='globkuriermodule'}</th>
+                                            <th>{l s='HS code' mod='globkuriermodule'}</th>
+                                            <th>{l s='Quantity' mod='globkuriermodule'}</th>
+                                            <th>{l s='Total value' mod='globkuriermodule'}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="customsSummaryTableBody"></tbody>
+                                </table>
+                            </div>
+                            <div class="col-lg-12 gk-customs-status-col" style="text-align:center;">
+                                <div id="customsCalculationPrice" class="text-muted" style="display:none; margin-bottom:6px; font-size:12px;"></div>
+                                <button type="button" class="btn btn-warning" id="openCustomsModalBtn">
+                                    {l s='Edit customs declaration' mod='globkuriermodule'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
 
 
 
@@ -540,10 +576,33 @@
         </div>
     </div>
 
+    <!-- Customs clearance modal: content built dynamically by renderCustomsSection() -->
+    <div class="modal fade" id="customsModal" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h4 class="modal-title">{l s='Customs clearance' mod='globkuriermodule'}</h4>
+          </div>
+          <div class="modal-body">
+            <div class="alert alert-info" id="customsCalculationBreakdown" style="display:none;">
+                <strong>{l s='Includes customs duty/tax fees' mod='globkuriermodule'}:</strong>
+                <div id="customsCalculationBreakdownBody"></div>
+            </div>
+            <div class="row" id="customsBody"></div>
+          </div>
+          <div class="modal-footer">
+            <span id="customsModalValidationMsg" class="text-danger pull-left" style="display:none; padding-top:6px;">{l s='Please fill in all required fields before closing.' mod='globkuriermodule'}</span>
+            <button type="button" class="btn btn-primary btn-gk-primary" id="customsModalSaveBtn">{l s='Save and close' mod='globkuriermodule'}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     {* JSON goes through a real HTML-escaped attribute (browser-decoded before JS reads it)
        instead of straight into <script> text, which HTML-escaping cannot pass through
        without corrupting the JSON's own quote characters. *}
     <div id="gk-all-templates-data" data-json="{$gk_all_templates_json|escape:'html':'UTF-8'}" style="display:none" aria-hidden="true"></div>
+    <div id="gk-order-products-data" data-json="{$gk_order_products_json|escape:'html':'UTF-8'}" style="display:none" aria-hidden="true"></div>
 
     <script type="text/javascript">
         // Note: These will be mapped to Globkurier country IDs in JavaScript via ISO codes
@@ -608,6 +667,7 @@
             defaultPaymentType : '{if $selected_template && $selected_template.payment_type}{$selected_template.payment_type|intval}{else}{$default_payment_type|escape:'javascript':'UTF-8'}{/if}',
             defaultCodSwiftCode : '{$config->defaultCodSwiftCode|escape:'javascript':'UTF-8'}',
             defaultCodAccount : '{$config->defaultCodAccount|escape:'javascript':'UTF-8'}',
+            defaultEoriNumber : '{$config->defaultEoriNumber|escape:'javascript':'UTF-8'}',
             defaultCodAccountHolderName : '{$config->defaultCodAccountHolderName|escape:'javascript':'UTF-8'}',
             defaultCodAccountHolderAddr1 : '{$config->defaultCodAccountHolderAddr1|escape:'javascript':'UTF-8'}',
             defaultCodAccountHolderAddr2 : '{$config->defaultCodAccountHolderAddr2|escape:'javascript':'UTF-8'}',
@@ -657,15 +717,49 @@
             langNonStandardShipment: '{l s='Non-standard shipment' mod='globkuriermodule'}',
             langInsuranceRequiredWarning: '{l s='Insurance is required for the selected options - please enter a value and select an insurance option' mod='globkuriermodule'}',
             langSentNumber: '{l s='SENT number' mod='globkuriermodule'}',
+            langMarketplaceName: '{l s='Marketplace name' mod='globkuriermodule'}',
+            langRequired: '{l s='required' mod='globkuriermodule'}',
+            langIossNumber: '{l s='IOSS / OMP number' mod='globkuriermodule'}',
+            langReturnShipmentName: '{l s='Return address name' mod='globkuriermodule'}',
+            langReturnShipmentStreet: '{l s='Return address street' mod='globkuriermodule'}',
+            langReturnShipmentHouseNumber: '{l s='Return address house number' mod='globkuriermodule'}',
+            langReturnShipmentApartmentNumber: '{l s='Return address apartment number' mod='globkuriermodule'}',
+            langReturnShipmentPostCode: '{l s='Return address postcode' mod='globkuriermodule'}',
+            langReturnShipmentCity: '{l s='Return address city' mod='globkuriermodule'}',
             langSender: '{l s='Sender' mod='globkuriermodule'}',
             langReceiver: '{l s='Receiver' mod='globkuriermodule'}',
             langFix: '{l s='Fix' mod='globkuriermodule'}',
+            langCustoms: '{l s='Customs clearance' mod='globkuriermodule'}',
+            langAddCommodity: '{l s='Add item' mod='globkuriermodule'}',
+            langRemoveCommodity: '{l s='Remove' mod='globkuriermodule'}',
+            langTranslateToEn: '{l s='Translate to English' mod='globkuriermodule'}',
+            langSuggestHsCode: '{l s='Suggest HS code' mod='globkuriermodule'}',
+            langPl: '{l s='PL' mod='globkuriermodule'}',
+            langEn: '{l s='EN' mod='globkuriermodule'}',
+            langTotalWeight: '{l s='Total weight' mod='globkuriermodule'}',
+            langCustomsSectionSender: '{l s='Sender (customs)' mod='globkuriermodule'}',
+            langCustomsSectionReceiver: '{l s='Receiver (customs)' mod='globkuriermodule'}',
+            langCustomsSectionCommodities: '{l s='Items' mod='globkuriermodule'}',
+            langCustomsSectionSummary: '{l s='Summary' mod='globkuriermodule'}',
+            langCustomsSectionDetails: '{l s='Details' mod='globkuriermodule'}',
+            langCommodityItem: '{l s='Item' mod='globkuriermodule'}',
+            langWeightExceedsOrder: '{l s='Total customs weight exceeds the shipment weight' mod='globkuriermodule'}',
+            langEstimatedDuty: '{l s='Estimated duty/fees' mod='globkuriermodule'}',
+            langCustomsFees: '{l s='Fees' mod='globkuriermodule'}',
+            langCustomsDuties: '{l s='Duties' mod='globkuriermodule'}',
+            langCustomsTaxes: '{l s='Taxes' mod='globkuriermodule'}',
+            langRate: '{l s='rate' mod='globkuriermodule'}',
         };
 
         try {
             window.GkTemplates = JSON.parse(document.getElementById('gk-all-templates-data').getAttribute('data-json') || '[]');
         } catch (e) {
             window.GkTemplates = [];
+        }
+        try {
+            window.GkOrderProducts = JSON.parse(document.getElementById('gk-order-products-data').getAttribute('data-json') || '[]');
+        } catch (e) {
+            window.GkOrderProducts = [];
         }
         window.GkSelectedTemplateId = {if $selected_template}{$selected_template.id_template|intval}{else}0{/if};
         window.GkSelectedTemplateServiceId = {if $selected_template && $selected_template.gk_product_id}{$selected_template.gk_product_id|intval}{else}0{/if};

@@ -175,6 +175,7 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
 
             $orderProductsWeight = 0;
             $catalogProductsWeight = 0;
+            $customsProducts = [];
 
             try {
                 foreach ($order->getProducts() as $product) {
@@ -199,6 +200,33 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
                 }
             }
 
+            // Pre-fill the customs commodities list from the order's own line items
+            // (name/quantity/unit price/weight), so the merchant only has to fill in
+            // what PrestaShop doesn't know (composition, purpose, HS code) instead of
+            // retyping every product from scratch.
+            try {
+                foreach ($order->getProducts() as $product) {
+                    $unitWeight = (float) $product['product_weight'];
+                    if ($unitWeight <= 0) {
+                        $p = new Product((int) $product['product_id']);
+                        $unitWeight = Validate::isLoadedObject($p) ? (float) $p->weight : 0;
+                        if (!empty($product['product_attribute_id'])) {
+                            $combination = new Combination((int) $product['product_attribute_id']);
+                            if (Validate::isLoadedObject($combination)) {
+                                $unitWeight += (float) $combination->weight;
+                            }
+                        }
+                    }
+                    $customsProducts[] = [
+                        'name' => $product['product_name'],
+                        'quantity' => (int) $product['product_quantity'],
+                        'unitValue' => (float) $product['product_price'],
+                        'unitWeight' => $unitWeight,
+                    ];
+                }
+            } catch (Exception $e) {
+            }
+
             $this->context->smarty->assign([
                 'adress' => $adress,
                 'splitedAddress' => $splitedAddress,
@@ -213,6 +241,7 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
                 'order_products_weight' => $orderProductsWeight,
                 'catalog_products_weight' => $catalogProductsWeight,
                 'effective_products_weight' => max($orderProductsWeight, $catalogProductsWeight),
+                'gk_order_products_json' => json_encode($customsProducts, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP),
                 'selected_template' => $selectedTemplate ? $selectedTemplate->toArray() : null,
                 'default_payment_type' => Globkuriermodule\Common\Config::normalizeLegacyPaymentType($c->defaultPaymentType),
             ]);
@@ -235,6 +264,7 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
                 'order_products_weight' => 0,
                 'catalog_products_weight' => 0,
                 'effective_products_weight' => 0,
+                'gk_order_products_json' => '[]',
                 'selected_template' => $selectedTemplate ? $selectedTemplate->toArray() : null,
                 'default_payment_type' => Globkuriermodule\Common\Config::normalizeLegacyPaymentType($c->defaultPaymentType),
             ]);
