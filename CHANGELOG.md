@@ -1,3 +1,14 @@
+## [3.5.0] - 2026-09-18
++ Customs declaration form for international shipments: generic renderer driven entirely by GlobKurier's own /customs/config field metadata (sections, dual-language description/composition/purpose, commodities, EORI, invoice details)
++ Estimated customs duty/fees preview before placing the order, reused across order pricing and order creation
++ Field length limits enforced live (matching GlobKurier's actual validation) with a character counter and translation truncation, instead of failing only after submission
++ Fixed: mutually exclusive duty-payer addons (DDP/DAP/marketplace VAT) could both end up selected and sent, rejected by the API
++ Fixed: declared value field only appeared when a priced addon existed for the route, even when GlobKurier required it for customs
++ Added return shipment address fields
++ Localized the shipment purpose dropdown (was showing raw internal codes)
++ Fixed: US/Canada phone numbers losing a digit during formatting
++ Save and close validation on the customs form, highlighting exactly what's missing
+
 ## [3.4.0] - 2026-09-03
 + Config page redesigned: sidebar navigation with 7 sections (Account & login,  Sender, Shipment settings, Operators, Templates, Payments, Labels & statuses),  replacing the old flat form
 + Template management: create, edit, delete, set default shipment templates; sync templates from GlobKurier API; package type, sending/delivery method added
