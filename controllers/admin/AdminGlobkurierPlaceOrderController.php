@@ -45,7 +45,7 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
     public function renderView()
     {
         $c = new Globkuriermodule\Common\Config();
-        $gkApiEnv = isset($c->gkApiEnv) ? (int)$c->gkApiEnv : 1;
+        $gkApiEnv = isset($c->gkApiEnv) ? (int) $c->gkApiEnv : 1;
         $api = new Globkuriermodule\Common\GlobkurierApi($c->login, $c->password, $c->apiKey, $gkApiEnv);
         $moduleApiUrl = $this->link->getAdminLink('AdminGlobkurierPlaceOrder');
         $country_name = '';
@@ -424,7 +424,7 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
         if ($success && !empty($order->hash)) {
             try {
                 $c = new Globkuriermodule\Common\Config();
-                $gkApiEnv = isset($c->gkApiEnv) ? (int)$c->gkApiEnv : 1;
+                $gkApiEnv = isset($c->gkApiEnv) ? (int) $c->gkApiEnv : 1;
                 $api = new Globkuriermodule\Common\GlobkurierApi($c->login, $c->password, $c->apiKey, $gkApiEnv);
                 $api->login();
                 $response = $api->getOrder($order->hash, $order->gkId);
@@ -476,7 +476,7 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
     public function displayAjaxGetAllPickupPoints()
     {
         $c = new Globkuriermodule\Common\Config();
-        $gkApiEnv = isset($c->gkApiEnv) ? (int)$c->gkApiEnv : 1;
+        $gkApiEnv = isset($c->gkApiEnv) ? (int) $c->gkApiEnv : 1;
         $api = new Globkuriermodule\Common\GlobkurierApi($c->login, $c->password, $c->apiKey, $gkApiEnv);
 
         $api->cacheInPostPoints();

@@ -153,6 +153,7 @@ class Globkuriermodule extends Module
         $ajaxAction = Tools::getValue('ajax_action');
         if ($ajaxAction) {
             $this->handleTemplateAjax($ajaxAction);
+
             return '';
         }
 
@@ -194,16 +195,16 @@ class Globkuriermodule extends Module
             ]);
         }
 
-        $gkApiEnv = isset($config->gkApiEnv) ? (int)$config->gkApiEnv : 1;
+        $gkApiEnv = isset($config->gkApiEnv) ? (int) $config->gkApiEnv : 1;
         $api = new Globkuriermodule\Common\GlobkurierApi($config->login, $config->password, $config->apiKey, $gkApiEnv);
         $gkIsAuthenticated = $api->isUserAuthorized();
 
         $this->context->smarty->assign([
-            'config'            => $config,
-            'submited'          => Tools::getValue('action') == 'updateConfig' ? true : false,
+            'config' => $config,
+            'submited' => Tools::getValue('action') == 'updateConfig' ? true : false,
             'newParcelPageLink' => $this->link->getAdminLink('AdminGlobkurierPlaceOrder'),
-            'getCachePointsLink'=> $this->link->getAdminLink('AdminGlobkurierPlaceOrder') . '&ajax=1&action=getAllPickupPoints',
-            'baseurl'           => $this->_path,
+            'getCachePointsLink' => $this->link->getAdminLink('AdminGlobkurierPlaceOrder') . '&ajax=1&action=getAllPickupPoints',
+            'baseurl' => $this->_path,
             'gkIsAuthenticated' => $gkIsAuthenticated,
         ]);
 
@@ -238,7 +239,7 @@ class Globkuriermodule extends Module
             foreach ($tm->getAll() as $tmpl) {
                 $gkTemplatesArr[] = $tmpl->toArray();
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Table doesn't exist yet — run upgrade via PS panel
         }
 
@@ -249,24 +250,24 @@ class Globkuriermodule extends Module
             . '&token=' . Tools::getAdminTokenLite('AdminModules');
 
         $this->context->smarty->assign([
-            'countries'           => $countries,
-            'carriers'            => $carriers,
-            'tokenAPI'            => $api->getToken(),
-            'gkApiBaseUrl'        => $api->getBaseApiUrl(),
-            'gkApiBaseUrlProd'    => Globkuriermodule\Common\GlobkurierApi::API_BASE_PROD,
-            'gkApiBaseUrlTest'    => Globkuriermodule\Common\GlobkurierApi::API_BASE_TEST,
-            'moduleVersion'       => $this->version,
-            'gk_latestVersion'    => $latestVersion,
-            'gk_updateAvailable'  => $latestVersion && version_compare($latestVersion, $this->version, '>'),
+            'countries' => $countries,
+            'carriers' => $carriers,
+            'tokenAPI' => $api->getToken(),
+            'gkApiBaseUrl' => $api->getBaseApiUrl(),
+            'gkApiBaseUrlProd' => Globkuriermodule\Common\GlobkurierApi::API_BASE_PROD,
+            'gkApiBaseUrlTest' => Globkuriermodule\Common\GlobkurierApi::API_BASE_TEST,
+            'moduleVersion' => $this->version,
+            'gk_latestVersion' => $latestVersion,
+            'gk_updateAvailable' => $latestVersion && version_compare($latestVersion, $this->version, '>'),
             'gk_githubReleaseUrl' => 'https://github.com/globkurier/prestashop-module/releases/latest',
             'gk_currentPaymentId' => $currentPaymentId,
-            'gk_prepaidBalance'   => $gkPrepaidBalance,
+            'gk_prepaidBalance' => $gkPrepaidBalance,
             // HEX flags neutralize <, >, ', ", & so this is safe to output as-is inside
             // a script tag in the template, without disabling Smarty's escaping there.
-            'gk_templates_json'   => json_encode($gkTemplatesArr, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP),
-            'gk_template_count'   => count($gkTemplatesArr),
-            'configAjaxUrl'       => $configAjaxUrl,
-            'orderStatuses'       => $orderStatuses,
+            'gk_templates_json' => json_encode($gkTemplatesArr, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP),
+            'gk_template_count' => count($gkTemplatesArr),
+            'configAjaxUrl' => $configAjaxUrl,
+            'orderStatuses' => $orderStatuses,
         ]);
         // Load jQuery-based config page script (Angular removed).
         // Cache-busted with filemtime so browsers always pick up JS edits
@@ -305,12 +306,12 @@ class Globkuriermodule extends Module
                     break;
 
                 case 'saveTemplate':
-                    $name = trim((string)Tools::getValue('name', ''));
+                    $name = trim((string) Tools::getValue('name', ''));
                     if ($name === '') {
                         echo json_encode(['success' => false, 'error' => 'Brak nazwy szablonu']);
                         break;
                     }
-                    $id = (int)Tools::getValue('id_template', 0);
+                    $id = (int) Tools::getValue('id_template', 0);
                     if ($id) {
                         $t = $tm->getById($id);
                         if (!$t) {
@@ -325,44 +326,44 @@ class Globkuriermodule extends Module
                     $hei = Tools::getValue('height', '');
                     $wei = Tools::getValue('weight', '');
                     $car = Tools::getValue('ps_carrier_id', '');
-                    $pkgList = (string)Tools::getValue('package_list', 'PARCEL');
-                    $collType = (string)Tools::getValue('collection_type', '');
-                    $delType  = (string)Tools::getValue('delivery_type', '');
-                    $t->name        = $name;
+                    $pkgList = (string) Tools::getValue('package_list', 'PARCEL');
+                    $collType = (string) Tools::getValue('collection_type', '');
+                    $delType = (string) Tools::getValue('delivery_type', '');
+                    $t->name = $name;
                     $t->packageList = in_array($pkgList, ['PARCEL', 'DOX', 'LONG_PARCEL', 'PALLET'], true) ? $pkgList : 'PARCEL';
                     $t->collectionType = in_array($collType, ['PICKUP', 'POINT'], true) ? $collType : null;
-                    $t->deliveryType   = in_array($delType, ['PICKUP', 'POINT'], true) ? $delType : null;
-                    $t->length      = $len !== '' ? (float)$len : null;
-                    $t->width       = $wid !== '' ? (float)$wid : null;
-                    $t->height      = $hei !== '' ? (float)$hei : null;
-                    $t->weight      = $wei !== '' ? (float)$wei : null;
-                    $t->quantity    = max(1, (int)Tools::getValue('quantity', 1));
-                    $cont           = Tools::getValue('contents', '');
-                    $t->contents    = $cont !== '' ? (string)$cont : null;
+                    $t->deliveryType = in_array($delType, ['PICKUP', 'POINT'], true) ? $delType : null;
+                    $t->length = $len !== '' ? (float) $len : null;
+                    $t->width = $wid !== '' ? (float) $wid : null;
+                    $t->height = $hei !== '' ? (float) $hei : null;
+                    $t->weight = $wei !== '' ? (float) $wei : null;
+                    $t->quantity = max(1, (int) Tools::getValue('quantity', 1));
+                    $cont = Tools::getValue('contents', '');
+                    $t->contents = $cont !== '' ? (string) $cont : null;
                     // No UI control for this anymore — the Payments tab's global
                     // default is enough (see new_parcel_page.tpl's fallback chain).
                     // Existing templates keep whatever value they already had.
-                    $t->isDefault   = Tools::getValue('is_default', 0) ? 1 : 0;
-                    $t->psCarrierId = $car !== '' ? (int)$car : null;
-                    $sc = (string)Tools::getValue('sender_country', 'PL');
-                    $rc = (string)Tools::getValue('recipient_country', 'PL');
-                    $t->senderCountry    = preg_match('/^[A-Z]{2}$/', $sc) ? $sc : 'PL';
+                    $t->isDefault = Tools::getValue('is_default', 0) ? 1 : 0;
+                    $t->psCarrierId = $car !== '' ? (int) $car : null;
+                    $sc = (string) Tools::getValue('sender_country', 'PL');
+                    $rc = (string) Tools::getValue('recipient_country', 'PL');
+                    $t->senderCountry = preg_match('/^[A-Z]{2}$/', $sc) ? $sc : 'PL';
                     $t->recipientCountry = preg_match('/^[A-Z]{2}$/', $rc) ? $rc : 'PL';
                     $gpid = Tools::getValue('gk_product_id', '');
-                    $t->gkProductId = ($gpid !== '' && is_numeric($gpid)) ? (int)$gpid : null;
+                    $t->gkProductId = ($gpid !== '' && is_numeric($gpid)) ? (int) $gpid : null;
                     $addonsJson = Tools::getValue('gk_addons', '');
-                    $t->gkAddons = ($addonsJson !== '') ? (string)$addonsJson : null;
+                    $t->gkAddons = ($addonsJson !== '') ? (string) $addonsJson : null;
                     $ok = $id ? $tm->update($t) : $tm->create($t);
                     echo json_encode(['success' => $ok, 'id_template' => $t->idTemplate]);
                     break;
 
                 case 'deleteTemplate':
-                    $id = (int)Tools::getValue('id_template', 0);
+                    $id = (int) Tools::getValue('id_template', 0);
                     echo json_encode(['success' => $id ? $tm->delete($id) : false]);
                     break;
 
                 case 'setDefaultTemplate':
-                    $id = (int)Tools::getValue('id_template', 0);
+                    $id = (int) Tools::getValue('id_template', 0);
                     echo json_encode(['success' => $id ? $tm->setDefault($id) : false]);
                     break;
 
@@ -393,17 +394,17 @@ class Globkuriermodule extends Module
                         @unlink($countriesMapFile);
                     }
 
-                    $envApi = new Globkuriermodule\Common\GlobkurierApi($config->login, $config->password, $config->apiKey, (int)$envValue);
+                    $envApi = new Globkuriermodule\Common\GlobkurierApi($config->login, $config->password, $config->apiKey, (int) $envValue);
                     echo json_encode([
                         'success' => $ok,
-                        'env' => (int)$envValue,
+                        'env' => (int) $envValue,
                         'baseUrl' => $envApi->getBaseApiUrl(),
                     ]);
                     break;
 
                 case 'syncTemplates':
                     $config = new Config();
-                    $gkApiEnvSync = isset($config->gkApiEnv) ? (int)$config->gkApiEnv : 1;
+                    $gkApiEnvSync = isset($config->gkApiEnv) ? (int) $config->gkApiEnv : 1;
                     $api = new Globkuriermodule\Common\GlobkurierApi($config->login, $config->password, $config->apiKey, $gkApiEnvSync);
                     if (!$api->isUserAuthorized()) {
                         echo json_encode(['success' => false, 'error' => 'Błąd autoryzacji']);
@@ -418,28 +419,28 @@ class Globkuriermodule extends Module
 
                 case 'getProducts':
                     $config = new Config();
-                    $gkApiEnvProd = isset($config->gkApiEnv) ? (int)$config->gkApiEnv : 1;
+                    $gkApiEnvProd = isset($config->gkApiEnv) ? (int) $config->gkApiEnv : 1;
                     $api = new Globkuriermodule\Common\GlobkurierApi($config->login, $config->password, $config->apiKey, $gkApiEnvProd);
                     if (!$api->isUserAuthorized()) {
                         echo json_encode(['success' => false, 'services' => []]);
                         break;
                     }
-                    $token       = $api->getToken();
-                    $senderIso   = strtoupper(preg_replace('/[^A-Za-z]/', '', (string)Tools::getValue('sender_country', 'PL')));
-                    $receiverIso = strtoupper(preg_replace('/[^A-Za-z]/', '', (string)Tools::getValue('recipient_country', 'PL')));
+                    $token = $api->getToken();
+                    $senderIso = strtoupper(preg_replace('/[^A-Za-z]/', '', (string) Tools::getValue('sender_country', 'PL')));
+                    $receiverIso = strtoupper(preg_replace('/[^A-Za-z]/', '', (string) Tools::getValue('recipient_country', 'PL')));
                     $isoToId = $this->getGkCountriesMap($config);
-                    $senderCountryId   = isset($isoToId[$senderIso])   ? $isoToId[$senderIso]   : 1;
+                    $senderCountryId = isset($isoToId[$senderIso]) ? $isoToId[$senderIso] : 1;
                     $receiverCountryId = isset($isoToId[$receiverIso]) ? $isoToId[$receiverIso] : 1;
                     $queryParams = [
-                        'senderCountryId'   => $senderCountryId,
+                        'senderCountryId' => $senderCountryId,
                         'receiverCountryId' => $receiverCountryId,
-                        'length'   => (float)Tools::getValue('length', 0),
-                        'width'    => (float)Tools::getValue('width', 0),
-                        'height'   => (float)Tools::getValue('height', 0),
-                        'weight'   => (float)Tools::getValue('weight', 0),
+                        'length' => (float) Tools::getValue('length', 0),
+                        'width' => (float) Tools::getValue('width', 0),
+                        'height' => (float) Tools::getValue('height', 0),
+                        'weight' => (float) Tools::getValue('weight', 0),
                         'quantity' => 1,
                     ];
-                    $pkgType = (string)Tools::getValue('package_list', '');
+                    $pkgType = (string) Tools::getValue('package_list', '');
                     if (in_array($pkgType, ['PARCEL', 'DOX', 'LONG_PARCEL', 'PALLET'], true)) {
                         $queryParams['packageType'] = $pkgType;
                     }
@@ -449,11 +450,11 @@ class Globkuriermodule extends Module
                     // collectionTypes[]=X / deliveryTypes[]=X (see
                     // developer.globkurier.pl), which http_build_query cannot
                     // produce for a single-value array, so append them manually.
-                    $collType = (string)Tools::getValue('collection_type', '');
+                    $collType = (string) Tools::getValue('collection_type', '');
                     if (in_array($collType, ['PICKUP', 'POINT', 'CROSSBORDER'], true)) {
                         $params .= '&collectionTypes[]=' . rawurlencode($collType);
                     }
-                    $delType = (string)Tools::getValue('delivery_type', '');
+                    $delType = (string) Tools::getValue('delivery_type', '');
                     if (in_array($delType, ['PICKUP', 'POINT', 'CROSSBORDER'], true)) {
                         $params .= '&deliveryTypes[]=' . rawurlencode($delType);
                     }
@@ -467,10 +468,10 @@ class Globkuriermodule extends Module
                     if (!empty($data['standard']) && is_array($data['standard'])) {
                         foreach ($data['standard'] as $p) {
                             $services[] = [
-                                'id'          => $p['id'],
-                                'name'        => $p['name'],
+                                'id' => $p['id'],
+                                'name' => $p['name'],
                                 'carrierName' => $p['carrierName'],
-                                'price'       => isset($p['netPrice']) ? $p['netPrice'] : '',
+                                'price' => isset($p['netPrice']) ? $p['netPrice'] : '',
                             ];
                         }
                     }
@@ -479,34 +480,34 @@ class Globkuriermodule extends Module
 
                 case 'getAddons':
                     $config = new Config();
-                    $gkApiEnvAddons = isset($config->gkApiEnv) ? (int)$config->gkApiEnv : 1;
+                    $gkApiEnvAddons = isset($config->gkApiEnv) ? (int) $config->gkApiEnv : 1;
                     $api = new Globkuriermodule\Common\GlobkurierApi($config->login, $config->password, $config->apiKey, $gkApiEnvAddons);
                     if (!$api->isUserAuthorized()) {
                         echo json_encode(['success' => false, 'addons' => []]);
                         break;
                     }
-                    $token       = $api->getToken();
-                    $senderIso   = strtoupper(preg_replace('/[^A-Za-z]/', '', (string)Tools::getValue('sender_country', 'PL')));
-                    $receiverIso = strtoupper(preg_replace('/[^A-Za-z]/', '', (string)Tools::getValue('recipient_country', 'PL')));
+                    $token = $api->getToken();
+                    $senderIso = strtoupper(preg_replace('/[^A-Za-z]/', '', (string) Tools::getValue('sender_country', 'PL')));
+                    $receiverIso = strtoupper(preg_replace('/[^A-Za-z]/', '', (string) Tools::getValue('recipient_country', 'PL')));
                     $isoToId = $this->getGkCountriesMap($config);
-                    $senderPostCode   = $config->defaultSenderPostCode ?: '01-001';
+                    $senderPostCode = $config->defaultSenderPostCode ?: '01-001';
                     $receiverPostCode = ($receiverIso === 'PL') ? '01-001' : '10000';
                     $params = http_build_query([
-                        'productId'         => (int)Tools::getValue('product_id', 0),
-                        'senderCountryId'   => isset($isoToId[$senderIso])   ? $isoToId[$senderIso]   : 1,
+                        'productId' => (int) Tools::getValue('product_id', 0),
+                        'senderCountryId' => isset($isoToId[$senderIso]) ? $isoToId[$senderIso] : 1,
                         'receiverCountryId' => isset($isoToId[$receiverIso]) ? $isoToId[$receiverIso] : 1,
-                        'senderPostCode'    => $senderPostCode,
-                        'receiverPostCode'  => $receiverPostCode,
-                        'length'            => (float)Tools::getValue('length', 1),
-                        'width'             => (float)Tools::getValue('width', 1),
-                        'height'            => (float)Tools::getValue('height', 1),
-                        'weight'            => (float)Tools::getValue('weight', 1),
-                        'quantity'          => max(1, (int)Tools::getValue('quantity', 1)),
+                        'senderPostCode' => $senderPostCode,
+                        'receiverPostCode' => $receiverPostCode,
+                        'length' => (float) Tools::getValue('length', 1),
+                        'width' => (float) Tools::getValue('width', 1),
+                        'height' => (float) Tools::getValue('height', 1),
+                        'weight' => (float) Tools::getValue('weight', 1),
+                        'quantity' => max(1, (int) Tools::getValue('quantity', 1)),
                     ]);
                     $ch = curl_init($api->getBaseApiUrl() . 'product/addons?' . $params);
                     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                     curl_setopt($ch, CURLOPT_HTTPHEADER, ['x-auth-token: ' . $token, 'accept-language: pl']);
-                    $resp     = curl_exec($ch);
+                    $resp = curl_exec($ch);
                     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
                     curl_close($ch);
                     if ($resp === false || ($httpCode !== 0 && ($httpCode < 200 || $httpCode >= 300))) {
@@ -522,12 +523,12 @@ class Globkuriermodule extends Module
                     $addonsList = [];
                     foreach ($rawAddons as $a) {
                         $addonsList[] = [
-                            'id'         => $a['id'],
-                            'name'       => isset($a['addonName']) ? $a['addonName'] : (isset($a['name']) ? $a['name'] : ''),
-                            'price'      => isset($a['price']) ? $a['price'] : null,
-                            'category'   => isset($a['category']) ? $a['category'] : null,
+                            'id' => $a['id'],
+                            'name' => isset($a['addonName']) ? $a['addonName'] : (isset($a['name']) ? $a['name'] : ''),
+                            'price' => isset($a['price']) ? $a['price'] : null,
+                            'category' => isset($a['category']) ? $a['category'] : null,
                             'isRequired' => !empty($a['isRequired']),
-                            'disabled'   => !empty($a['disabled']),
+                            'disabled' => !empty($a['disabled']),
                         ];
                     }
                     echo json_encode(['success' => true, 'addons' => $addonsList]);
@@ -535,7 +536,7 @@ class Globkuriermodule extends Module
 
                 case 'getContentList':
                     $config = new Config();
-                    $gkApiEnvContent = isset($config->gkApiEnv) ? (int)$config->gkApiEnv : 1;
+                    $gkApiEnvContent = isset($config->gkApiEnv) ? (int) $config->gkApiEnv : 1;
                     $api = new Globkuriermodule\Common\GlobkurierApi($config->login, $config->password, $config->apiKey, $gkApiEnvContent);
                     if (!$api->isUserAuthorized()) {
                         echo json_encode(['success' => false, 'contents' => [], 'allowOtherContent' => true]);
@@ -552,8 +553,8 @@ class Globkuriermodule extends Module
                     $rawReceiverIso = strtoupper((string) Tools::getValue('recipient_country', 'PL'));
                     $receiverIso = preg_match('/^[A-Z]{2}$/', $rawReceiverIso) ? $rawReceiverIso : 'PL';
                     $params = http_build_query([
-                        'productId'       => (int)Tools::getValue('product_id', 0),
-                        'senderCountry'   => $senderIso,
+                        'productId' => (int) Tools::getValue('product_id', 0),
+                        'senderCountry' => $senderIso,
                         'receiverCountry' => $receiverIso,
                     ]);
                     $ch = curl_init($api->getBaseApiUrl() . 'order/content?' . $params);
@@ -571,7 +572,7 @@ class Globkuriermodule extends Module
                 default:
                     echo json_encode(['success' => false, 'error' => 'Nieznana akcja']);
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }
 
@@ -786,13 +787,13 @@ class Globkuriermodule extends Module
     }
 
     /**
-     * @param array      $info        Service info (serviceCode, type, isCod)
-     * @param int        $carrierId   Carrier instance ID
-     * @param int        $cartId      Cart ID
-     * @param Config     $config      Module config
-     * @param Address    $address     Delivery address
+     * @param array $info Service info (serviceCode, type, isCod)
+     * @param int $carrierId Carrier instance ID
+     * @param int $cartId Cart ID
+     * @param Config $config Module config
+     * @param Address $address Delivery address
      * @param array|null $savedPickup Previously saved pickup point or null
-     * @param bool       $hiddenMode  True when rendered in displayAfterCarrier (JS controls visibility)
+     * @param bool $hiddenMode True when rendered in displayAfterCarrier (JS controls visibility)
      */
     public function renderPickupWidget(
         array $info,
@@ -801,7 +802,7 @@ class Globkuriermodule extends Module
         Config $config,
         Address $address,
         ?array $savedPickup,
-        bool $hiddenMode
+        bool $hiddenMode,
     ) {
         $this->smarty->assign([
             'gk_service_code' => $info['serviceCode'],
@@ -866,7 +867,7 @@ class Globkuriermodule extends Module
 
         // Media::addJsDef() renders before registered/addJS'd script files,
         // so inpost-front(-17).js can read window.gkApiBaseUrl at load time.
-        $frontGkApiEnv = isset($config->gkApiEnv) ? (int)$config->gkApiEnv : 1;
+        $frontGkApiEnv = isset($config->gkApiEnv) ? (int) $config->gkApiEnv : 1;
         $frontApi = new Globkuriermodule\Common\GlobkurierApi($config->login, $config->password, $config->apiKey, $frontGkApiEnv);
         Media::addJsDef(['gkApiBaseUrl' => $frontApi->getBaseApiUrl()]);
         if (version_compare(_PS_VERSION_, '8.0.0', '>=') === true) {
@@ -1147,7 +1148,7 @@ class Globkuriermodule extends Module
             }
         }
 
-        $gkApiEnvMap = isset($config->gkApiEnv) ? (int)$config->gkApiEnv : 1;
+        $gkApiEnvMap = isset($config->gkApiEnv) ? (int) $config->gkApiEnv : 1;
         $api = new Globkuriermodule\Common\GlobkurierApi($config->login, $config->password, $config->apiKey, $gkApiEnvMap);
         $countries = $api->getCountries();
 

@@ -39,7 +39,7 @@ class GlobkuriermoduleGetLabelModuleFrontController extends ModuleFrontControlle
         $ajax = isset($_REQUEST['ajax']) ? (int) $_REQUEST['ajax'] : 0;
         if (!empty($hash)) {
             $c = new Globkuriermodule\Common\Config();
-            $gkApiEnv = isset($c->gkApiEnv) ? (int)$c->gkApiEnv : 1;
+            $gkApiEnv = isset($c->gkApiEnv) ? (int) $c->gkApiEnv : 1;
             $api = new Globkuriermodule\Common\GlobkurierApi($c->login, $c->password, $c->apiKey, $gkApiEnv);
             $api->login();
             $token = $api->getToken();

@@ -2,3 +2,5 @@ countries_map.json
 PACZKOMAT.json
 PACZKA_W_RUCHU.json
 .php-cs-fixer.php
+.php-cs-fixer.cache
+/vendor/

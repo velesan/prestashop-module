@@ -13,6 +13,7 @@
  * @copyright 2007-2026 PrestaShop SA
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License 3.0 (AFL-3.0)
  */
+
 namespace Globkuriermodule\Template;
 
 if (!defined('_PS_VERSION_')) {
@@ -21,7 +22,7 @@ if (!defined('_PS_VERSION_')) {
 
 class TemplateManager
 {
-    const TABLE = 'gk_template';
+    public const TABLE = 'gk_template';
 
     /** @return TemplateModel[] */
     public function getAll()
@@ -37,6 +38,7 @@ class TemplateManager
         foreach ($rows as $row) {
             $result[] = TemplateModel::fromRow($row);
         }
+
         return $result;
     }
 
@@ -45,8 +47,9 @@ class TemplateManager
     {
         $row = \Db::getInstance()->getRow(
             'SELECT * FROM `' . _DB_PREFIX_ . self::TABLE . '`
-             WHERE `id_template` = ' . (int)$id
+             WHERE `id_template` = ' . (int) $id
         );
+
         return $row ? TemplateModel::fromRow($row) : null;
     }
 
@@ -57,6 +60,7 @@ class TemplateManager
             'SELECT * FROM `' . _DB_PREFIX_ . self::TABLE . '`
              WHERE `is_default` = 1'
         );
+
         return $row ? TemplateModel::fromRow($row) : null;
     }
 
@@ -65,6 +69,7 @@ class TemplateManager
      * If not found, returns null (the caller should fall back to getDefault()).
      *
      * @param int $carrierId
+     *
      * @return TemplateModel|null
      */
     public function getByCarrierId($carrierId)
@@ -74,8 +79,9 @@ class TemplateManager
         }
         $row = \Db::getInstance()->getRow(
             'SELECT * FROM `' . _DB_PREFIX_ . self::TABLE . '`
-             WHERE `ps_carrier_id` = ' . (int)$carrierId
+             WHERE `ps_carrier_id` = ' . (int) $carrierId
         );
+
         return $row ? TemplateModel::fromRow($row) : null;
     }
 
@@ -83,6 +89,7 @@ class TemplateManager
      * Saves a new template. Sets id_template after saving.
      *
      * @param TemplateModel $t
+     *
      * @return bool
      */
     public function create(TemplateModel $t)
@@ -90,18 +97,20 @@ class TemplateManager
         $now = date('Y-m-d H:i:s');
         $ok = \Db::getInstance()->insert(self::TABLE, $this->toDbRow($t, $now, $now));
         if ($ok) {
-            $t->idTemplate = (int)\Db::getInstance()->Insert_ID();
+            $t->idTemplate = (int) \Db::getInstance()->Insert_ID();
             if ($t->isDefault) {
                 $this->clearOtherDefaults($t->idTemplate);
             }
         }
-        return (bool)$ok;
+
+        return (bool) $ok;
     }
 
     /**
      * Updates an existing template.
      *
      * @param TemplateModel $t
+     *
      * @return bool
      */
     public function update(TemplateModel $t)
@@ -113,25 +122,27 @@ class TemplateManager
         $ok = \Db::getInstance()->update(
             self::TABLE,
             $this->toDbRow($t, null, $now),
-            '`id_template` = ' . (int)$t->idTemplate
+            '`id_template` = ' . (int) $t->idTemplate
         );
         if ($ok && $t->isDefault) {
             $this->clearOtherDefaults($t->idTemplate);
         }
-        return (bool)$ok;
+
+        return (bool) $ok;
     }
 
     /**
      * Deletes a template by ID.
      *
      * @param int $id
+     *
      * @return bool
      */
     public function delete($id)
     {
-        return (bool)\Db::getInstance()->delete(
+        return (bool) \Db::getInstance()->delete(
             self::TABLE,
-            '`id_template` = ' . (int)$id
+            '`id_template` = ' . (int) $id
         );
     }
 
@@ -139,6 +150,7 @@ class TemplateManager
      * Sets the given template as default (clears the flag from the others).
      *
      * @param int $id
+     *
      * @return bool
      */
     public function setDefault($id)
@@ -147,10 +159,11 @@ class TemplateManager
         $db->execute(
             'UPDATE `' . _DB_PREFIX_ . self::TABLE . '` SET `is_default` = 0'
         );
-        return (bool)$db->execute(
+
+        return (bool) $db->execute(
             'UPDATE `' . _DB_PREFIX_ . self::TABLE . '`
              SET `is_default` = 1, `date_upd` = \'' . pSQL(date('Y-m-d H:i:s')) . '\'
-             WHERE `id_template` = ' . (int)$id
+             WHERE `id_template` = ' . (int) $id
         );
     }
 
@@ -159,26 +172,27 @@ class TemplateManager
      * Called once during upgrade, when the table is empty.
      *
      * @param \Globkuriermodule\Common\Config $config
+     *
      * @return bool
      */
     public function createFromConfig($config)
     {
         $t = new TemplateModel();
-        $t->name        = 'Domyślna przesyłka';
+        $t->name = 'Domyślna przesyłka';
         $t->packageList = 'PARCEL';
-        $t->length      = $config->defaultDepth  ? (float)$config->defaultDepth  : null;
-        $t->width       = $config->defaultWidth  ? (float)$config->defaultWidth  : null;
-        $t->height      = $config->defaultHeight ? (float)$config->defaultHeight : null;
-        $t->weight      = $config->defaultWeight ? (float)$config->defaultWeight : null;
-        $t->quantity    = 1;
-        $t->contents    = $config->defaultContent    ?: null;
-        $t->gkProductId = $config->defaultServiceCode ? (int)$config->defaultServiceCode : null;
-        $t->isDefault   = 1;
+        $t->length = $config->defaultDepth ? (float) $config->defaultDepth : null;
+        $t->width = $config->defaultWidth ? (float) $config->defaultWidth : null;
+        $t->height = $config->defaultHeight ? (float) $config->defaultHeight : null;
+        $t->weight = $config->defaultWeight ? (float) $config->defaultWeight : null;
+        $t->quantity = 1;
+        $t->contents = $config->defaultContent ?: null;
+        $t->gkProductId = $config->defaultServiceCode ? (int) $config->defaultServiceCode : null;
+        $t->isDefault = 1;
 
         $legacyMap = ['T' => 1, 'O' => 2, 'P' => 9, 'D' => 4, 'COD' => 6];
         $pt = $config->defaultPaymentType;
         if ($pt) {
-            $t->paymentType = isset($legacyMap[$pt]) ? $legacyMap[$pt] : (int)$pt;
+            $t->paymentType = isset($legacyMap[$pt]) ? $legacyMap[$pt] : (int) $pt;
         }
 
         return $this->create($t);
@@ -187,13 +201,14 @@ class TemplateManager
     /**
      * Imports templates from GlobKurier API — creates only missing ones (skips existing).
      *
-     * @param array $apiTemplates  array from GET /v1/order/productTemplate results key —
-     *   a flat object per template (length/width/height/weight/quantity/content/productId/
-     *   senderCountryId/receiverCountryId/addons live at the top level, there is no nested
-     *   "shipment" key)
-     * @param array $countryIdToIso  GlobKurier numeric country id => ISO code, to resolve
-     *   senderCountryId/receiverCountryId. Countries fall back to the model's 'PL' default
-     *   when omitted or the id isn't in the map.
+     * @param array $apiTemplates array from GET /v1/order/productTemplate results key —
+     *                            a flat object per template (length/width/height/weight/quantity/content/productId/
+     *                            senderCountryId/receiverCountryId/addons live at the top level, there is no nested
+     *                            "shipment" key)
+     * @param array $countryIdToIso GlobKurier numeric country id => ISO code, to resolve
+     *                              senderCountryId/receiverCountryId. Countries fall back to the model's 'PL' default
+     *                              when omitted or the id isn't in the map.
+     *
      * @return array ['created' => int, 'skipped' => int]
      */
     public function syncFromApi(array $apiTemplates, array $countryIdToIso = [])
@@ -206,40 +221,40 @@ class TemplateManager
             if (empty($apiTmpl['id'])) {
                 continue;
             }
-            $gkId = (int)$apiTmpl['id'];
-            $exists = (bool)\Db::getInstance()->getValue(
+            $gkId = (int) $apiTmpl['id'];
+            $exists = (bool) \Db::getInstance()->getValue(
                 'SELECT `id_template` FROM `' . _DB_PREFIX_ . self::TABLE . '`
                  WHERE `gk_template_id` = ' . $gkId
             );
 
             if ($exists) {
-                $skipped++;
+                ++$skipped;
                 continue;
             }
 
             $t = new TemplateModel();
             $t->gkTemplateId = $gkId;
-            $t->name         = isset($apiTmpl['name']) ? (string)$apiTmpl['name'] : ('GK #' . $gkId);
-            $t->length       = isset($apiTmpl['length'])     ? (float)$apiTmpl['length']    : null;
-            $t->width        = isset($apiTmpl['width'])      ? (float)$apiTmpl['width']     : null;
-            $t->height       = isset($apiTmpl['height'])     ? (float)$apiTmpl['height']    : null;
-            $t->weight       = isset($apiTmpl['weight'])     ? (float)$apiTmpl['weight']    : null;
-            $t->quantity     = isset($apiTmpl['quantity'])   ? (int)$apiTmpl['quantity']    : 1;
-            $t->contents     = isset($apiTmpl['content'])    ? (string)$apiTmpl['content']  : null;
-            $t->gkProductId  = isset($apiTmpl['productId'])  ? (int)$apiTmpl['productId']   : null;
+            $t->name = isset($apiTmpl['name']) ? (string) $apiTmpl['name'] : ('GK #' . $gkId);
+            $t->length = isset($apiTmpl['length']) ? (float) $apiTmpl['length'] : null;
+            $t->width = isset($apiTmpl['width']) ? (float) $apiTmpl['width'] : null;
+            $t->height = isset($apiTmpl['height']) ? (float) $apiTmpl['height'] : null;
+            $t->weight = isset($apiTmpl['weight']) ? (float) $apiTmpl['weight'] : null;
+            $t->quantity = isset($apiTmpl['quantity']) ? (int) $apiTmpl['quantity'] : 1;
+            $t->contents = isset($apiTmpl['content']) ? (string) $apiTmpl['content'] : null;
+            $t->gkProductId = isset($apiTmpl['productId']) ? (int) $apiTmpl['productId'] : null;
 
-            if (isset($apiTmpl['senderCountryId'], $countryIdToIso[(int)$apiTmpl['senderCountryId']])) {
-                $t->senderCountry = $countryIdToIso[(int)$apiTmpl['senderCountryId']];
+            if (isset($apiTmpl['senderCountryId'], $countryIdToIso[(int) $apiTmpl['senderCountryId']])) {
+                $t->senderCountry = $countryIdToIso[(int) $apiTmpl['senderCountryId']];
             }
-            if (isset($apiTmpl['receiverCountryId'], $countryIdToIso[(int)$apiTmpl['receiverCountryId']])) {
-                $t->recipientCountry = $countryIdToIso[(int)$apiTmpl['receiverCountryId']];
+            if (isset($apiTmpl['receiverCountryId'], $countryIdToIso[(int) $apiTmpl['receiverCountryId']])) {
+                $t->recipientCountry = $countryIdToIso[(int) $apiTmpl['receiverCountryId']];
             }
 
             if (!empty($apiTmpl['addons']) && is_array($apiTmpl['addons'])) {
                 $categories = [];
                 foreach ($apiTmpl['addons'] as $addon) {
                     if (is_array($addon) && !empty($addon['category'])) {
-                        $categories[] = (string)$addon['category'];
+                        $categories[] = (string) $addon['category'];
                     } elseif (is_string($addon) && $addon !== '') {
                         $categories[] = $addon;
                     }
@@ -249,9 +264,9 @@ class TemplateManager
                 }
             }
 
-            $t->gkSyncAt     = $now;
+            $t->gkSyncAt = $now;
             $this->create($t);
-            $created++;
+            ++$created;
         }
 
         return ['created' => $created, 'skipped' => $skipped];
@@ -262,30 +277,31 @@ class TemplateManager
     private function toDbRow(TemplateModel $t, $dateAdd, $dateUpd)
     {
         $row = [
-            'gk_template_id' => $t->gkTemplateId !== null ? (int)$t->gkTemplateId : null,
-            'name'           => pSQL($t->name),
-            'package_list'   => pSQL($t->packageList),
-            'length'         => $t->length  !== null ? (float)$t->length  : null,
-            'width'          => $t->width   !== null ? (float)$t->width   : null,
-            'height'         => $t->height  !== null ? (float)$t->height  : null,
-            'weight'         => $t->weight  !== null ? (float)$t->weight  : null,
-            'quantity'       => (int)$t->quantity,
-            'contents'          => $t->contents  !== null ? pSQL($t->contents)  : null,
-            'sender_country'    => pSQL($t->senderCountry ?: 'PL'),
+            'gk_template_id' => $t->gkTemplateId !== null ? (int) $t->gkTemplateId : null,
+            'name' => pSQL($t->name),
+            'package_list' => pSQL($t->packageList),
+            'length' => $t->length !== null ? (float) $t->length : null,
+            'width' => $t->width !== null ? (float) $t->width : null,
+            'height' => $t->height !== null ? (float) $t->height : null,
+            'weight' => $t->weight !== null ? (float) $t->weight : null,
+            'quantity' => (int) $t->quantity,
+            'contents' => $t->contents !== null ? pSQL($t->contents) : null,
+            'sender_country' => pSQL($t->senderCountry ?: 'PL'),
             'recipient_country' => pSQL($t->recipientCountry ?: 'PL'),
-            'collection_type'   => $t->collectionType !== null ? pSQL($t->collectionType) : null,
-            'delivery_type'     => $t->deliveryType   !== null ? pSQL($t->deliveryType)   : null,
-            'gk_product_id'     => $t->gkProductId  !== null ? (int)$t->gkProductId  : null,
-            'gk_addons'      => $t->gkAddons !== null ? pSQL($t->gkAddons) : null,
-            'payment_type'   => $t->paymentType  !== null ? (int)$t->paymentType  : null,
-            'is_default'     => (int)$t->isDefault,
-            'ps_carrier_id'  => $t->psCarrierId !== null ? (int)$t->psCarrierId : null,
-            'gk_sync_at'     => $t->gkSyncAt ? pSQL($t->gkSyncAt) : null,
-            'date_upd'       => pSQL($dateUpd),
+            'collection_type' => $t->collectionType !== null ? pSQL($t->collectionType) : null,
+            'delivery_type' => $t->deliveryType !== null ? pSQL($t->deliveryType) : null,
+            'gk_product_id' => $t->gkProductId !== null ? (int) $t->gkProductId : null,
+            'gk_addons' => $t->gkAddons !== null ? pSQL($t->gkAddons) : null,
+            'payment_type' => $t->paymentType !== null ? (int) $t->paymentType : null,
+            'is_default' => (int) $t->isDefault,
+            'ps_carrier_id' => $t->psCarrierId !== null ? (int) $t->psCarrierId : null,
+            'gk_sync_at' => $t->gkSyncAt ? pSQL($t->gkSyncAt) : null,
+            'date_upd' => pSQL($dateUpd),
         ];
         if ($dateAdd !== null) {
             $row['date_add'] = pSQL($dateAdd);
         }
+
         return $row;
     }
 
@@ -294,7 +310,7 @@ class TemplateManager
         \Db::getInstance()->execute(
             'UPDATE `' . _DB_PREFIX_ . self::TABLE . '`
              SET `is_default` = 0
-             WHERE `id_template` != ' . (int)$keepId
+             WHERE `id_template` != ' . (int) $keepId
         );
     }
 }

@@ -1,0 +1,11 @@
+{
+    "name": "globkurier/globkuriermodule",
+    "description": "Official Globkurier integration module for sending parcels",
+    "license": "AFL-3.0",
+    "require-dev": {
+        "prestashop/php-dev-tools": "^4"
+    },
+    "config": {
+        "prepend-autoloader": false
+    }
+}

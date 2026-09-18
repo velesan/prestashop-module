@@ -31,8 +31,8 @@ if (!defined('_PS_VERSION_')) {
 }
 class GlobkurierApi
 {
-    const API_BASE_PROD = 'https://api.globkurier.pl/v1/';
-    const API_BASE_TEST = 'https://test.api.globkurier.pl/v1/';
+    public const API_BASE_PROD = 'https://api.globkurier.pl/v1/';
+    public const API_BASE_TEST = 'https://test.api.globkurier.pl/v1/';
 
     private $baseApiUrl;
 
@@ -59,7 +59,7 @@ class GlobkurierApi
         $this->login = $login;
         $this->password = $password;
         $this->apiKey = $apiKey;
-        $this->baseApiUrl = ((int)$env === 0) ? self::API_BASE_TEST : self::API_BASE_PROD;
+        $this->baseApiUrl = ((int) $env === 0) ? self::API_BASE_TEST : self::API_BASE_PROD;
         $this->pathForCachedPointsCalledFromAdmin = _PS_MODULE_DIR_ . 'globkuriermodule/';
     }
 
@@ -354,15 +354,17 @@ class GlobkurierApi
      *
      * @param int $limit
      * @param int $offset
+     *
      * @return array
      */
     public function getTemplates($limit = 100, $offset = 0)
     {
-        $url = $this->baseApiUrl . 'order/productTemplate?limit=' . (int)$limit . '&offset=' . (int)$offset;
+        $url = $this->baseApiUrl . 'order/productTemplate?limit=' . (int) $limit . '&offset=' . (int) $offset;
         $result = $this->sendJSONRequest($url, $this->token, [], 'GET');
         if (is_array($result) && isset($result['results'])) {
             return $result['results'];
         }
+
         return [];
     }
 
@@ -377,7 +379,6 @@ class GlobkurierApi
 
         return $this->sendJSONRequest($url, $this->token, [], 'GET');
     }
-
 
     /**
      * Fetches order data from the GlobKurier API — including the trackingNumber from the carrier.

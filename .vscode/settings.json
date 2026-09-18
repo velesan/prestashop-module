@@ -1,0 +1,15 @@
+{
+    // PrestaShop Addons Validator runs PHP-CS-Fixer with the official
+    // prestashop/php-dev-tools ruleset (.php-cs-fixer.dist.php in this repo's
+    // root). This makes VS Code use the exact same binary/config on save,
+    // instead of catching violations only when the module is submitted.
+    "php-cs-fixer.executablePath": "${workspaceFolder}/vendor/bin/php-cs-fixer",
+    "php-cs-fixer.config": "${workspaceFolder}/.php-cs-fixer.dist.php",
+    "php-cs-fixer.onsave": true,
+    "php-cs-fixer.allowRisky": true,
+    "editor.formatOnSave": true,
+    "[php]": {
+        "editor.defaultFormatter": "junstyle.php-cs-fixer"
+    },
+    "files.eol": "\n"
+}

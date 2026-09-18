@@ -13,6 +13,7 @@
  * @copyright 2007-2026 PrestaShop SA
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License 3.0 (AFL-3.0)
  */
+
 namespace Globkuriermodule\Template;
 
 if (!defined('_PS_VERSION_')) {
@@ -91,33 +92,35 @@ class TemplateModel
      * Creates a model from an array (e.g. a database row).
      *
      * @param array $row
+     *
      * @return self
      */
     public static function fromRow(array $row)
     {
         $m = new self();
-        $m->idTemplate   = isset($row['id_template'])    ? (int)$row['id_template']    : null;
-        $m->gkTemplateId = isset($row['gk_template_id']) ? (int)$row['gk_template_id'] : null;
-        $m->name         = isset($row['name'])           ? (string)$row['name']        : '';
-        $m->packageList  = isset($row['package_list'])   ? (string)$row['package_list'] : 'PARCEL';
-        $m->length       = isset($row['length'])         ? (float)$row['length']       : null;
-        $m->width        = isset($row['width'])          ? (float)$row['width']        : null;
-        $m->height       = isset($row['height'])         ? (float)$row['height']       : null;
-        $m->weight       = isset($row['weight'])         ? (float)$row['weight']       : null;
-        $m->quantity     = isset($row['quantity'])       ? (int)$row['quantity']       : 1;
-        $m->contents       = isset($row['contents'])          ? (string)$row['contents']          : null;
-        $m->senderCountry  = isset($row['sender_country'])    ? (string)$row['sender_country']    : 'PL';
-        $m->recipientCountry = isset($row['recipient_country']) ? (string)$row['recipient_country'] : 'PL';
-        $m->collectionType = !empty($row['collection_type']) ? (string)$row['collection_type'] : null;
-        $m->deliveryType   = !empty($row['delivery_type'])   ? (string)$row['delivery_type']   : null;
-        $m->gkProductId    = isset($row['gk_product_id']) && $row['gk_product_id'] ? (int)$row['gk_product_id'] : null;
-        $m->gkAddons     = isset($row['gk_addons'])     ? $row['gk_addons']           : null;
-        $m->paymentType  = isset($row['payment_type'])  && $row['payment_type'] !== null ? (int)$row['payment_type'] : null;
-        $m->isDefault    = isset($row['is_default'])    ? (int)$row['is_default']     : 0;
-        $m->psCarrierId  = isset($row['ps_carrier_id']) && $row['ps_carrier_id'] ? (int)$row['ps_carrier_id'] : null;
-        $m->gkSyncAt     = (isset($row['gk_sync_at']) && $row['gk_sync_at'] && $row['gk_sync_at'] !== '0000-00-00 00:00:00') ? $row['gk_sync_at'] : null;
-        $m->dateAdd      = isset($row['date_add'])       ? $row['date_add']            : '';
-        $m->dateUpd      = isset($row['date_upd'])       ? $row['date_upd']            : '';
+        $m->idTemplate = isset($row['id_template']) ? (int) $row['id_template'] : null;
+        $m->gkTemplateId = isset($row['gk_template_id']) ? (int) $row['gk_template_id'] : null;
+        $m->name = isset($row['name']) ? (string) $row['name'] : '';
+        $m->packageList = isset($row['package_list']) ? (string) $row['package_list'] : 'PARCEL';
+        $m->length = isset($row['length']) ? (float) $row['length'] : null;
+        $m->width = isset($row['width']) ? (float) $row['width'] : null;
+        $m->height = isset($row['height']) ? (float) $row['height'] : null;
+        $m->weight = isset($row['weight']) ? (float) $row['weight'] : null;
+        $m->quantity = isset($row['quantity']) ? (int) $row['quantity'] : 1;
+        $m->contents = isset($row['contents']) ? (string) $row['contents'] : null;
+        $m->senderCountry = isset($row['sender_country']) ? (string) $row['sender_country'] : 'PL';
+        $m->recipientCountry = isset($row['recipient_country']) ? (string) $row['recipient_country'] : 'PL';
+        $m->collectionType = !empty($row['collection_type']) ? (string) $row['collection_type'] : null;
+        $m->deliveryType = !empty($row['delivery_type']) ? (string) $row['delivery_type'] : null;
+        $m->gkProductId = isset($row['gk_product_id']) && $row['gk_product_id'] ? (int) $row['gk_product_id'] : null;
+        $m->gkAddons = isset($row['gk_addons']) ? $row['gk_addons'] : null;
+        $m->paymentType = isset($row['payment_type']) && $row['payment_type'] !== null ? (int) $row['payment_type'] : null;
+        $m->isDefault = isset($row['is_default']) ? (int) $row['is_default'] : 0;
+        $m->psCarrierId = isset($row['ps_carrier_id']) && $row['ps_carrier_id'] ? (int) $row['ps_carrier_id'] : null;
+        $m->gkSyncAt = (isset($row['gk_sync_at']) && $row['gk_sync_at'] && $row['gk_sync_at'] !== '0000-00-00 00:00:00') ? $row['gk_sync_at'] : null;
+        $m->dateAdd = isset($row['date_add']) ? $row['date_add'] : '';
+        $m->dateUpd = isset($row['date_upd']) ? $row['date_upd'] : '';
+
         return $m;
     }
 
@@ -129,26 +132,26 @@ class TemplateModel
     public function toArray()
     {
         return [
-            'id_template'    => $this->idTemplate,
+            'id_template' => $this->idTemplate,
             'gk_template_id' => $this->gkTemplateId,
-            'name'           => $this->name,
-            'package_list'   => $this->packageList,
-            'length'         => $this->length,
-            'width'          => $this->width,
-            'height'         => $this->height,
-            'weight'         => $this->weight,
-            'quantity'       => $this->quantity,
-            'contents'          => $this->contents,
-            'sender_country'    => $this->senderCountry,
+            'name' => $this->name,
+            'package_list' => $this->packageList,
+            'length' => $this->length,
+            'width' => $this->width,
+            'height' => $this->height,
+            'weight' => $this->weight,
+            'quantity' => $this->quantity,
+            'contents' => $this->contents,
+            'sender_country' => $this->senderCountry,
             'recipient_country' => $this->recipientCountry,
-            'collection_type'   => $this->collectionType,
-            'delivery_type'     => $this->deliveryType,
-            'gk_product_id'     => $this->gkProductId,
-            'gk_addons'      => $this->gkAddons,
-            'payment_type'   => $this->paymentType,
-            'is_default'     => $this->isDefault,
-            'ps_carrier_id'  => $this->psCarrierId,
-            'gk_sync_at'     => $this->gkSyncAt,
+            'collection_type' => $this->collectionType,
+            'delivery_type' => $this->deliveryType,
+            'gk_product_id' => $this->gkProductId,
+            'gk_addons' => $this->gkAddons,
+            'payment_type' => $this->paymentType,
+            'is_default' => $this->isDefault,
+            'ps_carrier_id' => $this->psCarrierId,
+            'gk_sync_at' => $this->gkSyncAt,
         ];
     }
 }

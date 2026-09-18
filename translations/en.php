@@ -1,5 +1,4 @@
 <?php
-
 global $_MODULE;
 $_MODULE = [];
 $_MODULE['<{globkuriermodule}prestashop>globkuriermodule_a7668e8a363d1bacc163881e2d24208f'] = 'Globkurier integration';

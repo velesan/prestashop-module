@@ -216,6 +216,7 @@ class Config
      * sites normalize identically instead of drifting out of sync.
      *
      * @param mixed $value
+     *
      * @return mixed the numeric id if $value was a known legacy code, unchanged otherwise
      */
     public static function normalizeLegacyPaymentType($value)

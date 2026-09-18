@@ -138,7 +138,7 @@ function upgrade_module_3_4_0($module)
                 $manager = new Globkuriermodule\Template\TemplateManager();
                 $manager->createFromConfig($config);
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Migration is optional — do not abort the upgrade on failure
         }
     }
