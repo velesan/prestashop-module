@@ -50,7 +50,13 @@
 		forceShowAll: false,
 		customsFields: [],
 		customsData: null,
-		orderHash: null
+		orderHash: null,
+		// Confirmed against shoper's own COD->insurance cascade (assets/js/order.js):
+		// once the merchant types into the insurance field themselves, the COD-driven
+		// auto-fill must stop overwriting it for good - not just "while it's empty",
+		// which broke on the very first keystroke of the COD amount (see the
+		// CASH_ON_DELIVERY branch of the .addon-checkbox change handler).
+		insuranceAmountManuallyEdited: false
 	};
 
 
@@ -1764,7 +1770,16 @@ function renderServiceOptionsContainer() {
       .on('input change', '#codAccountAddr2Input', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.codAccountAddr2 = $(this).val(); debouncedFullOrderValidate(); });
     $(document)
       .off('input change', '#insuranceAmountInput')
-      .on('input change', '#insuranceAmountInput', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.insuranceAmount = $(this).val(); recalcOrderPrice(); });
+      .on('input change', '#insuranceAmountInput', function(){
+        if (!GK.state.additionalInfo) GK.state.additionalInfo = {};
+        GK.state.additionalInfo.insuranceAmount = $(this).val();
+        // A real DOM event only fires here from the merchant's own typing - the
+        // CASH_ON_DELIVERY auto-fill sets .val() directly without triggering it
+        // (see the .addon-checkbox change handler), so this can't misfire from
+        // the cascade overwriting its own field.
+        GK.state.insuranceAmountManuallyEdited = true;
+        recalcOrderPrice();
+      });
     $(document)
       .off('change', '#purposeSelect')
       .on('change', '#purposeSelect', function(){ if (!GK.state.additionalInfo) GK.state.additionalInfo = {}; GK.state.additionalInfo.purpose = $(this).val(); debouncedFullOrderValidate(); });
@@ -4074,6 +4089,24 @@ function renderServicesAndBind() {
 				return;
 			}
 
+			// COD strictly requires INSURANCE - confirmed against GK's own backend
+			// validator (OrderValidator::validateAddonListWithPaymentNKO is the ONLY
+			// path that accepts INSURANCE_CARGO as a substitute, and that's a separate
+			// payment method this module doesn't use). For the standard flow,
+			// INSURANCE_CARGO alone + CASH_ON_DELIVERY is rejected server-side with
+			// "Addon insurance must be selected." - block unchecking the active
+			// INSURANCE tier while COD is selected, the same way isRequired addons
+			// can't be turned off, instead of letting the merchant reach an order that
+			// will fail at submission.
+			if (!isChecked && category === 'INSURANCE') {
+				const codIsChecked = $('.addon-checkbox[data-category="CASH_ON_DELIVERY"]:checked').length > 0;
+				if (codIsChecked) {
+					$current.prop('checked', true);
+					isChecked = true;
+					return;
+				}
+			}
+
 			// This handler accumulated a lot of category-specific branches this session
 			// (isRequired, requiredAlternativeAddonsGroups, COD-requires-insurance,
 			// extra fields...) - wrap them so a bug in any one of them can never again
@@ -4112,6 +4145,40 @@ function renderServicesAndBind() {
 				});
 			}
 
+			// Unchecking a CASH_ON_DELIVERY/INSURANCE/INSURANCE_CARGO addon should clear
+			// the amount typed into its shared input too, once no addon of that value
+			// group is checked anymore - otherwise the amount lingers in the UI/state
+			// with no addon left to attach it to. INSURANCE and INSURANCE_CARGO share one
+			// input (see VALUE_CATEGORY_GROUPS.INSURANCE), so only clear it when BOTH are
+			// unchecked, not just the one that changed. DECLARED_VALUE is excluded - its
+			// value can be legitimately required by customs even with no addon selected
+			// (see renderAddonsList's requiredByGk handling).
+			if (!isChecked) {
+				const valueGroupKey = Object.keys(VALUE_CATEGORY_GROUPS).find(function(gk) {
+					return gk !== 'DECLARED_VALUE' && VALUE_CATEGORY_GROUPS[gk].categories.indexOf(category) !== -1;
+				});
+				if (valueGroupKey) {
+					const valueGroup = VALUE_CATEGORY_GROUPS[valueGroupKey];
+					const stillChecked = valueGroup.categories.some(function(cat) {
+						return $('.addon-checkbox[data-category="' + cat + '"]:checked').length > 0;
+					});
+					if (!stillChecked) {
+						$('#' + valueGroup.inputId).val('');
+						const stateField = VALUE_GROUP_STATE_FIELD[valueGroupKey];
+						if (stateField && GK.state.additionalInfo) { GK.state.additionalInfo[stateField] = ''; }
+						// The field is genuinely empty again now - let a future COD amount
+						// entry auto-fill it once more instead of staying permanently stuck
+						// from an earlier manual edit.
+						if (valueGroupKey === 'INSURANCE') { GK.state.insuranceAmountManuallyEdited = false; }
+						// Re-run the filter now that the input is empty - it empties the
+						// rendered tier checkboxes for this group AND purges their ids from
+						// GK.state.serviceOptions (purgeUnrendered), so nothing stale is left
+						// either visible or sitting in state ready to be resubmitted.
+						applyValueRangeFilter(valueGroupKey);
+					}
+				}
+			}
+
 			// ORDERED_COURIER and PAID_PICKUP are mutually exclusive
 			const pickupMethodPair = ['ORDERED_COURIER', 'PAID_PICKUP'];
 			if (isChecked && pickupMethodPair.indexOf(category) !== -1) {
@@ -4135,14 +4202,18 @@ function renderServicesAndBind() {
 
 			// COD must be insured: auto-fill the insurance amount (from the COD amount
 			// itself, the money actually at risk) and let applyValueRangeFilter pick the
-			// cheapest matching INSURANCE tier - but only when the merchant hasn't
-			// already entered/kept an insurance value of their own, so this doesn't
-			// clobber a manual choice.
+			// cheapest matching INSURANCE tier - but only when the merchant hasn't typed
+			// into the insurance field themselves. Confirmed against shoper's own
+			// COD->insurance cascade: gating this on "insurance is currently empty"
+			// (the old check) broke on the very first keystroke of the COD amount -
+			// typing "500" fires this on every digit, so as soon as insurance got set
+			// to "5" from the first keystroke it was no longer empty, and the rest of
+			// "00" never made it in. A manually-edited flag (like shoper's
+			// insuranceValueManuallyEdited) keeps syncing on every keystroke instead.
 			if (isChecked && category === 'CASH_ON_DELIVERY') {
 				const $insuranceInput = $('#insuranceAmountInput');
-				const currentInsuranceVal = parseFloat((($insuranceInput.val() || '') + '').replace(',', '.'));
 				const codAmount = GK.state.additionalInfo && GK.state.additionalInfo.codAmount;
-				if ((!currentInsuranceVal || currentInsuranceVal <= 0) && codAmount) {
+				if (!GK.state.insuranceAmountManuallyEdited && codAmount) {
 					$insuranceInput.val(codAmount);
 					if (!GK.state.additionalInfo) GK.state.additionalInfo = {};
 					GK.state.additionalInfo.insuranceAmount = codAmount;
