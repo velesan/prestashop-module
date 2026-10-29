@@ -41,6 +41,7 @@ $sql[] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'gk_orders` (
    `cod` float,
    `payment` varchar(255) NOT NULL,
    `tracking_number` varchar(255) NULL,
+   `has_customs` tinyint(1) NULL DEFAULT NULL,
    PRIMARY KEY  (`gk_id`)
    ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8';
 

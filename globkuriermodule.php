@@ -55,7 +55,7 @@ class Globkuriermodule extends Module
     {
         $this->name = 'globkuriermodule';
         $this->tab = 'shipping_logistics';
-        $this->version = '3.5.0';
+        $this->version = '3.6.0';
         $this->author = 'GlobKurier.pl';
         $this->need_instance = 0;
         $this->bootstrap = true;
@@ -609,6 +609,7 @@ class Globkuriermodule extends Module
             'orders' => $gkOrder,
             'moduleApiUrl' => $this->link->getAdminLink('AdminGlobkurierHistory'),
             'newParcelPageLink' => $newParcelPageLink,
+            'gkTradeDocsI18nTpl' => _PS_MODULE_DIR_ . 'globkuriermodule/views/templates/admin/trade_documents_i18n.tpl',
         ]);
 
         if (version_compare(_PS_VERSION_, '8.0.0', '>=') === true) {
@@ -1067,6 +1068,29 @@ class Globkuriermodule extends Module
         $this->context->controller->addCSS(
             $this->_path . 'views/css/back.css?v=' . (@filemtime($backCssFile) ?: $this->version),
             'all'
+        );
+
+        // The PS order page lists this order's GK shipments (displayAdminOrderMainBottom)
+        // with a "Documents" button that needs the shared customs documents component.
+        $controllerName = isset($this->context->controller->controller_name)
+            ? $this->context->controller->controller_name
+            : Tools::getValue('controller');
+        if ($controllerName === 'AdminOrders') {
+            $this->addTradeDocumentsAssets($this->context->controller);
+        }
+    }
+
+    /**
+     * Adds the shared customs (trade) documents component, used on the shipment
+     * success screen, in the shipment history and on the PS order page.
+     *
+     * @param Controller $controller
+     */
+    public function addTradeDocumentsAssets($controller)
+    {
+        $jsFile = _PS_MODULE_DIR_ . 'globkuriermodule/views/js/tradeDocuments.jquery.js';
+        $controller->addJS(
+            $this->_path . 'views/js/tradeDocuments.jquery.js?v=' . (@filemtime($jsFile) ?: $this->version)
         );
     }
 

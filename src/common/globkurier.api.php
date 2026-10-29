@@ -399,6 +399,144 @@ class GlobkurierApi
         return $this->sendJSONRequest($url, $this->token, [], 'GET');
     }
 
+    /**
+     * GET /order/tradeDocument/manifest — uploaded documents plus the document types
+     * this carrier/route accepts (typeList) and requires (typeRequiredGroups).
+     *
+     * @param string $hash GK order hash
+     * @param string $lang accept-language for GK messages
+     *
+     * @return array see request()
+     */
+    public function getTradeDocumentManifest($hash, $lang = 'pl')
+    {
+        return $this->request('GET', 'order/tradeDocument/manifest', ['hash' => $hash], null, $lang);
+    }
+
+    /**
+     * POST /order/tradeDocument — GK answers 201 with an empty body.
+     *
+     * @param string $hash GK order hash
+     * @param string $content base64-encoded PDF
+     * @param string $name file name (^[A-Za-z0-9_.\-() ]+$, ends with .pdf)
+     * @param string $description document description (max 256 chars)
+     * @param string $type one of the manifest typeList values
+     * @param string $lang accept-language for GK messages
+     *
+     * @return array see request()
+     */
+    public function uploadTradeDocument($hash, $content, $name, $description, $type, $lang = 'pl')
+    {
+        return $this->request('POST', 'order/tradeDocument', [], [
+            'hash' => $hash,
+            'content' => $content,
+            'name' => $name,
+            'description' => $description,
+            'type' => $type,
+        ], $lang);
+    }
+
+    /**
+     * GET /order/tradeDocument — raw PDF bytes in the response body.
+     *
+     * @return array see request()
+     */
+    public function downloadTradeDocument($hash, $name, $lang = 'pl')
+    {
+        return $this->request('GET', 'order/tradeDocument', ['hash' => $hash, 'name' => $name], null, $lang);
+    }
+
+    /**
+     * DELETE /order/tradeDocument — GK answers 204 (no body); rejected once synced.
+     *
+     * @return array see request()
+     */
+    public function deleteTradeDocument($hash, $name, $lang = 'pl')
+    {
+        return $this->request('DELETE', 'order/tradeDocument', ['hash' => $hash, 'name' => $name], null, $lang);
+    }
+
+    /**
+     * POST /order/tradeDocument/sync — sends unsynced documents to the carrier
+     * (only accepted while the shipment is IN_PROGRESS or IN_TRANSIT).
+     *
+     * @return array see request()
+     */
+    public function syncTradeDocuments($hash, $lang = 'pl')
+    {
+        return $this->request('POST', 'order/tradeDocument/sync', [], ['hash' => $hash], $lang);
+    }
+
+    /**
+     * Low-level authorized call that never throws on HTTP errors, so callers can
+     * handle GK's 201/204/4xx codes themselves. Logs in when there is no token yet
+     * and retries once with a fresh token on 401/403 (tokens can be briefly
+     * rejected when several requests start at the same time).
+     *
+     * @param string $method HTTP method
+     * @param string $path path relative to the API base, e.g. "order/tradeDocument"
+     * @param array $query query string parameters
+     * @param array|null $body JSON body
+     * @param string $lang accept-language for GK messages
+     *
+     * @return array ['code' => int, 'body' => string, 'json' => mixed, 'contentType' => string]
+     *
+     * @throws \Exception when the login itself fails or the request cannot be sent
+     */
+    public function request($method, $path, array $query = [], $body = null, $lang = 'pl')
+    {
+        if (!$this->token) {
+            $this->login();
+        }
+
+        $response = $this->sendRawRequest($method, $path, $query, $body, $lang);
+        if (in_array($response['code'], [401, 403], true) && $this->login && $this->password) {
+            $this->login();
+            $response = $this->sendRawRequest($method, $path, $query, $body, $lang);
+        }
+
+        return $response;
+    }
+
+    private function sendRawRequest($method, $path, array $query, $body, $lang)
+    {
+        $url = $this->baseApiUrl . $path . ($query ? ('?' . http_build_query($query)) : '');
+        $headers = [
+            'x-auth-token: ' . $this->token,
+            'accept-language: ' . ($lang === 'pl' ? 'pl' : 'en'),
+        ];
+
+        $curl = curl_init($url);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($curl, CURLOPT_CUSTOMREQUEST, $method);
+        curl_setopt($curl, CURLOPT_TIMEOUT, 60);
+        if ($body !== null) {
+            $jsonData = json_encode($body);
+            curl_setopt($curl, CURLOPT_POSTFIELDS, $jsonData);
+            $headers[] = 'Content-Type: application/json';
+            $headers[] = 'Content-Length: ' . strlen($jsonData);
+        }
+        curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
+
+        $result = curl_exec($curl);
+        if ($result === false) {
+            $error = curl_error($curl) . ' (' . curl_errno($curl) . ')';
+            curl_close($curl);
+            Logger::error('GK request ' . $method . ' ' . $path . ' failed: ' . $error);
+
+            throw new \Exception('GlobKurier API request failed: ' . $error);
+        }
+        $info = curl_getinfo($curl);
+        curl_close($curl);
+
+        return [
+            'code' => (int) $info['http_code'],
+            'body' => (string) $result,
+            'json' => json_decode($result, true),
+            'contentType' => isset($info['content_type']) ? (string) $info['content_type'] : '',
+        ];
+    }
+
     public function getLabel($token, $hash)
     {
         $curl = curl_init();

@@ -62,4 +62,7 @@ class OrderModel
 
     /** @var string|null tracking number stored in ps_order_carrier (PS order) */
     public $psTrackingNumber;
+
+    /** @var bool|null whether the shipment was placed with a customs declaration; null = unknown (placed before 3.6.0) */
+    public $hasCustoms;
 }

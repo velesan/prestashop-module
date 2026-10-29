@@ -189,6 +189,17 @@ function showOrderPlaced(order) {
 		}
 
 		$('#downloadLabelBtn').toggle(!!(order && order.hash));
+
+		// Customs documents can only be attached to an existing shipment (the GK
+		// manifest needs its hash) - offer them right here, on the success screen.
+		const $docs = $('#orderPlacedTradeDocs');
+		const tradeDocsUrl = window.InitialValues && window.InitialValues.tradeDocsUrl;
+		if (order && order.hash && order.hasCustoms && tradeDocsUrl && window.GKTradeDocs) {
+			$docs.show();
+			window.GKTradeDocs.mount($docs[0], { url: tradeDocsUrl, hash: order.hash, showNotRequired: true });
+		} else {
+			$docs.hide().empty();
+		}
 	}
 
 	let _trackingPollTimer = null;
@@ -1002,14 +1013,15 @@ function showOrderErrors(obj) {
 					carrier: GK.state.pickedService ? (GK.state.pickedService.carrierName + ' - ' + GK.state.pickedService.name) : '',
 					comments: '',
 					cod: GK.state.additionalInfo && GK.state.additionalInfo.codAmount ? GK.state.additionalInfo.codAmount : 0,
-					payment: GK.state.additionalInfo && GK.state.additionalInfo.paymentType
+					payment: GK.state.additionalInfo && GK.state.additionalInfo.paymentType,
+					hasCustoms: !!createData.customs
 				};
 				const gkId = resp.number;
 				const gkHash = resp.hash || '';
 				const url = moduleApiUrl + '&ajax=1&action=addNewGlobOrder&data=' + encodeURIComponent(JSON.stringify(dataToSend));
 				return fetch(url).then(function(r){ return r.json(); }).then(function(saved){
 					const trackingFromPs = saved && saved.trackingNumber ? saved.trackingNumber : null;
-					showOrderPlaced({ gkId: gkId, hash: gkHash, trackingNumber: trackingFromPs });
+					showOrderPlaced({ gkId: gkId, hash: gkHash, trackingNumber: trackingFromPs, hasCustoms: dataToSend.hasCustoms });
 					if (!trackingFromPs && gkHash) {
 						startTrackingPoll(gkId, gkHash, moduleApiUrl);
 					}

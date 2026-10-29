@@ -1,3 +1,7 @@
+## [3.6.0] - 2026-10-19
++ Customs documents (GLOBKURIER-10216): attach PDF documents (max 5 MB) to an already placed customs shipment - right on the success screen after placing it, in the shipment history and on the PrestaShop order page. Only the document types the carrier requires, with readable names (DHL Express, FedEx, UPS, Raben); delete not-yet-sent documents; send them to the carrier, with the reason shown when that is not possible yet
++ Shipments placed with a customs declaration are flagged (new nullable gk_orders.has_customs column); the "Documents" button is shown only for them
+
 ## [3.5.0] - 2026-09-18
 + Customs declaration form for international shipments: generic renderer driven entirely by GlobKurier's own /customs/config field metadata (sections, dual-language description/composition/purpose, commodities, EORI, invoice details)
 + Estimated customs duty/fees preview before placing the order, reused across order pricing and order creation
