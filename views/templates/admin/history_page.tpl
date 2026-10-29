@@ -67,6 +67,7 @@
                 <th>{l s='Weight' mod='globkuriermodule'}</th>
                 <th>{l s='Payment' mod='globkuriermodule'}</th>
                 <th>{l s='Label' mod='globkuriermodule'}</th>
+                <th>{l s='Customs documents' mod='globkuriermodule'}</th>
                 <th>#</th>
             </tr>
         </thead>
@@ -125,6 +126,18 @@
                     {/if}
                 </td>
                 <td>
+                    {* Only shipments placed with a customs declaration (has_customs set at placement since 3.6.0) *}
+                    {if $order->hash && $order->hasCustoms}
+                        <button type="button" class="btn btn-default btn-xs gk-trade-docs-toggle"
+                            data-hash="{$order->hash|escape:'htmlall':'UTF-8'}"
+                            data-url="{$moduleApiUrl|escape:'htmlall':'UTF-8'}">
+                            {l s='Documents' mod='globkuriermodule'}
+                        </button>
+                    {else}
+                        <span class="gk-no-tracking">—</span>
+                    {/if}
+                </td>
+                <td>
                     <form class="track-button" id="track{$order->gkId|escape:'htmlall':'UTF-8'}" action="https://www.globkurier.pl/shipment-tracking/{$order->gkId|escape:'htmlall':'UTF-8'}" target="_blank" method="get">
                         <a href onclick="$('#track{$order->gkId|escape:'htmlall':'UTF-8'}').submit(); return false;" title="{l s='Tracking shipment' mod='globkuriermodule'}">
                             <i class="icon-search"></i>
@@ -169,6 +182,8 @@
     </div>
     {/if}
 </div>
+
+{include file=$gkTradeDocsI18nTpl}
 
 <script type="text/javascript">
 (function($){

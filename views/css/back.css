@@ -737,3 +737,139 @@ body[class*="controller-adminglobkurier"] h4.modal-title span.closeModal {
         margin-top: 16px;
     }
 }
+
+/* ── Customs (trade) documents panel - views/js/tradeDocuments.jquery.js ──
+   Own classes instead of Bootstrap labels/alerts: the same panel renders on
+   Bootstrap 3 (PS 1.6/1.7) and Bootstrap 4 (PS 8/9 order page) admin pages. */
+.gk-td-panel {
+    padding: 12px 14px;
+    background: #fafbfc;
+    border: 1px solid #e5e5e5;
+    border-radius: 4px;
+    text-align: left;
+}
+.gk-td-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+.gk-td-heading {
+    font-size: 14px;
+}
+.gk-td-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.gk-td-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    background: #e9ecef;
+    color: #444;
+}
+.gk-td-badge--success { background: #dff0d8; color: #2d6a2d; }
+.gk-td-badge--warning { background: #fcf3dc; color: #8a6d3b; }
+.gk-td-badge--danger  { background: #f8d7da; color: #a94442; }
+.gk-td-muted {
+    color: #777;
+    font-size: 12px;
+}
+.gk-td-alert {
+    margin: 8px 0;
+    padding: 8px 12px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    font-size: 13px;
+}
+.gk-td-alert--info    { background: #e8f4fa; border-color: #bce8f1; color: #31708f; }
+.gk-td-alert--success { background: #dff0d8; border-color: #d6e9c6; color: #2d6a2d; }
+.gk-td-alert--warning { background: #fcf8e3; border-color: #faebcc; color: #8a6d3b; }
+.gk-td-alert--danger  { background: #f2dede; border-color: #ebccd1; color: #a94442; }
+.gk-td-required ul {
+    margin: 4px 0 8px;
+    padding-left: 18px;
+}
+.gk-td-required .gk-td-covered { color: #2d6a2d; }
+.gk-td-required .gk-td-missing { color: #a94442; }
+.gk-td-step {
+    margin: 12px 0 6px;
+}
+.gk-td-file-label {
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 0;
+    cursor: pointer;
+}
+.gk-td-file-label input[type="file"] {
+    position: absolute;
+    top: 0;
+    left: 0;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+}
+.gk-td-staged {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px;
+    margin-top: 8px;
+    padding: 8px 10px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+.gk-td-staged--error {
+    border-color: #e74c3c;
+}
+.gk-td-staged-file {
+    flex: 1 1 180px;
+    align-self: center;
+    word-break: break-all;
+}
+.gk-td-staged-field {
+    flex: 1 1 160px;
+}
+.gk-td-staged-field--wide {
+    flex: 2 1 220px;
+}
+.gk-td-staged-field label {
+    display: block;
+    margin-bottom: 2px;
+    font-size: 12px;
+}
+.gk-td-staged-remove {
+    font-size: 20px;
+    line-height: 1;
+    color: #a94442;
+}
+.gk-td-field-error {
+    flex-basis: 100%;
+    color: #a94442;
+    font-size: 12px;
+}
+.gk-td-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 10px;
+}
+.gk-td-actions--end {
+    justify-content: flex-end;
+}
+.gk-td-table {
+    background: #fff;
+    margin-bottom: 6px;
+}
+.gk-td-row-actions {
+    white-space: nowrap;
+}

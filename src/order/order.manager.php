@@ -123,6 +123,33 @@ class OrderManager
     }
 
     /**
+     * Returns an order object by GlobKurier order hash, or null when the hash
+     * does not belong to any shipment placed from this shop.
+     *
+     * @param string $hash GK order hash
+     *
+     * @return OrderModel|null
+     */
+    public function getByHash($hash)
+    {
+        if (!is_string($hash) || $hash === '') {
+            return null;
+        }
+
+        $row = \Db::getInstance()->getRow(
+            'SELECT * FROM ' . _DB_PREFIX_ . 'gk_orders WHERE hash = "' . pSQL($hash) . '"'
+        );
+        if (!$row) {
+            return null;
+        }
+
+        $order = new OrderModel();
+        $this->assignMySqlDataToOrder($row, $order);
+
+        return $order;
+    }
+
+    /**
      * Creates a new order and inserts it into the database
      *
      * @param $orderToCreate - the order object to be created
@@ -147,7 +174,8 @@ class OrderManager
             'comments' => pSQL($orderToCreate->comments),
             'cod' => (float) $orderToCreate->cod,
             'payment' => pSQL($orderToCreate->payment),
-        ]);
+            'has_customs' => $orderToCreate->hasCustoms === null ? null : (int) (bool) $orderToCreate->hasCustoms,
+        ], true);
 
         if (!$results) {
             return false;
@@ -295,6 +323,8 @@ class OrderManager
         $order->trackingNumber = !empty($mysqlData['tracking_number']) ? $mysqlData['tracking_number'] : null;
         $order->psTrackingNumber = isset($mysqlData['oc_tracking_number']) && $mysqlData['oc_tracking_number'] !== ''
             ? $mysqlData['oc_tracking_number'] : null;
+        $order->hasCustoms = isset($mysqlData['has_customs']) && $mysqlData['has_customs'] !== null
+            ? (bool) $mysqlData['has_customs'] : null;
     }
 
     private function translatePaymentName($paymentCode)

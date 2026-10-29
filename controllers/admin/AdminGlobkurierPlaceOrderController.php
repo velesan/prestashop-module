@@ -63,6 +63,7 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
         $this->context->controller->addJS(
             $this->path . '/views/js/newParcelApp.jquery.js?v=' . (@filemtime($newParcelJsFile) ?: 1)
         );
+        $this->module->addTradeDocumentsAssets($this->context->controller);
 
         if (!empty($c->defaultCountryCode)) {
             $sender_country_id = Country::getByIso($c->defaultCountryCode);
@@ -91,6 +92,8 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
             // HEX flags neutralize <, >, ', ", & so this is safe to output as-is inside
             // a script tag in the template, without disabling Smarty's escaping there.
             'gk_all_templates_json' => json_encode($allTemplatesArr, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP),
+            'gkTradeDocsI18nTpl' => _PS_MODULE_DIR_ . 'globkuriermodule/views/templates/admin/trade_documents_i18n.tpl',
+            'gkTradeDocsUrl' => $this->link->getAdminLink('AdminGlobkurierHistory'),
         ]);
 
         if (Tools::getValue('order_id')) {
@@ -428,6 +431,7 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
                 $api = new Globkuriermodule\Common\GlobkurierApi($c->login, $c->password, $c->apiKey, $gkApiEnv);
                 $api->login();
                 $response = $api->getOrder($order->hash, $order->gkId);
+        $order->hasCustoms = !empty($decode['hasCustoms']);
                 $tn = isset($response['trackingNumber']) ? $response['trackingNumber'] : null;
                 if ($tn !== null) {
                     $om->updateTrackingNumber($order->gkId, $tn);

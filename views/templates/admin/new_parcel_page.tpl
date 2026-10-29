@@ -108,6 +108,10 @@
             <button class="btn btn-warning" onclick="location.reload();">{l s='Ship next' mod='globkuriermodule'}</button>
             <button class="btn btn-primary" id="downloadLabelBtn" style="display:none; margin-left:8px;">Pobierz etykietę</button>
         </div>
+        {* Customs documents for the shipment just placed - mounted by showOrderPlaced() only for customs shipments *}
+        <div class="col-lg-12">
+            <div class="gk-td-panel" id="orderPlacedTradeDocs" style="display:none; margin:20px auto 0; max-width:960px;"></div>
+        </div>
     </div>
     <div class="panel-body" id="mainFormBox">
         <div class="col-lg-4">
@@ -609,6 +613,8 @@
         let package = [];
         let urlRedirect = '{$urlRedirect|escape:'javascript':'UTF-8'}';
 
+    {include file=$gkTradeDocsI18nTpl}
+
         window.InitialValues = {
             sender : {
                 name: '{$config->defaultSenderName|escape:'javascript':'UTF-8'}',
@@ -684,6 +690,7 @@
             todayDate : '{date("Y-m-d")|escape:'javascript':'UTF-8'}',
             terminalCode : {if isset($terminalCode)}'{$terminalCode|escape:'javascript':'UTF-8'}'{else}null{/if},
             terminalType : {if isset($terminalType)}'{$terminalType|escape:'javascript':'UTF-8'}'{else}null{/if},
+            tradeDocsUrl : '{$gkTradeDocsUrl|escape:'javascript':'UTF-8'}',
             terminalType2 : {if isset($terminalType)}'{$terminalType|escape:'javascript':'UTF-8'}'{else}'none'{/if},
             defaultInPostPoint : {if $config->defaultInPostPoint}'{$config->defaultInPostPoint|escape:'javascript':'UTF-8'}'{else}null{/if},
             prestaOrderId : '{$orderId|escape:'javascript':'UTF-8'}',

@@ -97,6 +97,14 @@
                             <a id="gk_{$order->gkId|escape:'htmlall':'UTF-8'}" href="/module/globkuriermodule/getLabel?hash={$order->hash|escape:'url':'UTF-8'}" data-pdf="{$order->pdf|escape:'htmlall':'UTF-8'}" onclick="return getLabel($(this));" data-id="{$order->gkId|escape:'htmlall':'UTF-8'}" data-hash="{$order->hash|escape:'url':'UTF-8'}" class="getLabel" target="_blank" title="{l s='Download label' mod='globkuriermodule'}">
                                 <i class="material-icons">note</i>
                             </a>
+                            {if $order->hash && $order->hasCustoms}
+                                <button type="button" class="btn btn-default btn-outline-secondary btn-sm gk-trade-docs-toggle"
+                                    data-hash="{$order->hash|escape:'htmlall':'UTF-8'}"
+                                    data-url="{$moduleApiUrl|escape:'htmlall':'UTF-8'}"
+                                    title="{l s='Customs documents' mod='globkuriermodule'}">
+                                    {l s='Documents' mod='globkuriermodule'}
+                                </button>
+                            {/if}
                             <form class="track-button" id="track{$order->gkId|escape:'htmlall':'UTF-8'}" action="https://www.globkurier.pl/shipment-tracking/{$order->gkId|escape:'htmlall':'UTF-8'}" target="_blank" method="get">
                                 <a href onclick="$('#track{$order->gkId|escape:'htmlall':'UTF-8'}').submit(); return false;" title="{l s='Track shipment' mod='globkuriermodule'}">
                                     <i class="material-icons">local_shipping</i>
@@ -133,6 +141,8 @@
         </div>
     </div>
 </div>
+
+{include file=$gkTradeDocsI18nTpl}
 
 {literal}
     <script type="text/javascript">
