@@ -873,3 +873,505 @@ body[class*="controller-adminglobkurier"] h4.modal-title span.closeModal {
 .gk-td-row-actions {
     white-space: nowrap;
 }
+
+/* ── Shipment parameters summary + offer list (views/js/newParcelApp.jquery.js, renderOffers()) ──
+   Laid out like GK's own search page; every block wraps instead of overflowing, so it works
+   both in the wide browsing column (col-lg-8) and in the narrow one after picking (col-lg-4). */
+#mainFormBox .gk-shipment-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 24px;
+    padding: 14px 18px;
+    border: 1px solid #e3e8ee;
+    border-radius: 10px;
+    background: #f6f8fa;
+    color: #1e3042;
+}
+#mainFormBox .gk-shipment-summary-list {
+    display: flex;
+    flex: 1 1 260px;
+    flex-wrap: wrap;
+    gap: 10px 0;
+    min-width: 0;
+    margin: 0;
+}
+#mainFormBox .gk-shipment-summary-item {
+    flex: 1 1 140px;
+    min-width: 0;
+    padding: 0 16px;
+    border-left: 1px solid #dfe5ec;
+}
+#mainFormBox .gk-shipment-summary-item:first-child {
+    padding-left: 0;
+    border-left: 0;
+}
+#mainFormBox .gk-shipment-summary-item dt {
+    margin: 0 0 2px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #6c7a89;
+}
+#mainFormBox .gk-shipment-summary-item dd {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+#mainFormBox .gk-shipment-summary-edit {
+    min-height: 44px;
+    margin-left: auto;
+    padding: 0 16px;
+    border: 1px solid #d5dde5;
+    border-radius: 8px;
+    background: #fff;
+    color: #1e3042;
+    font-weight: 700;
+    white-space: nowrap;
+}
+#mainFormBox .gk-shipment-summary-edit:hover {
+    border-color: #1e3042;
+}
+#mainFormBox .gk-shipment-summary-edit:focus-visible {
+    outline: 2px solid #25b9d7;
+    outline-offset: 2px;
+}
+#mainFormBox .gk-template-picker {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 12px;
+    margin-bottom: 14px;
+}
+#mainFormBox .gk-template-picker label {
+    margin: 0;
+    font-weight: 600;
+}
+#mainFormBox .gk-template-picker select {
+    flex: 1 1 200px;
+    min-width: 0;
+    width: auto;
+}
+#mainFormBox .gk-shipment-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+#mainFormBox .gk-chosen-service {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+#mainFormBox .gk-chosen-service-logo {
+    flex: 0 0 auto;
+    width: 56px;
+    height: 56px;
+    object-fit: contain;
+}
+#mainFormBox .gk-chosen-service-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+#mainFormBox .gk-offers {
+    margin-bottom: 20px;
+}
+#mainFormBox .gk-offers-loading {
+    padding: 24px;
+    text-align: center;
+    color: #6c7a89;
+}
+#mainFormBox .gk-offers-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 24px;
+}
+#mainFormBox .gk-offers-filters .gk-offers-filter {
+    flex: 1 1 260px;
+}
+#mainFormBox .gk-offers-filter {
+    min-width: 0;
+    margin-bottom: 14px;
+}
+#mainFormBox .gk-offers-filter-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #6c7a89;
+}
+#mainFormBox .gk-segmented {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid #d5dde5;
+    border-radius: 8px;
+    background: #fff;
+}
+#mainFormBox .gk-segmented-btn {
+    flex: 1 1 auto;
+    min-height: 38px;
+    padding: 4px 12px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #6c7a89;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.3;
+}
+#mainFormBox .gk-segmented-btn:hover {
+    background: rgba(30, 48, 66, 0.06);
+}
+#mainFormBox .gk-segmented-btn.is-active {
+    background: #1e3042;
+    color: #fff;
+}
+#mainFormBox .gk-segmented-btn:focus-visible,
+#mainFormBox .gk-carrier-tile:focus-visible,
+#mainFormBox .gk-offer-toggle:focus-visible,
+#mainFormBox .gk-offers-more-btn:focus-visible {
+    outline: 2px solid #25b9d7;
+    outline-offset: 2px;
+}
+#mainFormBox .gk-carrier-tiles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+#mainFormBox .gk-carrier-tile {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 72px;
+    padding: 6px;
+    border: 1px solid #d5dde5;
+    border-radius: 8px;
+    background: #fff;
+}
+#mainFormBox .gk-carrier-tile img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+#mainFormBox .gk-carrier-tile.is-active {
+    border: 3px solid #1e3042;
+    padding: 4px;
+}
+#mainFormBox .gk-carrier-tile-all {
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #1e3042;
+}
+/* "All carriers" tile sized to its text instead of breaking the word */
+#mainFormBox .gk-carrier-tile[data-value="ALL"] {
+    width: auto;
+    min-width: 72px;
+    padding-left: 12px;
+    padding-right: 12px;
+}
+#mainFormBox .gk-offers-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+    margin: 6px 0 14px;
+}
+#mainFormBox .gk-offers-title {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font-size: 20px;
+    font-weight: 800;
+    color: #1e3042;
+    text-transform: none;
+}
+#mainFormBox .gk-offers-rule {
+    flex: 1 1 16px;
+    height: 1px;
+    background: #d5dde5;
+}
+#mainFormBox .gk-offers-header .gk-offers-filter {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    margin: 0;
+}
+#mainFormBox .gk-offers-header .gk-offers-filter-label {
+    display: inline;
+    margin: 0;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+}
+#mainFormBox .gk-offers-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+#mainFormBox .gk-offers-list > li {
+    margin: 0 0 16px;
+}
+#mainFormBox .gk-offer {
+    position: relative;
+    padding: 20px 16px 16px;
+    border: 1px solid #d5dde5;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(30, 48, 66, 0.06);
+}
+#mainFormBox .gk-offer--recommended { background: #f5f9ec; }
+#mainFormBox .gk-offer--new { background: #f2f9fd; }
+#mainFormBox .gk-offer--scheduled { background: #fffaeb; }
+#mainFormBox .gk-offer--crossborder { background: #f6f3fd; }
+#mainFormBox .gk-offer--neutral { background: #f8f9fa; }
+#mainFormBox .gk-offer.gk-template-match {
+    border-color: #1db3d4;
+    box-shadow: 0 0 0 2px rgba(29, 179, 212, 0.25);
+}
+#mainFormBox .gk-offer-template-badge {
+    border-radius: 8px 0 6px 0;
+}
+#mainFormBox .gk-offer-ribbon {
+    position: absolute;
+    top: -11px;
+    right: -5px;
+    max-width: calc(100% - 32px);
+    overflow: hidden;
+    padding: 4px 12px 4px 16px;
+    border-radius: 2px 2px 0 2px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 16px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    background: #1e3042;
+    color: #fff;
+}
+#mainFormBox .gk-offer-ribbon--recommended { background: #96c21f; color: #1e3042; }
+#mainFormBox .gk-offer-ribbon--new { background: #0369a1; }
+#mainFormBox .gk-offer-ribbon--scheduled { background: #fde68a; color: #451a03; }
+#mainFormBox .gk-offer-ribbon--crossborder { background: #6d28d9; }
+#mainFormBox .gk-offer-grid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px 20px;
+}
+#mainFormBox .gk-offer-identity {
+    display: flex;
+    flex: 10 1 260px;
+    align-items: flex-start;
+    gap: 12px;
+    min-width: 0;
+}
+#mainFormBox .gk-offer-logo {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 72px;
+    overflow: hidden;
+    border: 1px solid #e3e8ee;
+    border-radius: 8px;
+    background: #fff;
+}
+#mainFormBox .gk-offer-logo img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+#mainFormBox .gk-offer-info {
+    min-width: 0;
+}
+#mainFormBox .gk-offer-info p {
+    margin: 0;
+}
+#mainFormBox .gk-offer-name {
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 1.35;
+    color: #1e3042;
+    overflow-wrap: anywhere;
+}
+#mainFormBox .gk-offer-carrier {
+    margin-top: 2px;
+    font-size: 13px;
+    color: #4b596d;
+}
+#mainFormBox .gk-offer-delivery {
+    margin-top: 6px;
+    font-size: 13px;
+    color: #6c7a89;
+}
+#mainFormBox .gk-offer-delivery strong {
+    color: #1e3042;
+}
+#mainFormBox .gk-offer-fulfilment {
+    display: flex;
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+#mainFormBox .gk-offer-fulfilment-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #eef2f6;
+    color: #1e3042;
+    font-weight: 700;
+}
+/* GK's icons are green on its CDN - tinted navy as on GK's own search page */
+#mainFormBox .gk-offer-fulfilment-icon img {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+    filter: brightness(0) saturate(100%) invert(14%) sepia(18%) saturate(1500%) hue-rotate(175deg) brightness(95%) contrast(92%);
+}
+#mainFormBox .gk-offer-fulfilment-arrow {
+    color: #6c7a89;
+}
+#mainFormBox .gk-offer-buy {
+    display: flex;
+    flex: 1 1 240px;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px 16px;
+}
+#mainFormBox .gk-offer-price {
+    text-align: right;
+}
+#mainFormBox .gk-offer-price p {
+    margin: 0;
+}
+#mainFormBox .gk-offer-gross {
+    font-size: 22px;
+    font-weight: 800;
+    line-height: 1.2;
+    color: #1e3042;
+    white-space: nowrap;
+}
+#mainFormBox .gk-offer-gross span {
+    font-size: 13px;
+    font-weight: 400;
+    color: #6c7a89;
+}
+#mainFormBox .gk-offer-net {
+    margin-top: 2px;
+    font-size: 13px;
+    color: #6c7a89;
+    white-space: nowrap;
+}
+#mainFormBox .gk-offer-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+#mainFormBox .btn.gk-offer-select {
+    min-height: 44px;
+    padding: 8px 16px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+#mainFormBox .gk-offer-toggle {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 2px solid #d5dde5;
+    border-radius: 6px;
+    background: #fff;
+    color: #6c7a89;
+}
+#mainFormBox .gk-offer-toggle svg {
+    transition: transform 0.2s ease;
+}
+#mainFormBox .gk-offer-toggle.is-open svg {
+    transform: rotate(180deg);
+}
+#mainFormBox .gk-offer-details {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid #e3e8ee;
+    font-size: 13px;
+    color: #4b596d;
+}
+#mainFormBox .gk-offer-details[hidden] {
+    display: none;
+}
+#mainFormBox .gk-offer-details ul {
+    margin: 0 0 8px;
+    padding-left: 18px;
+}
+#mainFormBox .gk-offer-details p {
+    margin: 4px 0 0;
+}
+#mainFormBox .gk-offers-more {
+    text-align: center;
+}
+#mainFormBox .gk-offers-more-btn {
+    min-height: 44px;
+    padding: 8px 20px;
+    border: 2px solid #96c21f;
+    border-radius: 6px;
+    background: #fff;
+    color: #79a600;
+    font-weight: 700;
+}
+#mainFormBox .gk-offers-more-btn:hover {
+    background: rgba(150, 194, 31, 0.1);
+}
+
+/* Phones: the summary button and the offer actions take the full width */
+@media (max-width: 480px) {
+    #mainFormBox .gk-shipment-summary-item {
+        flex-basis: 100%;
+        padding-left: 0;
+        border-left: 0;
+    }
+    #mainFormBox .gk-shipment-summary-edit {
+        width: 100%;
+        margin-left: 0;
+    }
+    #mainFormBox .gk-offer-buy {
+        justify-content: space-between;
+    }
+    #mainFormBox .gk-offer-price {
+        text-align: left;
+    }
+    #mainFormBox .gk-offer-actions {
+        flex: 1 1 100%;
+    }
+    #mainFormBox .btn.gk-offer-select {
+        flex: 1 1 auto;
+    }
+    #mainFormBox .gk-carrier-tile {
+        width: 60px;
+        height: 60px;
+    }
+    #mainFormBox .gk-carrier-tile[data-value="ALL"] {
+        min-width: 60px;
+    }
+    #mainFormBox .gk-segmented-btn {
+        flex-basis: 30%;
+    }
+}

@@ -46,8 +46,15 @@
 		orderSummary: null,
 		packageInfo: null,
 		availablePayments: [],
-		forModal: false,
-		forceShowAll: false,
+		// Offer picker (renderOffers()): the last GET /products list, whether it was
+		// asked for, its sort/filters, and whether the shipment details are being changed
+		offers: null,
+		offersRequested: false,
+		offersError: false,
+		offersSort: 'recommended',
+		offersFilter: { collection: 'ALL', delivery: 'ALL', carrier: 'ALL' },
+		offersExpanded: false,
+		shipmentEditing: false,
 		customsFields: [],
 		customsData: null,
 		orderHash: null,
@@ -1651,58 +1658,572 @@ function buildHeaders() {
 		return headers;
 	}
 
-function cardForProduct(product) {
-    const logo = product.carrierLogoLink ? '<img src="' + product.carrierLogoLink + '" alt="' + (product.carrierName || '') + '" />' : '';
-    const price = (product.netPrice != null) ? (product.netPrice + " " + product.currency) : '';
-    // Purely visual match against the active template's saved service — no
-    // fetching or side effects, just a state read (see applyTemplate() /
-    // initTemplateSelector()), so this carries none of the timing risk that
-    // auto-selecting the service on load did.
-    const isTemplateMatch = !!(GK.state._templateServiceId && (product.id + '') === (GK.state._templateServiceId + ''));
-    const iv = window.InitialValues || {};
-    const templateBadge = isTemplateMatch
-        ? '<span class="glob-template-badge" title="' + (iv.langFromTemplateTitle || '') + '">' +
-            '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H7a2 2 0 0 0-2 2v16l7-3 7 3V5a2 2 0 0 0-2-2z"/></svg> ' +
-            (iv.langFromTemplate || '') +
-        '</span>'
-        : '';
+// --- Offer picker (GET /products), laid out like GK's own search page ---------
+	// The offers are listed under the shipment parameters until one is picked;
+	// the parameters then turn into static data with "Change details", and every
+	// section that depends on the picked offer (addons, customs, summary) stays
+	// hidden until an offer is picked again after a change - a price or service
+	// quoted for other dimensions/weight is no longer valid for the shipment.
+	const OFFERS_COLLAPSED_COUNT = 6;
+	// GK sends the ribbon text only (`promo`), localized - the kinds GK's own
+	// search page styles differently (nuxt-app shared/utils/productPromo.ts)
+	const OFFER_PROMO_KINDS = {
+		'oferta rekomendowana': 'recommended',
+		'recommended offer': 'recommended',
+		'nowość': 'new',
+		'new': 'new',
+		'usługi terminowe': 'scheduled',
+		'scheduled services': 'scheduled',
+		'crossborder': 'crossborder'
+	};
 
-	return (
-		'<div class="col-lg-4 col-md-6 col-sm-6 glob-product-block text-center">' +
-			'<div class="glob-product-wrapper' + (isTemplateMatch ? ' gk-template-match' : '') + '">' +
-			templateBadge +
-			'<div class="glob-collectionTypes">' +
-				'<div class="glob-collectionType">' +
-				(product.collectionTypes || []).map(
-					function(type){ return '<span class="glob-collectionType-item glob-collectionType-item-' + type + '">' + type + '</span>'; }
-				).join('') + '</div>' +
+	function offerPromoKind(promo) {
+		if (typeof promo !== 'string' || !promo.trim()) return null;
+		return OFFER_PROMO_KINDS[promo.trim().replace(/\s+/g, ' ').toLowerCase()] || 'neutral';
+	}
+
+	function offerDeliveryDays(offer) {
+		const days = offer.averageDelivery;
+		return (typeof days === 'number' && isFinite(days) && days > 0) ? days : null;
+	}
+
+	function offerDaysOrInfinity(offer) {
+		const days = offerDeliveryDays(offer);
+		return days === null ? Infinity : days;
+	}
+
+	function compareOfferNumbers(left, right) {
+		return left === right ? 0 : (left < right ? -1 : 1);
+	}
+
+	// Sorting ported 1:1 from GK's search page (nuxt-app shared/utils/productHighlights.ts)
+	function offerByPrice(left, right) {
+		return compareOfferNumbers(left.grossPrice, right.grossPrice)
+			|| compareOfferNumbers(offerDaysOrInfinity(left), offerDaysOrInfinity(right));
+	}
+
+	function offerByDelivery(left, right) {
+		return compareOfferNumbers(offerDaysOrInfinity(left), offerDaysOrInfinity(right))
+			|| compareOfferNumbers(left.grossPrice, right.grossPrice);
+	}
+
+	// Minimizes price / speed (speed = 1 / delivery days), compared in log space
+	function offerByValue(left, right) {
+		const leftScore = Math.log(left.grossPrice) + Math.log(offerDeliveryDays(left));
+		const rightScore = Math.log(right.grossPrice) + Math.log(offerDeliveryDays(right));
+		if (isFinite(leftScore - rightScore) && Math.abs(leftScore - rightScore) < 1e-12) return offerByPrice(left, right);
+		return compareOfferNumbers(leftScore, rightScore) || offerByPrice(left, right);
+	}
+
+	function offerByRecommendation(left, right) {
+		const promo = Number(offerPromoKind(right.promo) === 'recommended') - Number(offerPromoKind(left.promo) === 'recommended');
+		if (promo) return promo;
+		const leftDays = offerDeliveryDays(left);
+		const rightDays = offerDeliveryDays(right);
+		if (leftDays === null || rightDays === null) {
+			return (Number(leftDays === null) - Number(rightDays === null)) || offerByPrice(left, right);
+		}
+		return offerByValue(left, right);
+	}
+
+	// Different currencies, or a country-zone price without the receiver's postcode,
+	// can't be ordered as if directly comparable - the API order is kept then.
+	function canCompareOfferPrices(offers) {
+		const receiverPostCode = GK.state.receiver && GK.state.receiver.postalCode;
+		const currencies = {};
+		const comparable = offers.every(function(offer) {
+			currencies[offer.currency] = true;
+			return typeof offer.grossPrice === 'number' && isFinite(offer.grossPrice) && offer.grossPrice >= 0
+				&& typeof offer.netPrice === 'number' && isFinite(offer.netPrice) && offer.netPrice >= 0
+				&& /^[A-Z]{3}$/.test(offer.currency || '')
+				&& !(offer.hasCountryZoneRouting && !receiverPostCode);
+		});
+		return comparable && Object.keys(currencies).length === 1;
+	}
+
+	function sortOffers(offers, sort) {
+		const result = offers.slice();
+		const comparable = canCompareOfferPrices(offers);
+		if (sort === 'delivery') {
+			return result.sort(comparable ? offerByDelivery : function(left, right) {
+				return compareOfferNumbers(offerDaysOrInfinity(left), offerDaysOrInfinity(right));
+			});
+		}
+		return comparable ? result.sort(sort === 'price' ? offerByPrice : offerByRecommendation) : result;
+	}
+
+	function offerMatchesFilters(offer, filter) {
+		return (filter.collection === 'ALL' || (offer.collectionTypes || []).indexOf(filter.collection) !== -1)
+			&& (filter.delivery === 'ALL' || (offer.deliveryTypes || []).indexOf(filter.delivery) !== -1)
+			&& (filter.carrier === 'ALL' || offer.carrierName === filter.carrier);
+	}
+
+	function formatOfferPrice(value, currency) {
+		const num = parseFloat(value);
+		if (isNaN(num)) return '';
+		const iv = window.InitialValues || {};
+		const text = num.toFixed(2);
+		return (iv.isoCode === 'pl' ? text.replace('.', ',') : text) + ' ' + (currency || '');
+	}
+
+	function formatOfferNumber(value) {
+		const num = parseFloat(value);
+		if (isNaN(num)) return '';
+		const iv = window.InitialValues || {};
+		const text = String(Math.round(num * 100) / 100);
+		return iv.isoCode === 'pl' ? text.replace('.', ',') : text;
+	}
+
+	function offerDeliveryText(offer) {
+		const iv = window.InitialValues || {};
+		const days = offerDeliveryDays(offer);
+		if (days === null) return '';
+		return (days === 1 ? (iv.langOffersDay || '%s day') : (iv.langOffersDays || '%s days')).replace('%s', days);
+	}
+
+	// GK service labels carry a little HTML (<b>, <p>, <br>, sometimes with a class) -
+	// escape everything, then let only those bare tags back in
+	function sanitizeOfferLabel(label) {
+		return escapeHtml(label).replace(/&lt;(\/?)(b|strong|p|br)(?:\s(?:(?!&gt;)[\s\S])*?)?\s*\/?&gt;/gi, function(_, slash, tag) {
+			return '<' + slash + tag.toLowerCase() + '>';
+		});
+	}
+
+	// Logo per carrier for the carrier filter - the carrier brand rather than a single product's picture
+	function offerCarriers(offers) {
+		const carriers = [];
+		const byName = {};
+		offers.forEach(function(offer) {
+			const name = offer.carrierName || '';
+			if (!name) return;
+			if (!byName[name]) {
+				byName[name] = { name: name, logo: '' };
+				carriers.push(byName[name]);
+			}
+			const logo = offer.carrierLogoLink || '';
+			if (logo && (!byName[name].logo || (logo.indexOf('carrier-brands') !== -1 && byName[name].logo.indexOf('carrier-brands') === -1))) {
+				byName[name].logo = logo;
+			}
+		});
+		return carriers;
+	}
+
+	// Options of the sending/delivery filter as on GK's search page (nuxt-app
+	// components/search/FilterPanel.vue): All, courier/address, point, then every
+	// other type the offers have (e.g. CROSSBORDER) named by the API's `trans`
+	function offerTypeOptions(offers, group, current) {
+		const iv = window.InitialValues || {};
+		const typesKey = group === 'collection' ? 'collectionTypes' : 'deliveryTypes';
+		const optionsKey = group === 'collection' ? 'collectionTypeOptions' : 'deliveryTypeOptions';
+		const values = ['ALL', 'PICKUP', 'POINT'];
+		offers.forEach(function(offer) {
+			(offer[typesKey] || []).forEach(function(type) {
+				if (typeof type === 'string' && type && values.indexOf(type) === -1) values.push(type);
+			});
+		});
+		if (current && values.indexOf(current) === -1) values.push(current);
+		return values.map(function(value) {
+			if (value === 'ALL') return { value: value, label: iv.langOffersAll || 'All' };
+			if (value === 'POINT') return { value: value, label: iv.langOffersPoint || 'Point' };
+			if (value === 'PICKUP') {
+				return { value: value, label: group === 'collection'
+					? (iv.langOffersCollectionPickup || 'Courier pickup')
+					: (iv.langOffersDeliveryPickup || 'To the address') };
+			}
+			let trans = '';
+			offers.some(function(offer) {
+				return (offer[optionsKey] || []).some(function(option) {
+					if (option && option.key === value && typeof option.trans === 'string' && option.trans.trim()) {
+						trans = option.trans.trim();
+						return true;
+					}
+					return false;
+				});
+			});
+			return { value: value, label: trans || iv.langOffersOtherMethod || 'Other method' };
+		});
+	}
+
+	function renderOfferSegmented(group, current, options, label) {
+		return '<div class="gk-offers-filter">' +
+			'<span class="gk-offers-filter-label" id="gkOffersFilter-' + group + '">' + escapeHtml(label) + '</span>' +
+			'<div class="gk-segmented" role="group" aria-labelledby="gkOffersFilter-' + group + '">' +
+				options.map(function(option) {
+					const active = option.value === current;
+					return '<button type="button" class="gk-segmented-btn gk-offers-filter-btn' + (active ? ' is-active' : '') + '"' +
+						' data-group="' + group + '" data-value="' + escapeHtml(option.value) + '" aria-pressed="' + (active ? 'true' : 'false') + '">' +
+						escapeHtml(option.label) + '</button>';
+				}).join('') +
 			'</div>' +
-			'<div class="glob-product-logo">' + logo + '</div>' +
-			'<strong>' + (product.carrierName || '') + '</strong><br/>' +
-			'<span>' + (product.name || '') + '</span><br/><br/>' +
-			'<strong>' + price + '</strong><br/><br/>' +
-			'<button class="btn btn-sm btn-success btn-gk-success pick-product" data-id="' + product.id + '">Wybierz</button>' +
-			'</div>' +
-		'</div>'
-	);
-}
+		'</div>';
+	}
+
+	// For a sending/delivery type GK sends without an image (e.g. CROSSBORDER = warehouse/terminal)
+	const OFFER_TYPE_FALLBACK_ICONS = {
+		CROSSBORDER: '<svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 21h18M5 21V8l7-4l7 4v13M9 21v-6h6v6M9 11h.01M15 11h.01"/></svg>',
+		DEFAULT: '<svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 8l-9-5l-9 5v8l9 5l9-5zM3 8l9 5l9-5M12 13v8"/></svg>'
+	};
+
+	function renderOfferFulfilmentIcons(options, prefix) {
+		return (options || []).map(function(option) {
+			const title = prefix.replace('%s', option.trans || option.key || '');
+			const icon = option.image
+				? '<img src="' + escapeHtml(option.image) + '" alt="" aria-hidden="true">'
+				: (OFFER_TYPE_FALLBACK_ICONS[option.key] || OFFER_TYPE_FALLBACK_ICONS.DEFAULT);
+			return '<span class="gk-offer-fulfilment-icon" role="img" title="' + escapeHtml(title) + '" aria-label="' + escapeHtml(title) + '">' + icon + '</span>';
+		}).join('');
+	}
+
+	function renderOfferCard(offer) {
+		const iv = window.InitialValues || {};
+		const id = escapeHtml(offer.id);
+		const promoKind = offerPromoKind(offer.promo);
+		// Purely visual match against the active template's saved service (see applyTemplate())
+		const isTemplateMatch = !!(GK.state._templateServiceId && (offer.id + '') === (GK.state._templateServiceId + ''));
+		const delivery = offerDeliveryText(offer);
+		const labels = Array.isArray(offer.labels) ? offer.labels : [];
+		const hasDetails = labels.length > 0 || !!offer.detailsLink;
+		const detailsId = 'gkOfferDetails-' + id;
+		const units = (offer.units && offer.units > 1) ? ' <span class="gk-offer-units">(x' + escapeHtml(offer.units) + ')</span>' : '';
+		const detailsLabel = escapeHtml(iv.langOffersDetails || 'More information');
+
+		return '<li>' +
+			'<article class="gk-offer' + (promoKind ? ' gk-offer--' + promoKind : '') + (isTemplateMatch ? ' gk-template-match' : '') + '" data-offer-id="' + id + '" aria-label="' + escapeHtml(offer.name || '') + '">' +
+				(promoKind ? '<span class="gk-offer-ribbon gk-offer-ribbon--' + promoKind + '" title="' + escapeHtml(offer.promo) + '">' + escapeHtml(offer.promo) + '</span>' : '') +
+				(isTemplateMatch
+					? '<span class="glob-template-badge gk-offer-template-badge" title="' + escapeHtml(iv.langFromTemplateTitle || '') + '">' +
+						'<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17 3H7a2 2 0 0 0-2 2v16l7-3 7 3V5a2 2 0 0 0-2-2z"/></svg> ' +
+						escapeHtml(iv.langFromTemplate || '') + '</span>'
+					: '') +
+				'<div class="gk-offer-grid">' +
+					'<div class="gk-offer-identity">' +
+						'<div class="gk-offer-logo">' + (offer.carrierLogoLink ? '<img src="' + escapeHtml(offer.carrierLogoLink) + '" alt="" loading="lazy">' : '') + '</div>' +
+						'<div class="gk-offer-info">' +
+							'<p class="gk-offer-name">' + escapeHtml(offer.name || '') + units + '</p>' +
+							'<p class="gk-offer-carrier">' + escapeHtml(offer.carrierName || '') + '</p>' +
+							(delivery ? '<p class="gk-offer-delivery">' + escapeHtml(iv.langOffersAvgDelivery || 'Average delivery time') + ': <strong>' + escapeHtml(delivery) + '</strong></p>' : '') +
+						'</div>' +
+					'</div>' +
+					'<div class="gk-offer-fulfilment">' +
+						renderOfferFulfilmentIcons(offer.collectionTypeOptions, iv.langOffersSendingBy || 'Sending: %s') +
+						'<span class="gk-offer-fulfilment-arrow" aria-hidden="true">&rarr;</span>' +
+						renderOfferFulfilmentIcons(offer.deliveryTypeOptions, iv.langOffersDeliveryBy || 'Delivery: %s') +
+					'</div>' +
+					'<div class="gk-offer-buy">' +
+						'<div class="gk-offer-price">' +
+							'<p class="gk-offer-gross">' + escapeHtml(formatOfferPrice(offer.grossPrice, offer.currency)) + ' <span>' + escapeHtml(iv.langOffersGross || 'Gross') + '</span></p>' +
+							'<p class="gk-offer-net">' + escapeHtml(formatOfferPrice(offer.netPrice, offer.currency)) + ' ' + escapeHtml(iv.langOffersNet || 'Net') + '</p>' +
+						'</div>' +
+						'<div class="gk-offer-actions">' +
+							'<button type="button" class="btn btn-success btn-gk-success gk-offer-select pick-product" data-id="' + id + '">' +
+								escapeHtml(iv.langOffersSelect || 'Select offer') + ' <span aria-hidden="true">&rarr;</span></button>' +
+							(hasDetails
+								? '<button type="button" class="gk-offer-toggle" aria-expanded="false" aria-controls="' + detailsId + '" title="' + detailsLabel + '" aria-label="' + detailsLabel + '">' +
+									'<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 9L12 15L5 9"/></svg></button>'
+								: '') +
+						'</div>' +
+					'</div>' +
+				'</div>' +
+				(hasDetails
+					? '<div class="gk-offer-details" id="' + detailsId + '" hidden>' +
+						(labels.length ? '<ul>' + labels.map(function(label) { return '<li>' + sanitizeOfferLabel(label) + '</li>'; }).join('') + '</ul>' : '') +
+						(offer.detailsLink ? '<a href="' + escapeHtml(offer.detailsLink) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(iv.langOffersDetailsLink || 'Offer details') + '</a>' : '') +
+					'</div>'
+					: '') +
+			'</article>' +
+		'</li>';
+	}
+
+	function renderOffers() {
+		const s = GK.state;
+		const iv = window.InitialValues || {};
+		const $box = $('#gkOffers');
+		if (!$box.length || !s.offers) return;
+		updateShipmentSummary();
+
+		if (s.offersError) {
+			$box.html('<div class="alert alert-danger">' + escapeHtml(iv.langOffersError || 'The offers could not be loaded.') + '</div>');
+			return;
+		}
+		if (!s.offers.length) {
+			$box.html('<div class="alert alert-info">' + escapeHtml(iv.langOffersNone || 'No services found') + '</div>');
+			return;
+		}
+
+		const filter = s.offersFilter;
+		const carriers = offerCarriers(s.offers);
+		if (filter.carrier !== 'ALL' && !carriers.some(function(c) { return c.name === filter.carrier; })) { filter.carrier = 'ALL'; }
+		const filtered = sortOffers(s.offers.filter(function(offer) { return offerMatchesFilters(offer, filter); }), s.offersSort);
+		const visible = s.offersExpanded ? filtered : filtered.slice(0, OFFERS_COLLAPSED_COUNT);
+		let html = '<div class="gk-offers-filters">' +
+			renderOfferSegmented('collection', filter.collection, offerTypeOptions(s.offers, 'collection', filter.collection), iv.langOffersCollection || 'Sending') +
+			renderOfferSegmented('delivery', filter.delivery, offerTypeOptions(s.offers, 'delivery', filter.delivery), iv.langOffersDelivery || 'Delivery') +
+		'</div>';
+
+		if (carriers.length > 1) {
+			html += '<div class="gk-offers-filter gk-offers-carriers">' +
+				'<span class="gk-offers-filter-label" id="gkOffersFilter-carrier">' + escapeHtml(iv.langOffersCarrier || 'Carrier') + '</span>' +
+				'<div class="gk-carrier-tiles" role="group" aria-labelledby="gkOffersFilter-carrier">' +
+					'<button type="button" class="gk-carrier-tile gk-offers-filter-btn' + (filter.carrier === 'ALL' ? ' is-active' : '') + '" data-group="carrier" data-value="ALL" aria-pressed="' + (filter.carrier === 'ALL' ? 'true' : 'false') + '">' +
+						'<span class="gk-carrier-tile-all">' + escapeHtml(iv.langOffersAllCarriers || 'All carriers') + '</span></button>' +
+					carriers.map(function(carrier) {
+						const active = filter.carrier === carrier.name;
+						return '<button type="button" class="gk-carrier-tile gk-offers-filter-btn' + (active ? ' is-active' : '') + '" data-group="carrier" data-value="' + escapeHtml(carrier.name) + '"' +
+							' aria-pressed="' + (active ? 'true' : 'false') + '" title="' + escapeHtml(carrier.name) + '">' +
+							(carrier.logo ? '<img src="' + escapeHtml(carrier.logo) + '" alt="' + escapeHtml(carrier.name) + '" loading="lazy">' : '<span class="gk-carrier-tile-all">' + escapeHtml(carrier.name) + '</span>') +
+						'</button>';
+					}).join('') +
+				'</div>' +
+			'</div>';
+		}
+
+		html += '<div class="gk-offers-header">' +
+			'<h3 class="gk-offers-title">' + escapeHtml(iv.langOffers || 'Offers') + ' (' + filtered.length + ')</h3>' +
+			'<span class="gk-offers-rule" aria-hidden="true"></span>' +
+			renderOfferSegmented('sort', s.offersSort, [
+				{ value: 'recommended', label: iv.langOffersSortRecommended || 'Recommended' },
+				{ value: 'price', label: iv.langOffersSortPrice || 'Cheapest' },
+				{ value: 'delivery', label: iv.langOffersSortDelivery || 'Fastest' }
+			], (iv.langOffersSort || 'Sort') + ':') +
+		'</div>';
+
+		if (!filtered.length) {
+			html += '<div class="alert alert-info">' + escapeHtml(iv.langOffersNoneFiltered || 'No offers match the selected filters.') + '</div>';
+		} else {
+			html += '<ul class="gk-offers-list" id="gkOffersList">' + visible.map(renderOfferCard).join('') + '</ul>';
+			if (filtered.length > OFFERS_COLLAPSED_COUNT) {
+				html += '<div class="gk-offers-more">' +
+					'<button type="button" class="gk-offers-more-btn" aria-controls="gkOffersList" aria-expanded="' + (s.offersExpanded ? 'true' : 'false') + '">' +
+						escapeHtml(s.offersExpanded
+							? (iv.langOffersShowLess || 'Show fewer offers')
+							: (iv.langOffersShowMore || 'Show remaining offers (%s)').replace('%s', filtered.length - OFFERS_COLLAPSED_COUNT)) +
+					'</button>' +
+				'</div>';
+			}
+		}
+		$box.html(html);
+		$('#gkSummaryCount').text((iv.langOffersOf || '%1$s of %2$s offers').replace('%1$s', filtered.length).replace('%2$s', s.offers.length));
+	}
+
+	// Pickup point types saved with the cart -> a word of the matching GK carrier name
+	const TERMINAL_CARRIER_WORDS = {
+		inpost: 'inpost', inpost_cod: 'inpost', inpostcod: 'inpost', ruch: 'orlen',
+		pocztex48owp: 'poczta', dhlparcel: 'dhl', dpdpickup: 'dpd', fedex: 'fedex'
+	};
+
+	function carrierNameWords(name) {
+		return String(name || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+			.split(/[^a-z0-9]+/).filter(Boolean);
+	}
+
+	// The carrier the customer chose at checkout, as one of the quoted GK carriers -
+	// what "Show all carriers: No" narrows the list to. In order: the pickup point
+	// saved with the cart (a point delivery of that carrier), the service of the
+	// template assigned to the PS carrier, then the PS carrier's name (every word of
+	// a GK carrier name in it, e.g. "Kurier DPD" -> "DPD"; else its first word).
+	function resolveCustomerCarrier(offers) {
+		const iv = window.InitialValues || {};
+		const terminalWord = TERMINAL_CARRIER_WORDS[String(GK.state.terminalType || iv.terminalType || '').toLowerCase()];
+		if (terminalWord) {
+			const pointOffer = offers.find(function(offer) {
+				return carrierNameWords(offer.carrierName).indexOf(terminalWord) !== -1 && (offer.deliveryTypes || []).indexOf('POINT') !== -1;
+			});
+			if (pointOffer) return { carrier: pointOffer.carrierName, delivery: 'POINT' };
+		}
+		const psCarrier = iv.prestaCarrier || {};
+		const template = (window.GkTemplates || []).find(function(t) {
+			return psCarrier.id && String(t.ps_carrier_id) === String(psCarrier.id) && t.gk_product_id;
+		});
+		const templateOffer = template && offers.find(function(offer) { return String(offer.id) === String(template.gk_product_id); });
+		if (templateOffer) return { carrier: templateOffer.carrierName, delivery: 'ALL' };
+
+		const psWords = carrierNameWords(psCarrier.name);
+		if (!psWords.length) return null;
+		const carriers = offerCarriers(offers).map(function(c) { return c.name; });
+		const full = carriers.find(function(name) {
+			const words = carrierNameWords(name);
+			return words.length && words.every(function(w) { return psWords.indexOf(w) !== -1; });
+		});
+		const partial = full || carriers.find(function(name) { return psWords.indexOf(carrierNameWords(name)[0]) !== -1; });
+		return partial ? { carrier: partial, delivery: 'ALL' } : null;
+	}
+
+	// "Show all carriers": No = the carrier filter preset to the customer's carrier,
+	// Yes = every carrier - only the list's filters change, no new quote is needed
+	function applyCarrierSwitch() {
+		const s = GK.state;
+		const match = (s.offers && s.offers.length) ? resolveCustomerCarrier(s.offers) : null;
+		const showAll = $('#service_filters_on').is(':checked');
+		s.customerCarrier = match;
+		$('#gkCarrierSwitchNote').toggle(!!(s.offers && s.offers.length) && !match);
+		s.offersFilter.carrier = (!showAll && match) ? match.carrier : 'ALL';
+		s.offersFilter.delivery = (!showAll && match) ? match.delivery : 'ALL';
+		s.offersExpanded = false;
+	}
+
+	// Wide service column while browsing offers, narrow once one is picked (addons column back)
+	function setOfferLayout(picked) {
+		$('#gkServiceColumn').toggleClass('col-lg-8', !picked).toggleClass('col-lg-4', !!picked);
+		$('#gkAddonsColumn').toggle(!!picked);
+	}
+
+	// Everything that depends on the picked offer
+	function setServiceSectionsVisible(visible) {
+		$('#chosenServiceBlock, #servicesListContainer, #serviceOptionsContainer, #summaryContainer').toggle(!!visible);
+		setOfferLayout(visible);
+	}
+
+	function updateShipmentSummary() {
+		const s = GK.state;
+		const iv = window.InitialValues || {};
+		const p = s.packageInfo || {};
+		const count = parseInt(p.count, 10) || 1;
+		const dims = [p.length, p.width, p.height].map(formatOfferNumber).join('×');
+		$('#gkSummaryParcel').text(
+			(count > 1 ? count + ' × ' : '') + (iv.langOffersParcel || 'Parcel') + ' ' + formatOfferNumber(p.weight) + ' kg · ' + dims + ' cm'
+		);
+		const senderIso = (s.sender && s.sender.country && s.sender.country.isoCode) || (iv.sender && iv.sender.countryCode) || '';
+		const receiverIso = (s.receiver && s.receiver.country && s.receiver.country.isoCode) || (iv.receiver && iv.receiver.countryCode) || '';
+		$('#gkSummaryRoute').text(senderIso + ' → ' + receiverIso);
+		// "X of Y offers" only while choosing; renderOffers() fills it in
+		$('#gkSummaryCountItem').toggle(!s.pickedService && !!s.offersRequested);
+		if (!s.offers) { $('#gkSummaryCount').text('…'); }
+	}
+
+	function showShipmentSummary() {
+		updateShipmentSummary();
+		$('#gkShipmentForm').hide();
+		$('#gkShipmentSummary').show();
+		$('#gkEditShipmentBtn').attr('aria-expanded', 'false');
+	}
+
+	// "Change details": the parameters become editable again and nothing priced for
+	// the old ones can be used (or sent) until a new quote is picked - "Cancel" undoes it.
+	function openShipmentForm() {
+		const s = GK.state;
+		s.shipmentEditing = true;
+		$('#gkShipmentSummary').hide();
+		$('#gkShipmentForm').show();
+		$('#gkEditShipmentBtn').attr('aria-expanded', 'true');
+		$('#gkCancelShipmentEditBtn').toggle(!!(s.pickedService || s.offers));
+		$('#gkOffersContainer').hide();
+		setServiceSectionsVisible(false);
+		updateSendButtonDisabled();
+		$('#pkg-length').trigger('focus');
+	}
+
+	function cancelShipmentEdit() {
+		const s = GK.state;
+		s.shipmentEditing = false;
+		populatePackageInputs();
+		$('#carrierLimitsWarning').hide();
+		$('#pkg-weight, #pkg-width, #pkg-height, #pkg-length').removeClass('gk-field-error');
+		showShipmentSummary();
+		if (s.pickedService) {
+			setServiceSectionsVisible(true);
+		} else if (s.offers) {
+			$('#gkOffersContainer').show();
+			setOfferLayout(false);
+		}
+		updateSendButtonDisabled();
+	}
+
+	// Drops the picked offer with everything priced for it. The customs declaration
+	// data is kept (renderCustomsSection() reuses it), only its duty calculation and
+	// orderHash go - GK's own panel starts a new hash with every product as well.
+	function resetPickedService() {
+		const s = GK.state;
+		s.pickedService = null;
+		s.serviceOptions = [];
+		s.orderSummary = null;
+		s.priceError = null;
+		s.orderHash = null;
+		s.customsFields = [];
+		hideCustomsCalculation();
+		$('#customsContainer').hide();
+		$('#addonsList').empty();
+		$('#addonsListContainer').hide();
+		$('#chosenServiceLogo').hide().attr('src', '');
+		$('#chosenServiceCarrier, #chosenServiceName, #chosenServiceSummary').empty();
+		setServiceSectionsVisible(false);
+	}
+
+	function quoteOffers() {
+		const s = GK.state;
+		const iv = window.InitialValues || {};
+		clearErrors();
+		setPackageInfoFromInputs();
+		const dimFields = validateDimensions();
+		if (dimFields) { showValidationErrors({ dimensionFields: dimFields }); return Promise.resolve(); }
+		s.shipmentEditing = false;
+		resetPickedService();
+		s.offers = null;
+		s.offersRequested = true;
+		s.offersExpanded = false;
+		showShipmentSummary();
+		$('#gkOffers').html('<div class="gk-offers-loading"><i class="icon-cog icon-spin"></i> ' + escapeHtml(iv.langOffersLoading || 'Searching for offers...') + '</div>');
+		$('#gkOffersContainer').show();
+		setOfferLayout(false);
+		updateSendButtonDisabled();
+		return fetchProducts().then(function() {
+			applyCarrierSwitch();
+			renderOffers();
+		});
+	}
+
+	function bindOfferPicker() {
+		const s = GK.state;
+		s.offersSort = s.offersSort || 'recommended';
+		s.offersFilter = s.offersFilter || { collection: 'ALL', delivery: 'ALL', carrier: 'ALL' };
+		$('#getServicesBtn').off('click').on('click', function() { quoteOffers(); });
+		$('#gkEditShipmentBtn').off('click').on('click', openShipmentForm);
+		$('#gkCancelShipmentEditBtn').off('click').on('click', cancelShipmentEdit);
+		$('#gkShipmentForm').off('keydown', 'input').on('keydown', 'input', function(e) {
+			if (e.key === 'Enter') { e.preventDefault(); quoteOffers(); }
+		});
+		$(document).off('click', '.gk-offers-filter-btn').on('click', '.gk-offers-filter-btn', function() {
+			const group = $(this).data('group');
+			const value = String($(this).data('value'));
+			if (group === 'sort') {
+				s.offersSort = value;
+			} else {
+				s.offersFilter[group] = value;
+				s.offersExpanded = false;
+			}
+			// Keep the "Show all carriers" switch in line with the carrier tiles
+			if (group === 'carrier' && (value === 'ALL' || (s.customerCarrier && s.customerCarrier.carrier === value))) {
+				$('#service_filters_on').prop('checked', value === 'ALL');
+				$('#service_filters_off').prop('checked', value !== 'ALL');
+			}
+			renderOffers();
+		});
+		$(document).off('click', '.gk-offers-more-btn').on('click', '.gk-offers-more-btn', function() {
+			s.offersExpanded = !s.offersExpanded;
+			renderOffers();
+		});
+		$(document).off('click', '.gk-offer-toggle').on('click', '.gk-offer-toggle', function() {
+			const $details = $('#' + $(this).attr('aria-controls'));
+			const open = $details.prop('hidden');
+			$details.prop('hidden', !open);
+			$(this).attr('aria-expanded', open ? 'true' : 'false').toggleClass('is-open', open);
+		});
+	}
 
 function fetchProducts() {
 		setPackageInfoFromInputs();
 		const params = buildProductsParams();
-		// Filter by terminal type if showAllCarriers is false
-    // determine current filter state
-    const showAllFromDom = $('#service_filters_on').is(':checked');
-    GK.state.showAllCarriers = !!showAllFromDom;
-    const terminalType = GK.state.terminalType || (window.InitialValues && window.InitialValues.terminalType) || null;
-		const url = gkApiBase() + 'products?' + new URLSearchParams(params).toString();
-		$('#servicesModalList').html('<div class="col-lg-12 text-center"><i class="icon-cog icon-spin"></i></div>');
+		const url =gkApiBase() + 'products?' + new URLSearchParams(params).toString();
+		GK.state.offers = null;
+		GK.state.offersError = false;
 		$('#servicesContainer').addClass('loading');
 		const $btn = $('#getServicesBtn');
 		$btn.prop('disabled', true);
 		$btn.find('i.icon-cog').show();
 		return fetch(url, { headers: buildHeaders() })
-			.then(function(r){ return r.json(); })
+			.then(function(r){
+				if (!r.ok) { throw new Error('HTTP ' + r.status); }
+				return r.json();
+			})
 			.then(function(data){
 				let list = [];
 				if (data) {
@@ -1711,31 +2232,14 @@ function fetchProducts() {
 					});
 				}
                 GK.state.products = list;
-
-                if (!GK.state.showAllCarriers && terminalType) {
-					let map = {
-						inpost: function(p){ return (p.carrierName || '').toLowerCase().indexOf('inpost') > -1; },
-						inpost_cod: function(p){ return (p.carrierName || '').toLowerCase().indexOf('inpost') > -1; },
-						inpostcod: function(p){ return (p.carrierName || '').toLowerCase().indexOf('inpost') > -1; },
-						ruch: function(p){ return (p.carrierName || '').toLowerCase().indexOf('orlen') > -1 || (p.carrierName || '').toLowerCase().indexOf('ruch') > -1; },
-						pocztex48owp: function(p){ return (p.carrierName || '').toLowerCase().indexOf('poczta') > -1; },
-						dhlparcel: function(p){ return (p.carrierName || '').toLowerCase().indexOf('dhl') > -1; },
-						dpdpickup: function(p){ return (p.carrierName || '').toLowerCase().indexOf('dpd') > -1; },
-						fedex: function(p){ return (p.carrierName || '').toLowerCase().indexOf('fedex') > -1; }
-					};
-					let fn = map[(terminalType + '').toLowerCase()];
-					if (fn) list = list.filter(fn);
-				}
-               const html = list.map(cardForProduct).join('');
-               if (GK.state.forModal) {
-                   $('#servicesModalList').html(html);
-                   if (!html) {
-                       $('#servicesModalEmpty').show();
-                   } else {
-                       $('#servicesModalEmpty').hide();
-                   }
-               }
-                // no-op
+				// Offers listed under the shipment parameters (renderOffers()); the
+				// "Show all carriers" switch narrows them with the carrier filter there
+				// (applyCarrierSwitch()) instead of dropping offers from the list
+				GK.state.offers = list;
+			})
+			.catch(function(){
+				GK.state.offers = [];
+				GK.state.offersError = true;
 			})
 			.finally(function(){
 				$('#servicesContainer').removeClass('loading');
@@ -2300,7 +2804,7 @@ function renderServiceOptionsContainer() {
 			(s.pickedService.carrierName || '') + (s.pickedService.name ? (' – ' + s.pickedService.name) : '')
 			+ ((s.pickedService.units && s.pickedService.units > 1) ? ' ' + "<b>(x" + s.pickedService.units + ")</b> " : '')
 		);
-        $('#changeServiceBtn').off('click').on('click', function(){ GK.state.forceShowAll = true; GK.state.forModal = true; fetchProducts().then(function(){ $('#servicesPickModal').modal('show'); }); });
+        $('#changeServiceBtn').off('click').on('click', function(){ quoteOffers(); });
         // Always show terminal info block; fill defaults if available
         $('#terminalInfo').show();
         if (window.InitialValues && window.InitialValues.terminalCode) {
@@ -3804,7 +4308,9 @@ function renderSummaryContainer() {
 }
 
 	function updateSendButtonDisabled() {
-		const disabled = (!GK.state.pickedService) || (!GK.state.additionalInfo || !GK.state.additionalInfo.paymentType) || !!GK.state.priceError;
+		const disabled = (!GK.state.pickedService) || (!GK.state.additionalInfo || !GK.state.additionalInfo.paymentType) || !!GK.state.priceError
+			// Shipment details being changed - the picked offer was priced for the old ones
+			|| !!GK.state.shipmentEditing;
 		$('#sendOrderBtn').prop('disabled', disabled);
 	}
 
@@ -3968,25 +4474,8 @@ function renderServicesAndBind() {
     // Keep TPL markup; only bind events here
     populatePackageInputs();
     populateReceiverPoints(); // Display receiver points in UI
-    $('#getServicesBtn').off('click').on('click', function(){
-            clearErrors();
-            setPackageInfoFromInputs();
-            const dimFields = validateDimensions();
-            if (dimFields) { showValidationErrors({ dimensionFields: dimFields }); return; }
-            const $btn = $(this);
-            $btn.prop('disabled', true);
-            $btn.find('i.icon-cog').show();
-            GK.state.forceShowAll = true;
-            GK.state.forModal = true;
-            fetchProducts().then(function(){ $('#servicesPickModal').modal('show'); })
-            .finally(function(){ $btn.prop('disabled', false); $btn.find('i.icon-cog').hide(); });
-        });
-    // Also handle top Change button
-    $(document).off('click', '#openServicesModal').on('click', '#openServicesModal', function(){
-        GK.state.forceShowAll = $('#service_filters_on').is(':checked');
-        GK.state.forModal = true;
-        fetchProducts().then(function(){ $('#servicesPickModal').modal('show'); });
-    });
+    // "Get services", "Change details", sorting and filters of the offer list
+    bindOfferPicker();
 		$(document).off('click', '.pick-product').on('click', '.pick-product', function(){
 			const productId = $(this).data('id');
 			// find selected product in last list
@@ -4061,15 +4550,15 @@ function renderServicesAndBind() {
 			fetchAddonsAndPayments();
 			renderSummaryContainer();
 			updateSendButtonDisabled();
-            $('#servicesPickModal').modal('hide');
-            GK.state.forModal = false;
-            // show top service card and options sections
+            // Offer picked: the list goes, the parameters stay as static data and the
+            // sections that depend on the offer come back in the narrow column layout
             updateChosenServiceUI();
-			$('#openServicesModal').show();
-            $('#servicesContainer').show();
-            $('#servicesListContainer').show();
-            $('#serviceOptionsContainer').show();
-			$('#getServicesBtn').hide();
+            $('#gkOffersContainer').hide();
+            GK.state.shipmentEditing = false;
+            showShipmentSummary();
+            setServiceSectionsVisible(true);
+            const servicesBox = document.getElementById('servicesContainer');
+            if (servicesBox && servicesBox.scrollIntoView) { servicesBox.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
             // Ensure the PICKUP/POINT radio maps to the picked service's allowed collection types.
             // This is especially important for CROSSBORDER services, where POINT -> CROSSBORDER mapping is used.
             enforceCollectionTypeRadios();
@@ -4320,17 +4809,11 @@ function renderServicesAndBind() {
 				recalcOrderPrice();
 			}
 		});
-		// show all carriers toggle
-	GK.state.showAllCarriers = false;
-	$('#disableServiceFilters').off('click').on('click', function(){
-		GK.state.showAllCarriers = true;
-		GK.state.forceShowAll = true;
-		fetchProducts().then(function(){ $('#servicesPickModal').modal('show'); });
-	});
-	$('#enableServiceFilters').off('click').on('click', function(){
-		GK.state.showAllCarriers = false;
-		GK.state.forceShowAll = false;
-		fetchProducts().then(function(){ $('#servicesPickModal').modal('show'); });
+		// "Show all carriers" switch: only the list's carrier filter changes (applyCarrierSwitch()) - no new quote
+	$('input[name="service_filters"]').off('change.carriers').on('change.carriers', function(){
+		if (!GK.state.offers) return;
+		applyCarrierSwitch();
+		renderOffers();
 	});
 	}
 
@@ -4532,11 +5015,13 @@ function renderServicesAndBind() {
 	function applyTemplate(tmpl) {
 		if (!tmpl) return;
 		GK.state.packageInfo = GK.state.packageInfo || {};
-		if (tmpl.weight  != null) { $('#pkg-weight').val(tmpl.weight);  GK.state.packageInfo.weight  = parseFloat(tmpl.weight);  }
-		if (tmpl.height  != null) { $('#pkg-height').val(tmpl.height);  GK.state.packageInfo.height  = parseFloat(tmpl.height);  }
-		if (tmpl.length  != null) { $('#pkg-length').val(tmpl.length);  GK.state.packageInfo.length  = parseFloat(tmpl.length);  }
-		if (tmpl.width   != null) { $('#pkg-width').val(tmpl.width);    GK.state.packageInfo.width   = parseFloat(tmpl.width);   }
-		if (tmpl.quantity) { $('#pkg-count').val(tmpl.quantity); GK.state.packageInfo.count = parseInt(tmpl.quantity, 10); }
+		// Only the dimensions the template actually has - an empty/0 one keeps the current value
+		const isSet = function(v) { return v != null && v !== '' && parseFloat(v) > 0; };
+		if (isSet(tmpl.weight)) { $('#pkg-weight').val(tmpl.weight);  GK.state.packageInfo.weight  = parseFloat(tmpl.weight);  }
+		if (isSet(tmpl.height)) { $('#pkg-height').val(tmpl.height);  GK.state.packageInfo.height  = parseFloat(tmpl.height);  }
+		if (isSet(tmpl.length)) { $('#pkg-length').val(tmpl.length);  GK.state.packageInfo.length  = parseFloat(tmpl.length);  }
+		if (isSet(tmpl.width))  { $('#pkg-width').val(tmpl.width);    GK.state.packageInfo.width   = parseFloat(tmpl.width);   }
+		if (isSet(tmpl.quantity)) { $('#pkg-count').val(tmpl.quantity); GK.state.packageInfo.count = parseInt(tmpl.quantity, 10); }
 		if (tmpl.contents) {
 			applyTemplateContent(tmpl.contents);
 		}
@@ -4652,6 +5137,12 @@ function renderServicesAndBind() {
 			const tmpl = templates.find(function(t) { return t.id_template === id; });
 			if (tmpl) {
 				applyTemplate(tmpl);
+				// Once quoted, the template's dimensions/weight mean a new quote - the
+				// offers (and any picked one) were priced for the previous parcel.
+				// While the details form is open the merchant quotes it themselves.
+				if (GK.state.offersRequested && !GK.state.shipmentEditing) {
+					quoteOffers();
+				}
 			}
 		});
 	}

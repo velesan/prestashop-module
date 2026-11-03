@@ -56,21 +56,6 @@
         <ul id="validationErrorsList" style="margin-bottom:0;"></ul>
     </div>
 
-    {if $gk_all_templates_json && $gk_all_templates_json != '[]'}
-    <div style="background:#f8f9fa; border-bottom:1px solid #e5e5e5; padding:10px 20px;">
-        <div class="form-horizontal">
-            <div class="form-group" style="margin-bottom:0;">
-                <label class="col-sm-2 control-label" style="padding-top:6px; font-weight:600;">{l s='Template' mod='globkuriermodule'}</label>
-                <div class="col-sm-6">
-                    <select class="form-control" id="gk-template-select">
-                        <option value="">{l s='-- no template --' mod='globkuriermodule'}</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-    </div>
-    {/if}
-
     <div class="bootstrap" id="orderErrorBox" style="display:none;">
         <div class="alert alert-danger">
             <h4>{l s='We\'ve try to send you request but there was an error' mod='globkuriermodule'}</h4>
@@ -182,66 +167,107 @@
                                     </span>
                                 </div>
                             </div>
+                            <p class="help-block" id="gkCarrierSwitchNote" style="display:none; clear:both;">{l s='None of the offers comes from the carrier chosen by the customer - all carriers are shown.' mod='globkuriermodule'}</p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-lg-4">
+        {* Wide (col-lg-8) while the offers are being browsed, narrow (col-lg-4) once one is picked - toggled by setOfferLayout() *}
+        <div class="col-lg-8 gk-service-column" id="gkServiceColumn">
             <div class="col-lg-12" id="servicesContainer" data-initial-product-symbol="{$config->defaultServiceCode|escape:'htmlall':'UTF-8'}">
                 <div class="panel">
                     <div class="panel-heading">
                         {l s='Choose delivery' mod='globkuriermodule'}
-                        <button type="button" class="btn btn-primary btn-gk-primary btn-xs pull-right" id="openServicesModal" style="display: none;">{l s='Change' mod='globkuriermodule'}</button></div>
+                    </div>
                     <div class="panel-body">
-                        <div class="row">
-                            <div class="col-lg-2"><img id="chosenServiceLogo" src="" alt="" style="max-width:100%; display:none;"></div>
-                            <div class="col-lg-8"><strong id="chosenServiceCarrier"></strong><br/><span id="chosenServiceName"></span></div>
-                        </div>
-                        <div class="row">
-                            <div class="col-lg-12"><div id="chosenServiceSummary" style="margin-top: 10px;"></div></div>
-                        </div>
-                        <hr/>
-                        <div class="row">
-                            <div class="col-lg-4">
-                                <div class="form-group"><label>{l s='Length (cm)' mod='globkuriermodule'}</label><input id="pkg-length" type="number" step="1" class="form-control"></div>
-                            </div>
-                            <div class="col-lg-4">
-                                <div class="form-group"><label>{l s='Width (cm)' mod='globkuriermodule'}</label><input id="pkg-width" type="number" step="1" class="form-control"></div>
-                            </div>
-                            <div class="col-lg-4">
-                                <div class="form-group"><label>{l s='Height (cm)' mod='globkuriermodule'}</label><input id="pkg-height" type="number" step="1" class="form-control"></div>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-lg-6">
-                                <div class="form-group"><label>{l s='Weight (kg)' mod='globkuriermodule'}</label><input id="pkg-weight" type="number" step="0.01" class="form-control"></div>
-                            </div>
-                            <div class="col-lg-6">
-                                <div class="form-group"><label>{l s='Quantity' mod='globkuriermodule'}</label><input id="pkg-count" type="number" step="1" class="form-control" value="1"></div>
-                            </div>
-                        </div>
-                        {if isset($order_products_weight) && ($order_products_weight > 0 || (isset($catalog_products_weight) && $catalog_products_weight > 0))}
-                        <div class="row">
-                            <div class="col-lg-12">
-                                {if $order_products_weight > 0}
-                                <p class="text-muted" style="font-size:12px; margin-bottom:6px;">{l s='Total product weight from order' mod='globkuriermodule'}: <strong>{$order_products_weight|floatval} kg</strong></p>
-                                {else}
-                                <p class="text-muted" style="font-size:12px; margin-bottom:6px;">{l s='Total product weight from order' mod='globkuriermodule'}: <strong>0 kg</strong> &nbsp;·&nbsp; {l s='Sum of product weights from catalog' mod='globkuriermodule'}: <strong>{$catalog_products_weight|floatval} kg</strong></p>
-                                {/if}
-                            </div>
+                        {* Shipment template: fills the parcel dimensions/weight/content (applyTemplate()) and re-quotes the offers *}
+                        {if $gk_all_templates_json && $gk_all_templates_json != '[]'}
+                        <div class="gk-template-picker">
+                            <label for="gk-template-select">{l s='Template' mod='globkuriermodule'}</label>
+                            <select class="form-control" id="gk-template-select">
+                                <option value="">{l s='-- no template --' mod='globkuriermodule'}</option>
+                            </select>
                         </div>
                         {/if}
-                        <div id="carrierLimitsWarning" class="alert alert-warning" style="display:none; margin-bottom: 10px;">
-                            {l s='Some values exceed the maximum limits of the carrier.' mod='globkuriermodule'}
+                        <div id="chosenServiceBlock" style="display:none;">
+                            <div class="gk-chosen-service">
+                                <img id="chosenServiceLogo" class="gk-chosen-service-logo" src="" alt="" style="display:none;">
+                                <div class="gk-chosen-service-text"><strong id="chosenServiceCarrier"></strong><br/><span id="chosenServiceName"></span></div>
+                            </div>
+                            <div id="chosenServiceSummary" style="margin-top: 10px;"></div>
+                            <hr/>
                         </div>
-                        <button type="button" id="getServicesBtn" class="btn btn-primary btn-gk-primary">
-                            {l s='Get services' mod='globkuriermodule'}
-                            <i class="icon-cog icon-spin" style="display:none; margin-left:6px;"></i>
-                        </button>
+
+                        {* Shipment parameters as static data once quoted, with "Change details" reopening the form *}
+                        <section id="gkShipmentSummary" class="gk-shipment-summary" style="display:none;" aria-label="{l s='Shipment parameters' mod='globkuriermodule'}">
+                            <dl class="gk-shipment-summary-list">
+                                <div class="gk-shipment-summary-item">
+                                    <dt>{l s='Shipment' mod='globkuriermodule'}</dt>
+                                    <dd id="gkSummaryParcel"></dd>
+                                </div>
+                                <div class="gk-shipment-summary-item">
+                                    <dt>{l s='Route' mod='globkuriermodule'}</dt>
+                                    <dd id="gkSummaryRoute"></dd>
+                                </div>
+                                <div class="gk-shipment-summary-item" id="gkSummaryCountItem">
+                                    <dt>{l s='Showing' mod='globkuriermodule'}</dt>
+                                    <dd id="gkSummaryCount"></dd>
+                                </div>
+                            </dl>
+                            <button type="button" class="gk-shipment-summary-edit" id="gkEditShipmentBtn" aria-controls="gkShipmentForm" aria-expanded="false">{l s='Change details' mod='globkuriermodule'}</button>
+                        </section>
+
+                        <div id="gkShipmentForm" class="gk-shipment-form">
+                            <div class="row">
+                                <div class="col-xs-12 col-sm-4">
+                                    <div class="form-group"><label for="pkg-length">{l s='Length (cm)' mod='globkuriermodule'}</label><input id="pkg-length" type="number" step="1" min="1" class="form-control"></div>
+                                </div>
+                                <div class="col-xs-12 col-sm-4">
+                                    <div class="form-group"><label for="pkg-width">{l s='Width (cm)' mod='globkuriermodule'}</label><input id="pkg-width" type="number" step="1" min="1" class="form-control"></div>
+                                </div>
+                                <div class="col-xs-12 col-sm-4">
+                                    <div class="form-group"><label for="pkg-height">{l s='Height (cm)' mod='globkuriermodule'}</label><input id="pkg-height" type="number" step="1" min="1" class="form-control"></div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-xs-6">
+                                    <div class="form-group"><label for="pkg-weight">{l s='Weight (kg)' mod='globkuriermodule'}</label><input id="pkg-weight" type="number" step="0.01" min="0.01" class="form-control"></div>
+                                </div>
+                                <div class="col-xs-6">
+                                    <div class="form-group"><label for="pkg-count">{l s='Quantity' mod='globkuriermodule'}</label><input id="pkg-count" type="number" step="1" min="1" class="form-control" value="1"></div>
+                                </div>
+                            </div>
+                            {if isset($order_products_weight) && ($order_products_weight > 0 || (isset($catalog_products_weight) && $catalog_products_weight > 0))}
+                            <div class="row">
+                                <div class="col-lg-12">
+                                    {if $order_products_weight > 0}
+                                    <p class="text-muted" style="font-size:12px; margin-bottom:6px;">{l s='Total product weight from order' mod='globkuriermodule'}: <strong>{$order_products_weight|floatval} kg</strong></p>
+                                    {else}
+                                    <p class="text-muted" style="font-size:12px; margin-bottom:6px;">{l s='Total product weight from order' mod='globkuriermodule'}: <strong>0 kg</strong> &nbsp;·&nbsp; {l s='Sum of product weights from catalog' mod='globkuriermodule'}: <strong>{$catalog_products_weight|floatval} kg</strong></p>
+                                    {/if}
+                                </div>
+                            </div>
+                            {/if}
+                            <div id="carrierLimitsWarning" class="alert alert-warning" style="display:none; margin-bottom: 10px;">
+                                {l s='Some values exceed the maximum limits of the carrier.' mod='globkuriermodule'}
+                            </div>
+                            <div class="gk-shipment-form-actions">
+                                <button type="button" id="getServicesBtn" class="btn btn-primary btn-gk-primary">
+                                    {l s='Get services' mod='globkuriermodule'}
+                                    <i class="icon-cog icon-spin" style="display:none; margin-left:6px;"></i>
+                                </button>
+                                <button type="button" id="gkCancelShipmentEditBtn" class="btn btn-default" style="display:none;">{l s='Cancel' mod='globkuriermodule'}</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
+            </div>
+
+            {* Offers from GET /products, listed here until one is picked (rendered by renderOffers()) *}
+            <div class="col-lg-12" id="gkOffersContainer" style="display:none;">
+                <div id="gkOffers" class="gk-offers"></div>
             </div>
             <div class="col-lg-12" id="servicesListContainer" style="display:none;">
                 <div class="panel">
@@ -378,7 +404,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-lg-4">
+        <div class="col-lg-4" id="gkAddonsColumn" style="display:none;">
             <div class="col-lg-12 row" id="addonsListContainer" style="display:none;">
                 <div class="panel">
                     <div class="panel-heading">{l s='Additional options' mod='globkuriermodule'}</div>
@@ -482,25 +508,6 @@
         </div>
     </div>
 
-
-    <div class="modal fade" id="servicesPickModal" tabindex="-1" role="dialog">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h4 class="modal-title">{l s='Select carrier' mod='globkuriermodule'}</h4>
-          </div>
-          <div class="modal-body">
-            <div id="servicesModalEmpty" class="alert alert-info" style="display:none;">
-              {l s='No services found' mod='globkuriermodule'}
-            </div>
-            <div class="row" id="servicesModalList" style="display:flex;flex-wrap:wrap;"></div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-default" data-dismiss="modal">{l s='Cancel' mod='globkuriermodule'}</button>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <div class="modal fade" id="terminalPickerModal" tabindex="-1" role="dialog">
       <div class="modal-dialog">
@@ -756,6 +763,38 @@
             langCustomsDuties: '{l s='Duties' mod='globkuriermodule'}',
             langCustomsTaxes: '{l s='Taxes' mod='globkuriermodule'}',
             langRate: '{l s='rate' mod='globkuriermodule'}',
+            langOffers: '{l s='Offers' mod='globkuriermodule' js=1}',
+            langOffersOf: '{l s='%1$s of %2$s offers' mod='globkuriermodule' js=1}',
+            langOffersNone: '{l s='No services found' mod='globkuriermodule' js=1}',
+            langOffersNoneFiltered: '{l s='No offers match the selected filters.' mod='globkuriermodule' js=1}',
+            langOffersLoading: '{l s='Searching for offers...' mod='globkuriermodule' js=1}',
+            langOffersError: '{l s='The offers could not be loaded. Check the shipment details and try again.' mod='globkuriermodule' js=1}',
+            langOffersSort: '{l s='Sort' mod='globkuriermodule' js=1}',
+            langOffersSortRecommended: '{l s='Recommended' mod='globkuriermodule' js=1}',
+            langOffersSortPrice: '{l s='Cheapest' mod='globkuriermodule' js=1}',
+            langOffersSortDelivery: '{l s='Fastest' mod='globkuriermodule' js=1}',
+            langOffersCollection: '{l s='Sending' mod='globkuriermodule' js=1}',
+            langOffersDelivery: '{l s='Delivery' mod='globkuriermodule' js=1}',
+            langOffersCarrier: '{l s='Carrier' mod='globkuriermodule' js=1}',
+            langOffersAll: '{l s='All' mod='globkuriermodule' js=1}',
+            langOffersAllCarriers: '{l s='All carriers' mod='globkuriermodule' js=1}',
+            langOffersCollectionPickup: '{l s='Courier pickup' mod='globkuriermodule' js=1}',
+            langOffersDeliveryPickup: '{l s='To the address' mod='globkuriermodule' js=1}',
+            langOffersPoint: '{l s='Point' mod='globkuriermodule' js=1}',
+            langOffersOtherMethod: '{l s='Other method' mod='globkuriermodule' js=1}',
+            langOffersShowMore: '{l s='Show remaining offers (%s)' mod='globkuriermodule' js=1}',
+            langOffersShowLess: '{l s='Show fewer offers' mod='globkuriermodule' js=1}',
+            langOffersSelect: '{l s='Select offer' mod='globkuriermodule' js=1}',
+            langOffersDetails: '{l s='More information' mod='globkuriermodule' js=1}',
+            langOffersDetailsLink: '{l s='Offer details' mod='globkuriermodule' js=1}',
+            langOffersAvgDelivery: '{l s='Average delivery time' mod='globkuriermodule' js=1}',
+            langOffersDay: '{l s='%s day' mod='globkuriermodule' js=1}',
+            langOffersDays: '{l s='%s days' mod='globkuriermodule' js=1}',
+            langOffersGross: '{l s='Gross' mod='globkuriermodule' js=1}',
+            langOffersNet: '{l s='Net' mod='globkuriermodule' js=1}',
+            langOffersSendingBy: '{l s='Sending: %s' mod='globkuriermodule' js=1}',
+            langOffersDeliveryBy: '{l s='Delivery: %s' mod='globkuriermodule' js=1}',
+            langOffersParcel: '{l s='Parcel' mod='globkuriermodule' js=1}',
         };
 
         try {
