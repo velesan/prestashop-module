@@ -435,6 +435,9 @@
                                     <tbody id="customsSummaryTableBody"></tbody>
                                 </table>
                             </div>
+                            <div class="col-lg-12">
+                                <div id="customsCalcStatus" style="display:none;"></div>
+                            </div>
                             <div class="col-lg-12 gk-customs-status-col" style="text-align:center;">
                                 <div id="customsCalculationPrice" class="text-muted" style="display:none; margin-bottom:6px; font-size:12px;"></div>
                                 <button type="button" class="btn btn-warning" id="openCustomsModalBtn">
@@ -482,9 +485,17 @@
                                     <div id="summaryRowAddons"><strong>{l s='Additional services selected' mod='globkuriermodule'}</strong>: <span id="summaryAddonsNet">-</span></div>
                                     <div id="summaryRowDiscount"><strong>{l s='Discount net' mod='globkuriermodule'}</strong>: <span id="summaryDiscount">-</span></div>
                                     <div id="summaryRowNetWithFuel"><strong>{l s='Total net + fuel' mod='globkuriermodule'}</strong>: <span id="summaryNetWithFuel">-</span></div>
+                                    {* Duty calculation laid out as in GK's own order summary: the fees and duties the
+                                       total includes (the DDP/DAP Premium addon is priced with the whole calculation),
+                                       then the prepaid total and the taxes - see renderCustomsCalculation() *}
+                                    <div id="customsIncludedFees" class="gk-customs-included" style="display:none;"></div>
                                     <div id="summaryRowGross"><strong>{l s='Total gross' mod='globkuriermodule'}</strong>: <span id="summaryGross">-</span></div>
                                     <div id="summaryRowFuel" class="text-muted" style="font-size:12px;">{l s='incl. fuel surcharge' mod='globkuriermodule'}: <span id="summaryFuel">-</span></div>
                                     <div id="summaryRowVat" class="text-muted" style="font-size:12px;">{l s='incl. VAT' mod='globkuriermodule'} <span id="summaryVatLabel"></span>: <span id="summaryVat">-</span></div>
+                                    <div id="customsPrepaidBox" class="gk-customs-prepaid" style="display:none;">
+                                        <div class="gk-customs-prepaid-total">{l s='Total customs and tax charges paid from the prepaid account' mod='globkuriermodule'}: <strong id="customsPrepaidAmount"></strong></div>
+                                        <div id="customsFutureTaxes" class="gk-customs-taxes" style="display:none;"></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -596,7 +607,7 @@
           </div>
           <div class="modal-body">
             <div class="alert alert-info" id="customsCalculationBreakdown" style="display:none;">
-                <strong>{l s='Includes customs duty/tax fees' mod='globkuriermodule'}:</strong>
+                <strong>{l s='Total customs and tax charges paid from the prepaid account' mod='globkuriermodule'}:</strong> <span id="customsCalculationBreakdownTotal"></span>
                 <div id="customsCalculationBreakdownBody"></div>
             </div>
             <div class="row" id="customsBody"></div>
@@ -612,6 +623,8 @@
     {* JSON goes through a real HTML-escaped attribute (browser-decoded before JS reads it)
        instead of straight into <script> text, which HTML-escaping cannot pass through
        without corrupting the JSON's own quote characters. *}
+    {include file=$gkTradeDocsI18nTpl}
+
     <div id="gk-all-templates-data" data-json="{$gk_all_templates_json|escape:'html':'UTF-8'}" style="display:none" aria-hidden="true"></div>
     <div id="gk-order-products-data" data-json="{$gk_order_products_json|escape:'html':'UTF-8'}" style="display:none" aria-hidden="true"></div>
 
@@ -619,8 +632,6 @@
         // Note: These will be mapped to Globkurier country IDs in JavaScript via ISO codes
         let package = [];
         let urlRedirect = '{$urlRedirect|escape:'javascript':'UTF-8'}';
-
-    {include file=$gkTradeDocsI18nTpl}
 
         window.InitialValues = {
             sender : {
@@ -655,6 +666,7 @@
                 phone: '{if $adress->phone}{$adress->phone|escape:'javascript':'UTF-8'}{else}{$adress->phone_mobile|escape:'javascript':'UTF-8'}{/if}',
                 email: '{if isset($customer->email)}{$customer->email|escape:'javascript':'UTF-8'}{else}null{/if}',
                 stateId: {$adress->id_state|escape:'javascript':'UTF-8'},
+                stateIso: '{$receiver_state_iso|escape:'javascript':'UTF-8'}',
             },
             {else}
             receiver : {},
@@ -688,6 +700,7 @@
             moduleName : 'globkuriermodule',
             partialsPath : '../modules/globkuriermodule/views/templates/partials/',
             moduleApiUrl : '{$moduleApiUrl|escape:'javascript':'UTF-8'}',
+            tradeDocsUrl : '{$gkTradeDocsUrl|escape:'javascript':'UTF-8'}',
             apiBase : '{$gkApiBaseUrl|escape:'javascript':'UTF-8'}',
             login : '{$config->login|escape:'javascript':'UTF-8'}',
             password : '{$config->password|escape:'javascript':'UTF-8'}',
@@ -697,7 +710,6 @@
             todayDate : '{date("Y-m-d")|escape:'javascript':'UTF-8'}',
             terminalCode : {if isset($terminalCode)}'{$terminalCode|escape:'javascript':'UTF-8'}'{else}null{/if},
             terminalType : {if isset($terminalType)}'{$terminalType|escape:'javascript':'UTF-8'}'{else}null{/if},
-            tradeDocsUrl : '{$gkTradeDocsUrl|escape:'javascript':'UTF-8'}',
             terminalType2 : {if isset($terminalType)}'{$terminalType|escape:'javascript':'UTF-8'}'{else}'none'{/if},
             defaultInPostPoint : {if $config->defaultInPostPoint}'{$config->defaultInPostPoint|escape:'javascript':'UTF-8'}'{else}null{/if},
             prestaOrderId : '{$orderId|escape:'javascript':'UTF-8'}',
@@ -759,10 +771,34 @@
             langCommodityItem: '{l s='Item' mod='globkuriermodule'}',
             langWeightExceedsOrder: '{l s='Total customs weight exceeds the shipment weight' mod='globkuriermodule'}',
             langEstimatedDuty: '{l s='Estimated duty/fees' mod='globkuriermodule'}',
-            langCustomsFees: '{l s='Fees' mod='globkuriermodule'}',
+            langCustomsFees: '{l s='Customs fees' mod='globkuriermodule' js=1}',
             langCustomsDuties: '{l s='Duties' mod='globkuriermodule'}',
-            langCustomsTaxes: '{l s='Taxes' mod='globkuriermodule'}',
+            langCustomsTaxes: '{l s='Future tax payments' mod='globkuriermodule' js=1}',
+            langCustomsIncludedFees: '{l s='Includes customs and tax fees' mod='globkuriermodule' js=1}',
             langRate: '{l s='rate' mod='globkuriermodule'}',
+            langCustomsCalcWaiting: '{l s='Complete the customs declaration to calculate the duty for DDP/DAP Premium.' mod='globkuriermodule' js=1}',
+            langCustomsCalcLoading: '{l s='Calculating customs duty...' mod='globkuriermodule' js=1}',
+            langCustomsCalcConfigUnavailable: '{l s='GlobKurier could not confirm the customs requirements for this route. Retry the calculation.' mod='globkuriermodule' js=1}',
+            langCustomsCalcError: '{l s='The customs duty could not be calculated. The shipment cannot be placed with DDP/DAP Premium until it is.' mod='globkuriermodule' js=1}',
+            langCustomsCalcLocked: '{l s='GlobKurier no longer allows changes to this order.' mod='globkuriermodule' js=1}',
+            langCustomsCalcServerError: '{l s='GlobKurier server error' mod='globkuriermodule' js=1}',
+            langCustomsCalcCheckData: '{l s='Check the receiver state/province (USA, Canada), postcode and city, and the HS codes of the items.' mod='globkuriermodule' js=1}',
+            langCustomsCalcRetry:'{l s='Retry calculation' mod='globkuriermodule' js=1}',
+            langValRequired: '{l s='This field is required.' mod='globkuriermodule' js=1}',
+            langValMaxLength: '{l s='Maximum %s characters.' mod='globkuriermodule' js=1}',
+            langValMinLength: '{l s='Minimum %s characters.' mod='globkuriermodule' js=1}',
+            langValGreaterThan: '{l s='Value must be greater than %s.' mod='globkuriermodule' js=1}',
+            langValGreaterOrEqual: '{l s='Value must be at least %s.' mod='globkuriermodule' js=1}',
+            langValLessThan: '{l s='Value must be less than %s.' mod='globkuriermodule' js=1}',
+            langValLessOrEqual: '{l s='Value must be at most %s.' mod='globkuriermodule' js=1}',
+            langValPrecision: '{l s='Maximum %s decimal places.' mod='globkuriermodule' js=1}',
+            langValDate: '{l s='Enter a valid date (YYYY-MM-DD).' mod='globkuriermodule' js=1}',
+            langValInvalid: '{l s='Invalid value.' mod='globkuriermodule' js=1}',
+            langValPlMax: '{l s='PL: maximum %s characters.' mod='globkuriermodule' js=1}',
+            langValEnMax: '{l s='EN: maximum %s characters.' mod='globkuriermodule' js=1}',
+            langDeclaredValueFromCustoms: '{l s='From the customs declaration' mod='globkuriermodule' js=1}',
+            langDeclaredValueFromCustomsEmpty: '{l s='Will be filled in from the customs declaration' mod='globkuriermodule' js=1}',
+            langChooseOneOption: '{l s='Select one of the options' mod='globkuriermodule' js=1}',
             langOffers: '{l s='Offers' mod='globkuriermodule' js=1}',
             langOffersOf: '{l s='%1$s of %2$s offers' mod='globkuriermodule' js=1}',
             langOffersNone: '{l s='No services found' mod='globkuriermodule' js=1}',
@@ -795,6 +831,12 @@
             langOffersSendingBy: '{l s='Sending: %s' mod='globkuriermodule' js=1}',
             langOffersDeliveryBy: '{l s='Delivery: %s' mod='globkuriermodule' js=1}',
             langOffersParcel: '{l s='Parcel' mod='globkuriermodule' js=1}',
+            langAltGroupDefault: '{l s='Required option' mod='globkuriermodule' js=1}',
+            langAltGroupReceiver: '{l s='Receiver type' mod='globkuriermodule' js=1}',
+            langAltGroupTradeDocuments: '{l s='Customs documents' mod='globkuriermodule' js=1}',
+            langAltGroupDuty: '{l s='Customs duty payer' mod='globkuriermodule' js=1}',
+            langAltGroupDelivery: '{l s='Delivery' mod='globkuriermodule' js=1}',
+            langAltGroupPickup: '{l s='Pickup' mod='globkuriermodule' js=1}',
         };
 
         try {

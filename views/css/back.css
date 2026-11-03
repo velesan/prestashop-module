@@ -874,6 +874,77 @@ body[class*="controller-adminglobkurier"] h4.modal-title span.closeModal {
     white-space: nowrap;
 }
 
+/* Customs form: error message under each field (shown right after the import
+   from the order, not only after editing) */
+.gk-customs-error {
+    margin-top: 3px;
+    color: #a94442;
+    font-size: 12px;
+}
+.gk-customs-collection-error {
+    margin: 4px 0 8px;
+}
+.gk-customs-dual-col .gk-customs-charcount {
+    display: block;
+    text-align: right;
+}
+/* frontType "radio" as pill-style radios with a clearly visible selected state */
+.gk-customs-radio-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.gk-customs-radio {
+    margin: 0;
+    cursor: pointer;
+    font-weight: normal;
+}
+.gk-customs-radio input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+}
+.gk-customs-radio span {
+    display: inline-block;
+    padding: 5px 12px;
+    border: 1px solid #bbcdd2;
+    border-radius: 4px;
+    background: #fff;
+    color: #363a41;
+}
+.gk-customs-radio input[type="radio"]:checked + span {
+    background: #25b9d7;
+    border-color: #25b9d7;
+    color: #fff;
+    font-weight: 600;
+}
+.gk-customs-radio input[type="radio"]:focus + span {
+    box-shadow: 0 0 0 2px rgba(37, 185, 215, 0.35);
+}
+/* requiredAlternativeAddonsGroups: required radio group with a message under it */
+.gk-alt-addon-group {
+    margin-bottom: 10px;
+    padding: 8px;
+    border: 1px dashed #ccc;
+    border-radius: 4px;
+}
+.gk-alt-addon-group--missing {
+    border-color: #e74c3c;
+}
+.gk-alt-addon-group-heading {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+.gk-alt-addon-group-error {
+    color: #a94442;
+    font-size: 12px;
+}
+.gk-declared-from-customs {
+    margin-top: 4px;
+    font-size: 12px;
+}
+
 /* ── Shipment parameters summary + offer list (views/js/newParcelApp.jquery.js, renderOffers()) ──
    Laid out like GK's own search page; every block wraps instead of overflowing, so it works
    both in the wide browsing column (col-lg-8) and in the narrow one after picking (col-lg-4). */
@@ -1374,4 +1445,32 @@ body[class*="controller-adminglobkurier"] h4.modal-title span.closeModal {
     #mainFormBox .gk-segmented-btn {
         flex-basis: 30%;
     }
+}
+
+/* Duty calculation in the order summary, laid out as GK's own one (renderCustomsCalculation()) */
+#mainFormBox .gk-customs-included,
+#mainFormBox .gk-customs-taxes {
+    margin: 6px 0;
+    padding: 8px 10px;
+    border-left: 3px solid #d5dde5;
+    background: rgba(255, 255, 255, 0.6);
+    font-size: 12px;
+}
+#mainFormBox .gk-customs-included-title {
+    font-weight: 700;
+}
+#mainFormBox .gk-customs-calc-section {
+    margin-top: 6px;
+}
+#mainFormBox .gk-customs-calc-item {
+    margin: 2px 0 0 10px;
+    overflow-wrap: anywhere;
+}
+#mainFormBox .gk-customs-prepaid {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #e3e8ee;
+}
+#mainFormBox .gk-customs-prepaid-total strong {
+    white-space: nowrap;
 }

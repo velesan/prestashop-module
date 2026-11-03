@@ -147,6 +147,13 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
 
             $country = new Country($adress->id_country);
             $receiver_country_iso = $country->iso_code ? $country->iso_code : 'PL';
+            // State/province ISO code (e.g. "BC", "NY") - matched to GK's own state id in JS,
+            // since GK uses different ids than PrestaShop
+            $receiverStateIso = '';
+            if ((int) $adress->id_state > 0) {
+                $state = new State((int) $adress->id_state);
+                $receiverStateIso = Validate::isLoadedObject($state) ? (string) $state->iso_code : '';
+            }
 
             $tpm = new Globkuriermodule\TerminalPickup\TerminalPickupManager();
 
@@ -220,11 +227,14 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
                             }
                         }
                     }
+                    // Rounded to GK's declaration precision (2 decimals for values,
+                    // 3 for weights) - PS stores prices with 6 decimals, which would
+                    // otherwise fail the Number{precision} check on every imported row.
                     $customsProducts[] = [
                         'name' => $product['product_name'],
                         'quantity' => (int) $product['product_quantity'],
-                        'unitValue' => (float) $product['product_price'],
-                        'unitWeight' => $unitWeight,
+                        'unitValue' => round((float) $product['product_price'], 2),
+                        'unitWeight' => round($unitWeight, 3),
                     ];
                 }
             } catch (Exception $e) {
@@ -238,6 +248,7 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
                 'terminalCode' => $codeTerminal,
                 'terminalType' => $terminalType,
                 'receiver_country_iso' => $receiver_country_iso,
+                'receiver_state_iso' => $receiverStateIso,
                 'presta_carrier_id' => $prestaCarrierId,
                 'presta_carrier_name' => $prestaCarrierName,
                 'carrier_limits' => $carrierLimits,
@@ -261,6 +272,7 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
                 'terminalCode' => null,
                 'terminalType' => null,
                 'receiver_country_iso' => 'PL',
+                'receiver_state_iso' => '',
                 'presta_carrier_id' => null,
                 'presta_carrier_name' => null,
                 'carrier_limits' => ['max_weight' => 0, 'max_width' => 0, 'max_height' => 0, 'max_depth' => 0],
@@ -419,6 +431,7 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
         $order->comments = $decode['comments'];
         $order->cod = $decode['cod'];
         $order->payment = $decode['payment'];
+        $order->hasCustoms = !empty($decode['hasCustoms']);
 
         $om = new Globkuriermodule\Order\OrderManager();
         $success = $om->create($order);
@@ -431,7 +444,6 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
                 $api = new Globkuriermodule\Common\GlobkurierApi($c->login, $c->password, $c->apiKey, $gkApiEnv);
                 $api->login();
                 $response = $api->getOrder($order->hash, $order->gkId);
-        $order->hasCustoms = !empty($decode['hasCustoms']);
                 $tn = isset($response['trackingNumber']) ? $response['trackingNumber'] : null;
                 if ($tn !== null) {
                     $om->updateTrackingNumber($order->gkId, $tn);
