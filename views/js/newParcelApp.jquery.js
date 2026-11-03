@@ -396,6 +396,10 @@ function showOrderErrors(obj) {
 			paymentId: s.additionalInfo.paymentType,
 			collectionType: collectionType,
 			agreements: {},
+			// Sender's dangerous goods statement (GLOBKURIER-10368). GK carries dangerous
+			// goods only with the ADR addon and rejects a statement that disagrees with it
+			// (false + ADR, or true without ADR) - so false unless ADR is selected.
+			containsDangerousGoods: (s.serviceOptions || []).some(function(o) { return o.category === 'ADR'; }),
 			originId: "PRESTASHOP_API"
 		};
 		// GK's validate/order endpoints reject an explicit empty array ("Pole nie może

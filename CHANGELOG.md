@@ -5,6 +5,7 @@
 + Shipment parameters turn into static data with "Change details" once quoted; changing them hides the addons, customs and summary (and blocks sending) until a new offer is picked, so a shipment can no longer be sent with a service or price quoted for other dimensions or weight; the service column is wide while choosing and narrow once an offer is picked
 + Fixed: "Show all carriers" switch did nothing unless the customer had picked a pickup point - "No" now narrows the offer list to the customer's checkout carrier (pickup point type, the template assigned to the PrestaShop carrier, or the carrier's name, e.g. "DPD"), "Yes" shows every carrier; switching no longer re-queries GlobKurier, and a note says when none of the offers comes from the customer's carrier
 + Shipment template picker moved into "Choose delivery"; changing the template after quoting re-quotes with the template's dimensions (empty/0 template values keep the current ones)
++ Orders send the sender's dangerous goods statement (containsDangerousGoods, GLOBKURIER-10368): false, or true only when the ADR addon is selected - GlobKurier rejects a statement that disagrees with the ADR addon
 
 ## [3.5.0] - 2026-09-18
 + Customs declaration form for international shipments: generic renderer driven entirely by GlobKurier's own /customs/config field metadata (sections, dual-language description/composition/purpose, commodities, EORI, invoice details)
