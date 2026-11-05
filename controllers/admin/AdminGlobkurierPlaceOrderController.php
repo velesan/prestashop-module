@@ -256,6 +256,7 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
                 'catalog_products_weight' => $catalogProductsWeight,
                 'effective_products_weight' => max($orderProductsWeight, $catalogProductsWeight),
                 'gk_order_products_json' => json_encode($customsProducts, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP),
+                'gk_customs_currencies_json' => json_encode($this->getCustomsCurrencies($order), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP),
                 'selected_template' => $selectedTemplate ? $selectedTemplate->toArray() : null,
                 'default_payment_type' => Globkuriermodule\Common\Config::normalizeLegacyPaymentType($c->defaultPaymentType),
             ]);
@@ -280,6 +281,7 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
                 'catalog_products_weight' => 0,
                 'effective_products_weight' => 0,
                 'gk_order_products_json' => '[]',
+                'gk_customs_currencies_json' => json_encode($this->getCustomsCurrencies(null), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP),
                 'selected_template' => $selectedTemplate ? $selectedTemplate->toArray() : null,
                 'default_payment_type' => Globkuriermodule\Common\Config::normalizeLegacyPaymentType($c->defaultPaymentType),
             ]);
@@ -306,6 +308,54 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
      *
      * @return AddressSplitter\AddressSplitter|null null if the split failed
      */
+    /**
+     * Currencies for the customs declaration, in order of preference: the order's,
+     * the shop's default, PLN. Each with the rate converting the order's item values
+     * into it (null when PrestaShop cannot convert, e.g. PLN not installed) - the
+     * declaration takes the first one GlobKurier offers (/customs/config).
+     *
+     * @return array<int, array{iso: string, rate: float|null}>
+     */
+    private function getCustomsCurrencies($order)
+    {
+        $orderCurrency = null;
+        if ($order && Validate::isLoadedObject($order)) {
+            $currency = new Currency((int) $order->id_currency);
+            $orderCurrency = Validate::isLoadedObject($currency) ? $currency : null;
+        }
+        $defaultCurrency = new Currency((int) Configuration::get('PS_CURRENCY_DEFAULT'));
+        $plnId = (int) Currency::getIdByIsoCode('PLN');
+        $candidates = [
+            $orderCurrency,
+            Validate::isLoadedObject($defaultCurrency) ? $defaultCurrency : null,
+            $plnId ? new Currency($plnId) : null,
+        ];
+
+        $result = [];
+        foreach ($candidates as $candidate) {
+            if (!$candidate || isset($result[$candidate->iso_code])) {
+                continue;
+            }
+            $rate = null;
+            if (!$orderCurrency || (int) $candidate->id === (int) $orderCurrency->id) {
+                $rate = 1.0;
+            } else {
+                try {
+                    $rate = round((float) Tools::convertPriceFull(1, $orderCurrency, $candidate), 6);
+                } catch (Exception $e) {
+                    $rate = null;
+                }
+            }
+            $result[$candidate->iso_code] = ['iso' => (string) $candidate->iso_code, 'rate' => $rate ?: null];
+        }
+        if (!isset($result['PLN'])) {
+            // GlobKurier's base currency, even when the shop doesn't have it installed
+            $result['PLN'] = ['iso' => 'PLN', 'rate' => $orderCurrency && $orderCurrency->iso_code !== 'PLN' ? null : 1.0];
+        }
+
+        return array_values($result);
+    }
+
     private function getSplittedAddres(Address $address)
     {
         $splitter = new AddressSplitter\AddressSplitter();

@@ -172,6 +172,36 @@
                     </div>
                 </div>
             </div>
+            {* Sender's dangerous goods statement, as in GK's own order form - sent as containsDangerousGoods: false (buildOrderData()) *}
+            <div class="row">
+                <div class="col-lg-12">
+                    <div class="panel gk-dg-declaration" id="gkDgDeclaration" role="group" aria-labelledby="gkDgTitle">
+                        <div class="panel-heading" id="gkDgTitle">{l s='Sender declaration' mod='globkuriermodule'} <span class="gk-dg-required" aria-hidden="true">*</span></div>
+                        <div class="panel-body">
+                            <div class="gk-dg-statement">
+                                <p class="gk-dg-text collapsed" id="gkDgText">{l s='I declare, under legal and criminal liability, that the contents of the shipment match the description and the declared value, and that the shipment contains no dangerous goods (including lithium batteries, also inside devices), tobacco products, e-cigarettes or any other items excluded from carriage. A false declaration risks an aviation disaster, as well as the shipment being withheld, the account being blocked, costs being charged and the matter being reported to the competent authorities.' mod='globkuriermodule'}</p>
+                                <button type="button" class="btn btn-link gk-dg-toggle" id="gkDgToggle" aria-controls="gkDgText" aria-expanded="false" data-more="{l s='read more' mod='globkuriermodule'}" data-less="{l s='show less' mod='globkuriermodule'}">{l s='read more' mod='globkuriermodule'}</button>
+                            </div>
+                            <div class="gk-dg-switch" role="radiogroup" aria-labelledby="gkDgSwitchLabel" aria-required="true" aria-describedby="gkDgText gkDgError">
+                                <span class="gk-dg-switch-label" id="gkDgSwitchLabel">{l s='I confirm the declaration' mod='globkuriermodule'}</span>
+                                <span class="switch prestashop-switch prestashop-switch-gk fixed-width-lg">
+                                    <input name="gk_dg_confirmed" id="gkDgConfirmed_on" value="1" type="radio">
+                                    <label for="gkDgConfirmed_on" class="radioCheck">
+                                        <i class="color_success"></i> {l s='Yes' mod='globkuriermodule'}
+                                    </label>
+                                    <input name="gk_dg_confirmed" id="gkDgConfirmed_off" value="0" checked="checked" type="radio">
+                                    <label for="gkDgConfirmed_off" class="radioCheck">
+                                        <i class="color_danger"></i> {l s='No' mod='globkuriermodule'}
+                                    </label>
+                                    <a class="slide-button btn"></a>
+                                </span>
+                            </div>
+                            <p class="gk-dg-error" id="gkDgError" role="alert" aria-live="polite" style="display:none;">{l s='Confirm the sender declaration to place the shipment.' mod='globkuriermodule'}</p>
+                            <p class="help-block gk-dg-adr-note">{l s='Shipments with dangerous goods (ADR) can be sent in the GlobKurier panel.' mod='globkuriermodule'} <a href="https://www.globkurier.pl/" target="_blank" rel="noopener noreferrer">{l s='Go to GlobKurier' mod='globkuriermodule'}</a></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         {* Wide (col-lg-8) while the offers are being browsed, narrow (col-lg-4) once one is picked - toggled by setOfferLayout() *}
@@ -420,26 +450,7 @@
                     <div class="panel-heading">{l s='Customs clearance' mod='globkuriermodule'}</div>
                     <div class="panel-body">
                         <div class="row">
-                            <div class="col-lg-12">
-                                <table class="table table-condensed gk-customs-summary-table" id="customsSummaryTable" style="display:none;">
-                                    <thead>
-                                        <tr>
-                                            <th>{l s='Description' mod='globkuriermodule'}</th>
-                                            <th>{l s='Composition' mod='globkuriermodule'}</th>
-                                            <th>{l s='Purpose' mod='globkuriermodule'}</th>
-                                            <th>{l s='HS code' mod='globkuriermodule'}</th>
-                                            <th>{l s='Quantity' mod='globkuriermodule'}</th>
-                                            <th>{l s='Total value' mod='globkuriermodule'}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="customsSummaryTableBody"></tbody>
-                                </table>
-                            </div>
-                            <div class="col-lg-12">
-                                <div id="customsCalcStatus" style="display:none;"></div>
-                            </div>
                             <div class="col-lg-12 gk-customs-status-col" style="text-align:center;">
-                                <div id="customsCalculationPrice" class="text-muted" style="display:none; margin-bottom:6px; font-size:12px;"></div>
                                 <button type="button" class="btn btn-warning" id="openCustomsModalBtn">
                                     {l s='Edit customs declaration' mod='globkuriermodule'}
                                 </button>
@@ -456,6 +467,32 @@
 
         <!-- Section discount code and summary -->
         <div class="col-lg-12" id="summaryContainer" style="display:none; margin-top: 20px;">
+           {* Items of the customs declaration, full width above the order summary (a long list does not fit
+              the narrow addons column); one card per item on a phone - renderCustomsSummaryTable() *}
+           <div class="panel gk-customs-items" id="customsItemsPanel" style="display:none;">
+                <div class="panel-heading">
+                    {l s='Items in the customs declaration' mod='globkuriermodule'} <span id="customsItemsCount"></span>
+                </div>
+                <div class="panel-body">
+                    <div class="gk-customs-summary">
+                        <table class="table table-condensed gk-customs-summary-table" id="customsSummaryTable" style="display:none;">
+                            <thead>
+                                <tr>
+                                    <th>{l s='Description' mod='globkuriermodule'}</th>
+                                    <th>{l s='Composition' mod='globkuriermodule'}</th>
+                                    <th>{l s='Purpose' mod='globkuriermodule'}</th>
+                                    <th>{l s='HS code' mod='globkuriermodule'}</th>
+                                    <th>{l s='Quantity' mod='globkuriermodule'}</th>
+                                    <th>{l s='Total value' mod='globkuriermodule'}</th>
+                                </tr>
+                            </thead>
+                            <tbody id="customsSummaryTableBody"></tbody>
+                        </table>
+                    </div>
+                    {* 10 items a page (renderCustomsItemsPager()) *}
+                    <nav class="gk-customs-pager" id="customsItemsPager" aria-label="{l s='Customs items pages' mod='globkuriermodule'}" style="display:none;"></nav>
+                </div>
+           </div>
            <div class="panel">
                 <div class="panel-heading">Podsumowanie zamówienia</div>
                 <div class="panel-body">
@@ -480,14 +517,15 @@
                                     </div>
                                 </div>
                                 <div id="priceErrorBox" class="alert alert-warning" style="display:none;"></div>
+                                {* DDP/DAP Premium duty calculation: waiting / in progress / error (renderCustomsCalcStatus()) *}
+                                <div id="customsCalcStatus" style="display:none;"></div>
                                 <div id="orderSummaryBox" class="well" style="margin-top:10px;">
                                     <div id="summaryRowBaseNet"><strong>{l s='Base price net' mod='globkuriermodule'}</strong>: <span id="summaryBaseNet">-</span></div>
                                     <div id="summaryRowAddons"><strong>{l s='Additional services selected' mod='globkuriermodule'}</strong>: <span id="summaryAddonsNet">-</span></div>
                                     <div id="summaryRowDiscount"><strong>{l s='Discount net' mod='globkuriermodule'}</strong>: <span id="summaryDiscount">-</span></div>
                                     <div id="summaryRowNetWithFuel"><strong>{l s='Total net + fuel' mod='globkuriermodule'}</strong>: <span id="summaryNetWithFuel">-</span></div>
-                                    {* Duty calculation laid out as in GK's own order summary: the fees and duties the
-                                       total includes (the DDP/DAP Premium addon is priced with the whole calculation),
-                                       then the prepaid total and the taxes - see renderCustomsCalculation() *}
+                                    {* Laid out as GK's own order summary: the customs fees and duties above the total,
+                                       then the total charged to the customs prepaid account and the taxes *}
                                     <div id="customsIncludedFees" class="gk-customs-included" style="display:none;"></div>
                                     <div id="summaryRowGross"><strong>{l s='Total gross' mod='globkuriermodule'}</strong>: <span id="summaryGross">-</span></div>
                                     <div id="summaryRowFuel" class="text-muted" style="font-size:12px;">{l s='incl. fuel surcharge' mod='globkuriermodule'}: <span id="summaryFuel">-</span></div>
@@ -598,6 +636,7 @@
         </div>
     </div>
 
+
     <!-- Customs clearance modal: content built dynamically by renderCustomsSection() -->
     <div class="modal fade" id="customsModal" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
       <div class="modal-dialog modal-lg">
@@ -606,10 +645,6 @@
             <h4 class="modal-title">{l s='Customs clearance' mod='globkuriermodule'}</h4>
           </div>
           <div class="modal-body">
-            <div class="alert alert-info" id="customsCalculationBreakdown" style="display:none;">
-                <strong>{l s='Total customs and tax charges paid from the prepaid account' mod='globkuriermodule'}:</strong> <span id="customsCalculationBreakdownTotal"></span>
-                <div id="customsCalculationBreakdownBody"></div>
-            </div>
             <div class="row" id="customsBody"></div>
           </div>
           <div class="modal-footer">
@@ -627,6 +662,7 @@
 
     <div id="gk-all-templates-data" data-json="{$gk_all_templates_json|escape:'html':'UTF-8'}" style="display:none" aria-hidden="true"></div>
     <div id="gk-order-products-data" data-json="{$gk_order_products_json|escape:'html':'UTF-8'}" style="display:none" aria-hidden="true"></div>
+    <div id="gk-customs-currencies-data" data-json="{if isset($gk_customs_currencies_json)}{$gk_customs_currencies_json|escape:'html':'UTF-8'}{else}[]{/if}" style="display:none" aria-hidden="true"></div>
 
     <script type="text/javascript">
         // Note: These will be mapped to Globkurier country IDs in JavaScript via ISO codes
@@ -770,13 +806,12 @@
             langCustomsSectionDetails: '{l s='Details' mod='globkuriermodule'}',
             langCommodityItem: '{l s='Item' mod='globkuriermodule'}',
             langWeightExceedsOrder: '{l s='Total customs weight exceeds the shipment weight' mod='globkuriermodule'}',
-            langEstimatedDuty: '{l s='Estimated duty/fees' mod='globkuriermodule'}',
             langCustomsFees: '{l s='Customs fees' mod='globkuriermodule' js=1}',
             langCustomsDuties: '{l s='Duties' mod='globkuriermodule'}',
             langCustomsTaxes: '{l s='Future tax payments' mod='globkuriermodule' js=1}',
-            langCustomsIncludedFees: '{l s='Includes customs and tax fees' mod='globkuriermodule' js=1}',
             langRate: '{l s='rate' mod='globkuriermodule'}',
-            langCustomsCalcWaiting: '{l s='Complete the customs declaration to calculate the duty for DDP/DAP Premium.' mod='globkuriermodule' js=1}',
+            langCustomsIncludedFees: '{l s='Includes customs and tax fees' mod='globkuriermodule' js=1}',
+            langCustomsCalcWaiting: '{l s='The customs duty is calculated once the shipment details and the customs declaration are complete.' mod='globkuriermodule' js=1}',
             langCustomsCalcLoading: '{l s='Calculating customs duty...' mod='globkuriermodule' js=1}',
             langCustomsCalcConfigUnavailable: '{l s='GlobKurier could not confirm the customs requirements for this route. Retry the calculation.' mod='globkuriermodule' js=1}',
             langCustomsCalcError: '{l s='The customs duty could not be calculated. The shipment cannot be placed with DDP/DAP Premium until it is.' mod='globkuriermodule' js=1}',
@@ -809,6 +844,15 @@
             langOffersSortRecommended: '{l s='Recommended' mod='globkuriermodule' js=1}',
             langOffersSortPrice: '{l s='Cheapest' mod='globkuriermodule' js=1}',
             langOffersSortDelivery: '{l s='Fastest' mod='globkuriermodule' js=1}',
+            langOffersSortRecommendedDesc: '{l s='Best balance of delivery time and price. Offers we recommend appear first.' mod='globkuriermodule' js=1}',
+            langOffersSortPriceDesc: '{l s='Lowest price first. Delivery time does not affect the order.' mod='globkuriermodule' js=1}',
+            langOffersSortDeliveryDesc: '{l s='Shortest delivery time first. If times are equal, the cheaper offer comes first. Offers without a delivery time are listed last.' mod='globkuriermodule' js=1}',
+            langCustomsItemsPrev: '{l s='Previous' mod='globkuriermodule' js=1}',
+            langCustomsItemsNext: '{l s='Next' mod='globkuriermodule' js=1}',
+            langCustomsItemsPage: '{l s='Page %1$s of %2$s' mod='globkuriermodule' js=1}',
+            langCustomsItemsRange: '{l s='items %1$s-%2$s of %3$s' mod='globkuriermodule' js=1}',
+            langOffersHolidayInfo: '{l s='Holiday information' mod='globkuriermodule' js=1}',
+            langAddonsError: '{l s='The additional services could not be loaded.' mod='globkuriermodule' js=1}',
             langOffersCollection: '{l s='Sending' mod='globkuriermodule' js=1}',
             langOffersDelivery: '{l s='Delivery' mod='globkuriermodule' js=1}',
             langOffersCarrier: '{l s='Carrier' mod='globkuriermodule' js=1}',
@@ -848,6 +892,11 @@
             window.GkOrderProducts = JSON.parse(document.getElementById('gk-order-products-data').getAttribute('data-json') || '[]');
         } catch (e) {
             window.GkOrderProducts = [];
+        }
+        try {
+            window.GkCustomsCurrencies = JSON.parse(document.getElementById('gk-customs-currencies-data').getAttribute('data-json') || '[]');
+        } catch (e) {
+            window.GkCustomsCurrencies = [];
         }
         window.GkSelectedTemplateId = {if $selected_template}{$selected_template.id_template|intval}{else}0{/if};
         window.GkSelectedTemplateServiceId = {if $selected_template && $selected_template.gk_product_id}{$selected_template.gk_product_id|intval}{else}0{/if};

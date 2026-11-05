@@ -382,6 +382,54 @@ function showOrderErrors(obj, generalMessages) {
 		return allowed[0] || 'PICKUP';
 	}
 
+	// Dangerous goods travel only with the ADR addon (category ADR). Its ADR items
+	// list isn't supported here, so its addons are not offered (renderAddons()) -
+	// such shipments are sent in GK's own panel.
+	function hasAdrAddon() {
+		return (GK.state.serviceOptions || []).some(function(o) { return o && o.category === 'ADR'; });
+	}
+
+	// Same rule as GK's own form (Ariadna resolveContainsDangerousGoods()): GK rejects
+	// true without the ADR addon and false with it; undefined = no statement yet
+	function resolveContainsDangerousGoods() {
+		if (hasAdrAddon()) return true;
+		return GK.state.dangerousGoodsConfirmed === true ? false : undefined;
+	}
+
+	function showDangerousGoodsError(message) {
+		const $error = $('#gkDgError');
+		if (message) { $error.text(message); }
+		$error.show();
+		$('#gkDgDeclaration').addClass('gk-dg-invalid');
+		$('#gkDgDeclaration .gk-dg-switch').attr('aria-invalid', 'true');
+	}
+
+	function hideDangerousGoodsError() {
+		$('#gkDgError').hide();
+		$('#gkDgDeclaration').removeClass('gk-dg-invalid');
+		$('#gkDgDeclaration .gk-dg-switch').removeAttr('aria-invalid');
+	}
+
+	function bindDangerousGoodsDeclaration() {
+		// prestashop-switch: "Yes" (value 1) = the sender confirms the declaration
+		$(document).off('change.gkDg', 'input[name="gk_dg_confirmed"]').on('change.gkDg', 'input[name="gk_dg_confirmed"]', function() {
+			GK.state.dangerousGoodsConfirmed = isDangerousGoodsDeclarationOn();
+			if (GK.state.dangerousGoodsConfirmed) { hideDangerousGoodsError(); }
+		});
+		$(document).off('click.gkDg', '#gkDgToggle').on('click.gkDg', '#gkDgToggle', function() {
+			const $btn = $(this);
+			const expanded = $btn.attr('aria-expanded') !== 'true';
+			$('#gkDgText').toggleClass('collapsed', !expanded);
+			$btn.attr('aria-expanded', expanded ? 'true' : 'false').text($btn.data(expanded ? 'less' : 'more'));
+		});
+		// Keep the state in sync with the DOM (e.g. a browser restoring the switch on back)
+		GK.state.dangerousGoodsConfirmed = isDangerousGoodsDeclarationOn();
+	}
+
+	function isDangerousGoodsDeclarationOn() {
+		return $('input[name="gk_dg_confirmed"]:checked').val() === '1';
+	}
+
 	function buildOrderData() {
 		const s = GK.state;
 		const collectionType = getSelectedCollectionTypeForApi();
@@ -402,12 +450,15 @@ function showOrderErrors(obj, generalMessages) {
 			paymentId: s.additionalInfo.paymentType,
 			collectionType: collectionType,
 			agreements: {},
-			// Sender's dangerous goods statement (GLOBKURIER-10368). GK carries dangerous
-			// goods only with the ADR addon and rejects a statement that disagrees with it
-			// (false + ADR, or true without ADR) - so false unless ADR is selected.
-			containsDangerousGoods: (s.serviceOptions || []).some(function(o) { return o.category === 'ADR'; }),
 			originId: "PRESTASHOP_API"
 		};
+		// Sender's dangerous goods statement (GLOBKURIER-10368), as in GK's own form:
+		// true only with the ADR addon, false only once the sender ticked the
+		// declaration, otherwise left out (the debounced order/validate runs before it)
+		const containsDangerousGoods = resolveContainsDangerousGoods();
+		if (containsDangerousGoods !== undefined) {
+			data.containsDangerousGoods = containsDangerousGoods;
+		}
 		// GK's validate/order endpoints reject an explicit empty array ("Pole nie może
 		// być puste" / "field cannot be empty") - omit the key entirely instead of
 		// sending `addons: []` when nothing is selected yet.
@@ -930,6 +981,16 @@ function showOrderErrors(obj, generalMessages) {
 		if (err) { showValidationErrors(err); return; }
 		if (!GK.state.pickedService) return;
 
+		// Sender's declaration required, as in GK's own form - without it the order
+		// would carry no dangerous goods statement
+		if (resolveContainsDangerousGoods() === undefined) {
+			showDangerousGoodsError();
+			const dgBox = document.getElementById('gkDgDeclaration');
+			if (dgBox && dgBox.scrollIntoView) { dgBox.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+			$('#gkDgConfirmed_on').trigger('focus');
+			return;
+		}
+
 		// Validate pickup date and time
 		const collectionType = getSelectedCollectionTypeForApi();
 		const $orderedCbValidate = $('.addon-checkbox[data-category="ORDERED_COURIER"]');
@@ -1000,14 +1061,6 @@ function showOrderErrors(obj, generalMessages) {
 			return;
 		}
 
-		// DDP/DAP Premium: no customs invoice from GK without a saved calculation
-		if (!isCustomsCalculationReady()) {
-			renderCustomsCalcStatus();
-			const $calcBox = $('#customsCalcStatus');
-			if ($calcBox.length) { $calcBox[0].scrollIntoView({ block: 'center', behavior: 'smooth' }); }
-			return;
-		}
-
 		// Validate required addons
 		if (GK.state.customRequired && GK.state.customRequired.requiredAddons) {
 			const requiredAddons = GK.state.customRequired.requiredAddons;
@@ -1021,6 +1074,38 @@ function showOrderErrors(obj, generalMessages) {
 			}
 		}
 
+		// DDP/DAP Premium: GK issues the customs invoice from a saved calculation. The order
+		// goes when the calculation shown in the summary is the one for this data; otherwise
+		// (the data changed, the automatic one has not run) it is calculated and shown first,
+		// so the merchant sees the charges before sending - "Send" again then places it.
+		if (!needsDutyCalculation()) {
+			dropDutyCalculation();
+			submitOrder();
+			return;
+		}
+		const shownKey = GK.state.customsCalc && GK.state.customsCalc.status === 'ok' ? GK.state.customsCalc.shownKey : null;
+		setProcessing(true);
+		fetchCustomsCalculation(true).then(function(result) {
+			setProcessing(false);
+			if (!result) {
+				scrollToCustomsCalc();
+				return;
+			}
+			if (shownKey && GK.state.customsCalc.key === shownKey) {
+				submitOrder();
+				return;
+			}
+			showDutyCalculation(result);
+			scrollToCustomsCalc();
+		});
+	}
+
+	function scrollToCustomsCalc() {
+		const box = document.getElementById('orderSummaryBox');
+		if (box && box.scrollIntoView) { box.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+	}
+
+	function submitOrder() {
 		setProcessing(true);
 		const orderData = buildOrderData();
 		const token = window.InitialValues && window.InitialValues.token;
@@ -1090,11 +1175,15 @@ function showOrderErrors(obj, generalMessages) {
 			}
 			// Same errors also mapped onto the fields (customs errors under the declaration fields)
 			if (e && e.fields) { showAddressValidationErrors(e.fields); }
+			// The dangerous goods statement GK refused, shown at the declaration too
+			const dgError = fields && (fields.containsDangerousGoods || fields['[containsDangerousGoods]']);
+			if (dgError) { showDangerousGoodsError(Array.isArray(dgError) ? dgError.join(' ') : String(dgError)); }
 		})
 		.finally(function(){ setProcessing(false); });
 	}
 
 	function bind() {
+		bindDangerousGoodsDeclaration();
 		$(document).on('click', '#orderErrorClose', function(){ $('#orderErrorBox').hide(); });
 		$(document).on('click', '#validationErrorClose', function(){ $('#validationErrorBox').hide(); });
 		// "Fix" link inside the address validation summary: opens the relevant edit
@@ -1109,11 +1198,19 @@ function showOrderErrors(obj, generalMessages) {
 		});
 		// --- Customs clearance form ------------------------------------------------
 		$(document).on('click', '#openCustomsModalBtn', function(){ $('#customsModal').modal('show'); });
-		$(document).on('click', '.gk-customs-calc-retry', function(){
-			// Force a new query even though the input did not change
-			if (GK.state.customsCalc) { GK.state.customsCalc.key = null; }
-			fetchCustomsCalculation();
+		$(document).on('click', '#customsItemsPager button.gk-customs-page', function(){
+			GK.state.customsItemsPage = parseInt($(this).data('page'), 10) || 1;
+			renderCustomsSummaryTable();
+			const panel = document.getElementById('customsItemsPanel');
+			if (panel && panel.scrollIntoView) { panel.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
 		});
+		$(document).on('click', '.gk-customs-calc-retry', function(){
+			// A new query even though the input did not change
+			if (GK.state.customsCalc) { GK.state.customsCalc.key = null; }
+			runDutyCalculation(true);
+		});
+		// The declaration is edited in the modal - calculated once it is closed
+		$(document).on('hidden.bs.modal', '#customsModal', function(){ scheduleDutyCalculation(); });
 		$(document).on('click', '.gk-open-customs-errors', function(e){
 			e.preventDefault();
 			$('#customsModal').modal('show');
@@ -1615,10 +1712,8 @@ function bindEditModals() {
         if (GK.state.sender.phone && GK.state.receiver.phone) { $('#validationErrorBox').hide(); }
         try { ensureCountryIdsFromIso(); } catch(e) {}
         postOrderValidate(buildAddressOnlyPayload());
-        // A fixed address/phone can turn a previously-failing customs calculation
-        // into a successful one (e.g. the phone-format error GK returns from this
-        // same endpoint) - re-run it instead of leaving the estimate hidden forever.
-        debouncedCustomsCalculation();
+        // A changed address changes the calculation (and can fix a failed one)
+        scheduleDutyCalculation();
     });
 
     // Open Receiver edit
@@ -1651,10 +1746,8 @@ function bindEditModals() {
         if (GK.state.sender.phone && GK.state.receiver.phone) { $('#validationErrorBox').hide(); }
         try { ensureCountryIdsFromIso(); } catch(e) {}
         postOrderValidate(buildAddressOnlyPayload());
-        // A fixed address/phone can turn a previously-failing customs calculation
-        // into a successful one (e.g. the phone-format error GK returns from this
-        // same endpoint) - re-run it instead of leaving the estimate hidden forever.
-        debouncedCustomsCalculation();
+        // A changed address changes the calculation (and can fix a failed one)
+        scheduleDutyCalculation();
     });
 }
 	// ============ Services and Options (MVP) ============
@@ -1728,6 +1821,25 @@ function buildHeaders() {
 		'scheduled services': 'scheduled',
 		'crossborder': 'crossborder'
 	};
+
+	// Ribbon icons per promo kind, as GK's own (productPromo.ts: star, stars, clock, globe, tag)
+	const OFFER_RIBBON_ICONS = {
+		recommended: '<path fill="none" stroke="currentColor" stroke-width="1.5" d="M9.153 5.408C10.42 3.136 11.053 2 12 2s1.58 1.136 2.847 3.408l.328.588c.36.646.54.969.82 1.182s.63.292 1.33.45l.636.144c2.46.557 3.689.835 3.982 1.776c.292.94-.546 1.921-2.223 3.882l-.434.507c-.476.557-.715.836-.822 1.18c-.107.345-.071.717.001 1.46l.066.677c.253 2.617.38 3.925-.386 4.506s-1.918.051-4.221-1.009l-.596-.274c-.654-.302-.981-.452-1.328-.452s-.674.15-1.328.452l-.596.274c-2.303 1.06-3.455 1.59-4.22 1.01c-.767-.582-.64-1.89-.387-4.507l.066-.676c.072-.744.108-1.116 0-1.46c-.106-.345-.345-.624-.821-1.18l-.434-.508c-1.677-1.96-2.515-2.941-2.223-3.882S3.58 8.328 6.04 7.772l.636-.144c.699-.158 1.048-.237 1.329-.45s.46-.536.82-1.182z"/>',
+		new: '<path fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.5" d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8zM5 2l.6 1.4L7 4l-1.4.6L5 6l-.6-1.4L3 4l1.4-.6z"/>',
+		scheduled: '<circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.5"/><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l2.5 2.5"/>',
+		crossborder: '<circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.5"/><path fill="none" stroke="currentColor" stroke-width="1.5" d="M2 12h20M12 2c2.5 2.7 3.8 6.1 3.8 10s-1.3 7.3-3.8 10c-2.5-2.7-3.8-6.1-3.8-10S9.5 4.7 12 2z"/>',
+		neutral: '<path fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.5" d="M3 11.2V4a1 1 0 0 1 1-1h7.2a1 1 0 0 1 .7.3l8.8 8.8a1 1 0 0 1 0 1.4l-7.2 7.2a1 1 0 0 1-1.4 0L3.3 11.9a1 1 0 0 1-.3-.7z"/><circle cx="7.5" cy="7.5" r="1.5" fill="currentColor"/>'
+	};
+
+	function renderOfferRibbon(promo, kind) {
+		if (!kind) return '';
+		return '<span class="gk-offer-ribbon gk-offer-ribbon--' + kind + '" title="' + escapeHtml(promo) + '">' +
+			'<span class="gk-offer-ribbon-body">' +
+				'<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' + (OFFER_RIBBON_ICONS[kind] || OFFER_RIBBON_ICONS.neutral) + '</svg>' +
+				'<span class="gk-offer-ribbon-text">' + escapeHtml(promo) + '</span>' +
+			'</span>' +
+		'</span>';
+	}
 
 	function offerPromoKind(promo) {
 		if (typeof promo !== 'string' || !promo.trim()) return null;
@@ -1902,9 +2014,14 @@ function buildHeaders() {
 			'<div class="gk-segmented" role="group" aria-labelledby="gkOffersFilter-' + group + '">' +
 				options.map(function(option) {
 					const active = option.value === current;
+					// Optional description (sorting: how the offers are ordered, as on GK's own page)
+					const descId = option.description ? 'gkOffersDesc-' + group + '-' + escapeHtml(option.value) : '';
 					return '<button type="button" class="gk-segmented-btn gk-offers-filter-btn' + (active ? ' is-active' : '') + '"' +
-						' data-group="' + group + '" data-value="' + escapeHtml(option.value) + '" aria-pressed="' + (active ? 'true' : 'false') + '">' +
-						escapeHtml(option.label) + '</button>';
+						' data-group="' + group + '" data-value="' + escapeHtml(option.value) + '" aria-pressed="' + (active ? 'true' : 'false') + '"' +
+						(descId ? ' title="' + escapeHtml(option.description) + '" aria-describedby="' + descId + '"' : '') + '>' +
+						escapeHtml(option.label) +
+						(descId ? '<span class="sr-only" id="' + descId + '">' + escapeHtml(option.description) + '</span>' : '') +
+						'</button>';
 				}).join('') +
 			'</div>' +
 		'</div>';
@@ -1926,6 +2043,35 @@ function buildHeaders() {
 		}).join('');
 	}
 
+	// Carrier holiday notices (GET /products holidayInfo[].message), as GK's own offer rows:
+	// a red "!" that opens the messages - a button, so touch and keyboard reach them too
+	function offerHolidayMessages(offer) {
+		const seen = {};
+		return (Array.isArray(offer && offer.holidayInfo) ? offer.holidayInfo : []).map(function(info) {
+			return info && typeof info.message === 'string' ? info.message.trim() : '';
+		}).filter(function(message) {
+			if (!message || seen[message]) return false;
+			seen[message] = true;
+			return true;
+		});
+	}
+
+	function renderOfferHolidayInfo(offer) {
+		const messages = offerHolidayMessages(offer);
+		if (!messages.length) return '';
+		const iv = window.InitialValues || {};
+		const label = iv.langOffersHolidayInfo || 'Holiday information';
+		const textId = 'gkOfferHoliday-' + escapeHtml(offer.id);
+		return '<div class="gk-offer-holiday">' +
+			'<button type="button" class="gk-offer-holiday-btn" aria-expanded="false" aria-controls="' + textId + '" title="' + escapeHtml(messages.join(' ')) + '">' +
+				'<svg width="18" height="18" viewBox="0 0 23 23" aria-hidden="true" focusable="false"><circle cx="11.5" cy="11.5" r="11.5" fill="currentColor"/><path d="M11.3855 6L11.3855 12.7712" stroke="#fff" stroke-width="3" stroke-linecap="round"/><path d="M11.3853 17.731L11.3042 17.731" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg>' +
+				'<span>' + escapeHtml(label) + '</span></button>' +
+			'<div class="gk-offer-holiday-text" id="' + textId + '" hidden>' +
+				messages.map(function(message) { return '<p>' + escapeHtml(message) + '</p>'; }).join('') +
+			'</div>' +
+		'</div>';
+	}
+
 	function renderOfferCard(offer) {
 		const iv = window.InitialValues || {};
 		const id = escapeHtml(offer.id);
@@ -1941,7 +2087,7 @@ function buildHeaders() {
 
 		return '<li>' +
 			'<article class="gk-offer' + (promoKind ? ' gk-offer--' + promoKind : '') + (isTemplateMatch ? ' gk-template-match' : '') + '" data-offer-id="' + id + '" aria-label="' + escapeHtml(offer.name || '') + '">' +
-				(promoKind ? '<span class="gk-offer-ribbon gk-offer-ribbon--' + promoKind + '" title="' + escapeHtml(offer.promo) + '">' + escapeHtml(offer.promo) + '</span>' : '') +
+				renderOfferRibbon(offer.promo, promoKind) +
 				(isTemplateMatch
 					? '<span class="glob-template-badge gk-offer-template-badge" title="' + escapeHtml(iv.langFromTemplateTitle || '') + '">' +
 						'<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17 3H7a2 2 0 0 0-2 2v16l7-3 7 3V5a2 2 0 0 0-2-2z"/></svg> ' +
@@ -1953,6 +2099,7 @@ function buildHeaders() {
 						'<div class="gk-offer-info">' +
 							'<p class="gk-offer-name">' + escapeHtml(offer.name || '') + units + '</p>' +
 							'<p class="gk-offer-carrier">' + escapeHtml(offer.carrierName || '') + '</p>' +
+							renderOfferHolidayInfo(offer) +
 							(delivery ? '<p class="gk-offer-delivery">' + escapeHtml(iv.langOffersAvgDelivery || 'Average delivery time') + ': <strong>' + escapeHtml(delivery) + '</strong></p>' : '') +
 						'</div>' +
 					'</div>' +
@@ -1994,7 +2141,7 @@ function buildHeaders() {
 		updateShipmentSummary();
 
 		if (s.offersError) {
-			$box.html('<div class="alert alert-danger">' + escapeHtml(iv.langOffersError || 'The offers could not be loaded.') + '</div>');
+			$box.html('<div class="alert alert-danger">' + escapeHtml(typeof s.offersError === 'string' ? s.offersError : (iv.langOffersError || 'The offers could not be loaded.')) + '</div>');
 			return;
 		}
 		if (!s.offers.length) {
@@ -2033,9 +2180,9 @@ function buildHeaders() {
 			'<h3 class="gk-offers-title">' + escapeHtml(iv.langOffers || 'Offers') + ' (' + filtered.length + ')</h3>' +
 			'<span class="gk-offers-rule" aria-hidden="true"></span>' +
 			renderOfferSegmented('sort', s.offersSort, [
-				{ value: 'recommended', label: iv.langOffersSortRecommended || 'Recommended' },
-				{ value: 'price', label: iv.langOffersSortPrice || 'Cheapest' },
-				{ value: 'delivery', label: iv.langOffersSortDelivery || 'Fastest' }
+				{ value: 'recommended', label: iv.langOffersSortRecommended || 'Recommended', description: iv.langOffersSortRecommendedDesc },
+				{ value: 'price', label: iv.langOffersSortPrice || 'Cheapest', description: iv.langOffersSortPriceDesc },
+				{ value: 'delivery', label: iv.langOffersSortDelivery || 'Fastest', description: iv.langOffersSortDeliveryDesc }
 			], (iv.langOffersSort || 'Sort') + ':') +
 		'</div>';
 
@@ -2234,6 +2381,11 @@ function buildHeaders() {
 		$('#getServicesBtn').off('click').on('click', function() { quoteOffers(); });
 		$('#gkEditShipmentBtn').off('click').on('click', openShipmentForm);
 		$('#gkCancelShipmentEditBtn').off('click').on('click', cancelShipmentEdit);
+		$(document).off('click.gkHoliday', '.gk-offer-holiday-btn').on('click.gkHoliday', '.gk-offer-holiday-btn', function() {
+			const expanded = $(this).attr('aria-expanded') !== 'true';
+			$(this).attr('aria-expanded', expanded ? 'true' : 'false');
+			$('#' + $(this).attr('aria-controls')).prop('hidden', !expanded);
+		});
 		$('#gkShipmentForm').off('keydown', 'input').on('keydown', 'input', function(e) {
 			if (e.key === 'Enter') { e.preventDefault(); quoteOffers(); }
 		});
@@ -2277,7 +2429,14 @@ function fetchProducts() {
 		$btn.find('i.icon-cog').show();
 		return fetch(url, { headers: buildHeaders() })
 			.then(function(r){
-				if (!r.ok) { throw new Error('HTTP ' + r.status); }
+				if (!r.ok) {
+					// e.g. 429 "Too many requests ... per hour" (GK's API quota) - shown as sent
+					return r.json().catch(function() { return null; }).then(function(body) {
+						const error = new Error('HTTP ' + r.status);
+						error.gkMessage = gkGeneralMessage(body);
+						throw error;
+					});
+				}
 				return r.json();
 			})
 			.then(function(data){
@@ -2293,9 +2452,9 @@ function fetchProducts() {
 				// (applyCarrierSwitch()) instead of dropping offers from the list
 				GK.state.offers = list;
 			})
-			.catch(function(){
+			.catch(function(e){
 				GK.state.offers = [];
-				GK.state.offersError = true;
+				GK.state.offersError = (e && e.gkMessage) || true;
 			})
 			.finally(function(){
 				$('#servicesContainer').removeClass('loading');
@@ -2415,7 +2574,11 @@ function renderServiceOptionsContainer() {
       });
     $('input[name=pickup_type]').off('change').on('change', function(){
         fetchTimeRanges();
-        refreshAddons();
+        // The addons list doesn't depend on the sending method (product/addons is not
+        // asked with it), so it is kept with the merchant's selection - re-rendering it
+        // here dropped every chosen addon. Only the courier pickup addons
+        // (ORDERED_COURIER / PAID_PICKUP) follow the method.
+        applyPickupMethodAddonLogic();
         refreshPayments();
         recalcOrderPrice();
         updateCarrierDependentUI();
@@ -2656,6 +2819,9 @@ function renderServiceOptionsContainer() {
 	// addons exist), then value-range-driven groups (with their amount input), then
 	// every other addon rendered as a plain checkbox like before.
 	function renderAddonsList(list, requiredAlternativeAddonsGroups) {
+		// ADR addons left out: GK needs their ADR items list (not supported here) and
+		// holds ADR shipments for review - the declaration box points to GK's panel
+		list = (list || []).filter(function(opt) { return opt && opt.category !== 'ADR'; });
 		// Reset any addon selections that no longer exist in this fetch - switching to
 		// a different courier product/service can offer a completely different addon
 		// set (including which ones are isRequired), so a stale, no-longer-offered
@@ -2937,6 +3103,26 @@ function renderServiceOptionsContainer() {
 		}
 	}
 
+	// GK's order-level message ({"general": [...]}), e.g. its API quota answer (429)
+	function gkGeneralMessage(body) {
+		const general = body && body.general;
+		const list = Array.isArray(general) ? general : (typeof general === 'string' ? [general] : []);
+		return list.filter(Boolean).join(' ');
+	}
+
+	// GET product/addons: a refusal (e.g. 429 over the hourly quota) is shown in the
+	// addons list instead of an empty one, which would look like "no addons here"
+	function readAddonsResponse(r) {
+		return r.json().catch(function() { return null; }).then(function(data) {
+			if (r.ok) return data;
+			const iv = window.InitialValues || {};
+			const message = gkGeneralMessage(data) || iv.langAddonsError || 'The additional services could not be loaded.';
+			$('#addonsList').html($('<div class="alert alert-danger"></div>').text(message));
+			$('#addonsListContainer').show();
+			return null;
+		});
+	}
+
 	function fetchAddonsAndPayments() {
 		const s = GK.state;
 		if (!s.pickedService) return;
@@ -2949,8 +3135,9 @@ function renderServiceOptionsContainer() {
 		params.productId = s.pickedService.id;
 		const addonsUrl = gkApiBase() + 'product/addons?' + new URLSearchParams(params).toString();
 		fetch(addonsUrl, { headers: buildHeaders() })
-			.then(function(r){ return r.json(); })
+			.then(readAddonsResponse)
 			.then(function(data){
+				if (!data) return;
 				const list = (data && Array.isArray(data.addons)) ? data.addons : (Array.isArray(data) ? data : []);
 				renderAddonsList(list, data && data.requiredAlternativeAddonsGroups);
 				// Matched by category, not id: the GK API assigns a different numeric
@@ -3061,10 +3248,13 @@ function applyPickupMethodAddonLogic() {
     const sendingType = $('input[name=pickup_type]:checked').val();
     const $container = $('#pickupMethodAddons');
 
-    // Clear old elements and move fresh ones in from #addonsList
-    $container.empty();
-    $('#addonsList .addon-checkbox[data-category="ORDERED_COURIER"]').closest('.col-lg-12').detach().appendTo($container);
-    $('#addonsList .addon-checkbox[data-category="PAID_PICKUP"]').closest('.col-lg-12').detach().appendTo($container);
+    // Freshly rendered courier pickup addons move in from #addonsList, replacing the old
+    // ones; called again without a new render (sending method changed) they stay put
+    const $fresh = $('#addonsList .addon-checkbox[data-category="ORDERED_COURIER"], #addonsList .addon-checkbox[data-category="PAID_PICKUP"]').closest('.col-lg-12');
+    if ($fresh.length) {
+        $container.empty();
+        $fresh.detach().appendTo($container);
+    }
 
     if (!$container.children().length) {
         $container.hide();
@@ -3214,22 +3404,6 @@ function updateChosenServiceUI() {
     } catch(e) { $('#summaryServiceLabels').hide(); }
 }
 
-	function refreshAddons() {
-		const s = GK.state;
-		if (!s.pickedService) return Promise.resolve();
-		const params = buildProductsParams();
-		params.productId = s.pickedService.id;
-		const addonsUrl = gkApiBase() + 'product/addons?' + new URLSearchParams(params).toString();
-		$('#addonsList').empty();
-		$('#addonsListContainer').hide();
-		return fetch(addonsUrl, { headers: buildHeaders() })
-			.then(function(r){ return r.json(); })
-			.then(function(data){
-				const list = (data && Array.isArray(data.addons)) ? data.addons : (Array.isArray(data) ? data : []);
-				renderAddonsList(list, data && data.requiredAlternativeAddonsGroups);
-				applyPickupMethodAddonLogic();
-			});
-	}
 
 	function computeGrossPrice() {
 		const s = GK.state;
@@ -3574,7 +3748,7 @@ function resolveReceiverCalcState(countryId) {
                     fetchStates(receiverCountryId, { targetGroup: '#statesGroup', targetSelect: '#statesSelect' });
                 } else {
                     $('#statesGroup').hide();
-                    resolveReceiverCalcState(receiverCountryId).then(function(){ debouncedCustomsCalculation(); });
+                    resolveReceiverCalcState(receiverCountryId).then(scheduleDutyCalculation);
                 }
                 if (json.senderStateId === true) {
                     fetchStates(senderCountryId, { targetGroup: '#senderStatesGroup', targetSelect: '#senderStatesSelect' });
@@ -3721,7 +3895,9 @@ function resolveReceiverCalcState(countryId) {
 			row.quantity = product.quantity;
 		}
 		if (fieldByName.unitValue && product.unitValue != null) {
-			row.unitValue = product.unitValue;
+			// In the declaration currency (pickCustomsCurrency()), from the order's
+			const rate = parseFloat(GK.state.customsValueRate) || 1;
+			row.unitValue = rate === 1 ? product.unitValue : Math.round(parseFloat(product.unitValue) * rate * 100) / 100;
 		}
 		if (fieldByName.unitWeightGross && product.unitWeight != null) {
 			row.unitWeightGross = product.unitWeight;
@@ -3765,8 +3941,10 @@ function resolveReceiverCalcState(countryId) {
 		}
 		$('#customsContainer').hide();
 		$('#customsBody').empty();
-		$('#customsSummaryTable').hide();
+		$('#customsSummaryTable, #customsItemsPager').hide();
 		$('#customsSummaryTableBody').empty();
+		$('#customsItemsPanel').hide();
+		GK.state.customsItemsPage = 1;
 		hideCustomsCalculation();
 		setCustomsCalcState({ status: 'idle', key: null, errors: [], message: '' });
 		if (wasActive) {
@@ -4060,8 +4238,28 @@ function resolveReceiverCalcState(countryId) {
 		return { groups: groups, order: order };
 	}
 
+	// Declaration currency, the first GK offers of: the order's, the shop's default, PLN
+	// (window.GkCustomsCurrencies, with the rate from the order's currency - see
+	// AdminGlobkurierPlaceOrderController::getCustomsCurrencies()). A candidate PrestaShop
+	// can't convert the item values into is skipped, unless it is the only one left.
+	function pickCustomsCurrency(field) {
+		const offered = (field.options || []).map(function(o) { return String(o.value); });
+		const candidates = (window.GkCustomsCurrencies || []).filter(function(c) { return c && offered.indexOf(String(c.iso)) !== -1; });
+		const convertible = candidates.filter(function(c) { return c.rate != null; });
+		const picked = convertible[0] || null;
+		return picked ? { iso: String(picked.iso), rate: parseFloat(picked.rate) || 1 } : null;
+	}
+
 	function renderCustomsSection(fields) {
 		if (!GK.state.customsData) { GK.state.customsData = {}; }
+		// First render only - the merchant's own choice is kept afterwards
+		const currencyField = fields.find(function(field) { return field.name === 'currency' && field.type === 'choice'; });
+		if (currencyField && customsPathGet(GK.state.customsData, ['currency']) === undefined) {
+			const picked = pickCustomsCurrency(currencyField);
+			// None of them offered: GK's own default currency, the values as in the order
+			GK.state.customsValueRate = picked ? picked.rate : 1;
+			if (picked) { GK.state.customsData.currency = picked.iso; }
+		}
 		fields.forEach(function(field) {
 			if (customsPathGet(GK.state.customsData, [field.name]) === undefined) {
 				customsPathSet(GK.state.customsData, [field.name], buildCustomsDefaultValue(field));
@@ -4454,7 +4652,7 @@ function resolveReceiverCalcState(countryId) {
 		renderCustomsSummaryTable();
 		updateCustomsStatusBadge();
 		showCustomsValidationErrors(false);
-		debouncedCustomsCalculation();
+		scheduleDutyCalculation();
 	}
 
 	// A unique per-draft id the merchant's browser makes up (GK does not issue one -
@@ -4473,17 +4671,46 @@ function resolveReceiverCalcState(countryId) {
 		return s;
 	}
 
-	let _customsCalcDebounceTimer = null;
-	function debouncedCustomsCalculation() {
-		if (_customsCalcDebounceTimer) clearTimeout(_customsCalcDebounceTimer);
-		_customsCalcDebounceTimer = setTimeout(fetchCustomsCalculation, 900);
+	// Calculated automatically once everything it needs is in place - as GK's own panel
+	// shows it in the order summary before sending. Every call is a paid query, so: not
+	// while the declaration is open in its modal, a pause after the last change, never
+	// twice for the same data and no automatic retry after an error (fetchCustomsCalculation()).
+	let _dutyCalcTimer = null;
+	function scheduleDutyCalculation() {
+		if (_dutyCalcTimer) clearTimeout(_dutyCalcTimer);
+		_dutyCalcTimer = setTimeout(function() { runDutyCalculation(false); }, 1500);
 	}
 
-	function hideCustomsCalculation() {
-		$('#customsCalculationPrice').hide().text('').removeAttr('title');
-		$('#customsCalculationBreakdown').hide();
-		$('#customsCalculationBreakdownBody').empty();
-		$('#customsCalculationBreakdownTotal').text('');
+	function isReadyForDutyCalculation() {
+		const s = GK.state;
+		return !!s.orderSummary && !!(s.additionalInfo && s.additionalInfo.paymentType) &&
+			isCustomsFormComplete() && getUnselectedAlternativeGroups().length === 0;
+	}
+
+	function runDutyCalculation(manual) {
+		if (!needsDutyCalculation()) { dropDutyCalculation(); return Promise.resolve(null); }
+		if (!manual && $('#customsModal').hasClass('in')) return Promise.resolve(null);
+		if (!isReadyForDutyCalculation()) {
+			hideCustomsCalculation();
+			setCustomsCalcState({ status: 'waiting', key: null, errors: [], message: '', result: null, shownKey: null });
+			return Promise.resolve(null);
+		}
+		return fetchCustomsCalculation(manual).then(function(result) {
+			if (result) { showDutyCalculation(result); }
+			return result;
+		});
+	}
+
+	// Shown in the order summary; order/price is asked again with the same hash so the
+	// duty addon lines carry the calculated amounts (no new calculation: same data)
+	function showDutyCalculation(result) {
+		const fresh = GK.state.customsCalc.shownKey !== GK.state.customsCalc.key;
+		renderCustomsCalculation(result);
+		GK.state.customsCalc.shownKey = GK.state.customsCalc.key;
+		if (fresh) { recalcOrderPrice(); }
+	}
+
+		function hideCustomsCalculation() {
 		$('#customsIncludedFees, #customsFutureTaxes').hide().empty();
 		$('#customsPrepaidBox').hide();
 		$('#customsPrepaidAmount').text('');
@@ -4503,13 +4730,6 @@ function resolveReceiverCalcState(countryId) {
 		updateSendButtonDisabled();
 	}
 
-	// Without a saved calculation GK does not issue the customs invoice for a DDP/DAP
-	// Premium shipment (CustomsCalculationOrderLinker), so placing the order waits for it.
-	function isCustomsCalculationReady() {
-		if (!isPremiumDutySelected() || !isCustomsActive()) return true;
-		const status = GK.state.customsCalc && GK.state.customsCalc.status;
-		return status === 'ok';
-	}
 
 	// Human label for a GK error key like "customs[commodities][0][hsCode]" or
 	// "receiverAddress[phone]": the field label from /customs/config plus the
@@ -4570,7 +4790,7 @@ function resolveReceiverCalcState(countryId) {
 		}
 		let html = '';
 		if (calc.status === 'waiting') {
-			html = '<div class="alert alert-info">' + escapeHtml(iv.langCustomsCalcWaiting || 'Complete the customs declaration to calculate the duty.') + '</div>';
+			html = '<div class="alert alert-info">' + escapeHtml(iv.langCustomsCalcWaiting || 'The customs duty is calculated once the shipment details and the customs declaration are complete.') + '</div>';
 		} else if (calc.status === 'loading') {
 			html = '<div class="alert alert-info"><i class="icon-refresh icon-spin"></i> ' + escapeHtml(iv.langCustomsCalcLoading || 'Calculating customs duty...') + '</div>';
 		} else if (calc.status === 'error') {
@@ -4587,24 +4807,32 @@ function resolveReceiverCalcState(countryId) {
 		if (html) { $box.html(html).show(); } else { $box.hide().empty(); }
 	}
 
-	// Duty/tax calculation (POST order/customs/calculation), as GK's own panel
-	// (Ariadna) does it: ONLY for DDP/DAP Premium - every call is a paid Zonos
-	// query on GK's side - and REQUIRED there: GK links the saved calculation to the
-	// order via the shared orderHash and issues the customs invoice from it.
-	function fetchCustomsCalculation() {
+	// Duty/tax calculation (POST order/customs/calculation) for DDP/DAP Premium only:
+	// every call is a paid Zonos query on GK's side, and GK issues the customs invoice
+	// from the calculation it saved under the orderHash the order then carries. So it
+	// runs once, at the last step - from placeOrder(), right before the order - never
+	// while the form is being filled in (Ariadna also calculates once, on its summary step).
+	// Resolves to the calculation, or null when it failed (state "error", shown by
+	// renderCustomsCalcStatus()).
+	function needsDutyCalculation() {
+		return !!GK.state.pickedService && isCustomsActive() && isPremiumDutySelected();
+	}
+
+	// Without Premium no calculation goes with the order - a new hash then, so one
+	// calculated while Premium was selected can't get linked to it
+	function dropDutyCalculation() {
 		const s = GK.state;
-		if (!s.pickedService || !isCustomsActive() || !isPremiumDutySelected()) {
-			// A new hash once Premium is unchecked, so an old calculation can't get
-			// linked to an order placed without Premium.
-			if (s.customsCalc && s.customsCalc.key) { s.orderHash = null; }
-			hideCustomsCalculation();
-			setCustomsCalcState({ status: 'idle', key: null, errors: [], message: '' });
-			return;
-		}
-		if (!isCustomsFormComplete() || !s.orderSummary) {
-			hideCustomsCalculation();
-			setCustomsCalcState({ status: 'waiting', key: null, errors: [], message: '' });
-			return;
+		if (s.customsCalc && s.customsCalc.key) { s.orderHash = null; }
+		hideCustomsCalculation();
+		setCustomsCalcState({ status: 'idle', key: null, errors: [], message: '', result: null, shownKey: null });
+	}
+
+	function fetchCustomsCalculation(manual) {
+		const s = GK.state;
+		const iv = window.InitialValues || {};
+		if (!s.orderSummary) {
+			setCustomsCalcState({ status: 'error', key: null, errors: [], message: iv.langOffersError || 'The price could not be loaded.' });
+			return Promise.resolve(null);
 		}
 		const addr = buildAddressOnlyPayload();
 		const pickAddress = function(a) {
@@ -4632,18 +4860,29 @@ function resolveReceiverCalcState(countryId) {
 			})),
 			customs: buildCustomsPayload(s.customsFields, s.customsData)
 		};
-		// Re-query only when the input changed - addon prices refetched after a
-		// successful calculation must not trigger another paid query
-		const key = JSON.stringify(payload);
+		// The same data again reuses the calculation GK already saved under this hash -
+		// no new query. An automatic call doesn't repeat a failed or running one either
+		// (only "Retry calculation" or "Send" do).
+		// The addons don't reach the landed cost query (LandedCostRequestMapper: addresses,
+		// postal cost = transport + fuel, purpose, declaration) - GK reads them only to tell
+		// DDP from DAP Premium (a returned-goods DAP Premium shortcut) - so the key has the
+		// Premium category instead of every addon id: COD, insurance & co. don't re-query.
+		const premiumCategories = (s.serviceOptions || [])
+			.map(function(o) { return o.category; })
+			.filter(function(category) { return PREMIUM_DUTY_CATEGORIES.indexOf(category) !== -1; })
+			.sort();
+		const key = JSON.stringify(Object.assign({}, payload, { addonIds: premiumCategories }));
 		const calc = s.customsCalc || {};
-		if (calc.key === key && (calc.status === 'ok' || calc.status === 'loading')) return;
+		if (calc.key === key && calc.status === 'ok' && calc.result) return Promise.resolve(calc.result);
+		if (calc.key === key && calc.status === 'loading' && s._dutyCalcRequest) return s._dutyCalcRequest;
+		if (!manual && calc.key === key && calc.status === 'error') return Promise.resolve(null);
 
 		if (!s.orderHash) { s.orderHash = generateOrderHash(); }
 		payload.orderHash = s.orderHash;
 		payload.force = true;
-		setCustomsCalcState({ status: 'loading', key: key, errors: [], message: '' });
+		setCustomsCalcState({ status: 'loading', key: key, errors: [], message: '', result: null });
 		const headers = Object.assign({ 'Content-Type': 'application/json', 'x-currency': postalChargesCurrency }, buildHeaders());
-		fetch(gkApiBase() + 'order/customs/calculation', {
+		s._dutyCalcRequest = fetch(gkApiBase() + 'order/customs/calculation', {
 			method: 'POST',
 			headers: headers,
 			body: JSON.stringify(payload)
@@ -4654,16 +4893,11 @@ function resolveReceiverCalcState(countryId) {
 				return { status: r.status, body: body, text: text };
 			});
 		}).then(function(res) {
-			// A newer request (changed input) superseded this one
-			if (!GK.state.customsCalc || GK.state.customsCalc.key !== key) return;
-			const iv = window.InitialValues || {};
+			// Superseded by a request for newer data
+			if (!GK.state.customsCalc || GK.state.customsCalc.key !== key) return null;
 			if (res.status >= 200 && res.status < 300 && res.body) {
-				renderCustomsCalculation(res.body);
-				setCustomsCalcState({ status: 'ok' });
-				// GK now has the calculation under s.orderHash - refetch order/price
-				// (sent with the same hash) so the duty addon lines get real amounts
-				recalcOrderPrice();
-				return;
+				setCustomsCalcState({ status: 'ok', result: res.body });
+				return res.body;
 			}
 			hideCustomsCalculation();
 			// 403 [] is GK's "customs not required" - but this form is only shown because
@@ -4672,17 +4906,17 @@ function resolveReceiverCalcState(countryId) {
 			// so treat it as a retryable error instead of letting Premium go without a calculation.
 			if (res.status === 403 && Array.isArray(res.body) && !res.body.length) {
 				setCustomsCalcState({ status: 'error', message: iv.langCustomsCalcConfigUnavailable || 'GlobKurier could not confirm the customs requirements for this route. Retry the calculation.' });
-				return;
+				return null;
 			}
 			if (res.status === 403) {
 				setCustomsCalcState({ status: 'error', message: iv.langCustomsCalcLocked || 'GlobKurier does not allow changes to this order any more.' });
-				return;
+				return null;
 			}
 			const fields = res.body && res.body.fields ? res.body.fields : null;
 			if (res.status === 400 && fields) {
 				setCustomsCalcState({ status: 'error', errors: flattenGkErrors(fields, '', []), message: '' });
 				applyCustomsServerErrors(fields);
-				return;
+				return null;
 			}
 			if (window.console) { console.warn('GK customs/calculation HTTP ' + res.status, res.text); }
 			// A 400 without `fields` is the landed cost service (Apollo/Zonos) rejecting
@@ -4695,17 +4929,18 @@ function resolveReceiverCalcState(countryId) {
 					errors: [{ message: iv.langCustomsCalcCheckData || 'Check the receiver state/province (USA, Canada), postcode and city, and the HS codes of the items.' }],
 					message: gkMessages.join(' ')
 				});
-				return;
+				return null;
 			}
 			setCustomsCalcState({
 				status: 'error',
 				message: gkMessages.length ? gkMessages.join(' ') : ((iv.langCustomsCalcServerError || 'GlobKurier server error') + ' (HTTP ' + res.status + ')')
 			});
+			return null;
 		}).catch(function(e) {
-			if (!GK.state.customsCalc || GK.state.customsCalc.key !== key) return;
-			hideCustomsCalculation();
 			setCustomsCalcState({ status: 'error', message: String(e) });
+			return null;
 		});
+		return s._dutyCalcRequest;
 	}
 
 	// Mirrors exactly how GK's own web panel presents this response (confirmed by
@@ -4753,11 +4988,9 @@ function resolveReceiverCalcState(countryId) {
 	}
 
 	// Laid out as GK's own order summary (Ariadna order-summary-of-order-components):
-	// "Includes customs and tax fees" (fees + duties) above the total - after the
-	// calculation /order/price prices the DDP/DAP Premium addon with the whole
-	// calculation, so the total does include it - then the prepaid total (all
-	// items, which GK books from the customs prepaid account when the order is
-	// saved) and the taxes as "Future tax payments".
+	// "Includes customs and tax fees" (fees + duties) above the total, then the total GK
+	// books from the customs prepaid account when the order is saved (all items) and the
+	// taxes as "Future tax payments"
 	function renderCustomsCalculation(resp) {
 		const iv = window.InitialValues || {};
 		const fees = { items: resp.fees || [], labelKey: 'langCustomsFees', fallback: 'Customs fees' };
@@ -4765,27 +4998,15 @@ function resolveReceiverCalcState(countryId) {
 		const taxes = { items: resp.taxes || [], labelKey: 'langCustomsTaxes', fallback: 'Future tax payments' };
 		const allItems = [].concat(fees.items, duties.items, taxes.items);
 		hideCustomsCalculation();
-
 		const sumsByCurrency = {};
-		const tooltipLines = [];
 		allItems.forEach(function(item) {
 			const cur = item.currency || 'PLN';
-			const amount = parseFloat(item.amount) || 0;
-			sumsByCurrency[cur] = (sumsByCurrency[cur] || 0) + amount;
-			tooltipLines.push((item.description || '') + (item.note ? (' (' + item.note + ')') : '') + ': ' + formatCustomsNumber(amount, 2) + ' ' + cur);
+			sumsByCurrency[cur] = (sumsByCurrency[cur] || 0) + (parseFloat(item.amount) || 0);
 		});
 		// Calculated with nothing to pay (e.g. below the destination's threshold) - 0.00, not nothing
 		const totalText = allItems.length
 			? Object.keys(sumsByCurrency).map(function(cur) { return formatCustomsNumber(sumsByCurrency[cur], 2) + ' ' + cur; }).join(' + ')
 			: formatCustomsNumber(0, 2) + ' ' + ((GK.state.orderSummary && GK.state.orderSummary.currency) || 'PLN');
-
-		// Compact total (+ plain-text tooltip breakdown) next to the calculation status
-		$('#customsCalculationPrice')
-			.attr('title', tooltipLines.join('\n'))
-			.text((iv.langEstimatedDuty || 'Estimated duty/fees') + ': ' + totalText)
-			.show();
-
-		// Order summary
 		if (fees.items.length || duties.items.length) {
 			$('#customsIncludedFees')
 				.html('<div class="gk-customs-included-title">' + escapeHtml(iv.langCustomsIncludedFees || 'Includes customs and tax fees') + ':</div>' +
@@ -4797,13 +5018,6 @@ function resolveReceiverCalcState(countryId) {
 			$('#customsFutureTaxes').html(renderCustomsCalcSections([taxes])).show();
 		}
 		$('#customsPrepaidBox').show();
-
-		// Full breakdown inside the customs modal
-		if (allItems.length) {
-			$('#customsCalculationBreakdownTotal').text(totalText);
-			$('#customsCalculationBreakdownBody').html(renderCustomsCalcSections([fees, duties, taxes]));
-			$('#customsCalculationBreakdown').show();
-		}
 	}
 
 	// Read-only preview of the commodities list shown next to the "Customs
@@ -4811,11 +5025,27 @@ function resolveReceiverCalcState(countryId) {
 	// opening the modal - mirrors the summary table in the sibling shopify-app
 	// (there it only refreshes on Save; ours stays live since our modal has no
 	// separate save step - GK.state.customsData is already the live source of truth).
+	const CUSTOMS_ITEMS_PAGE_SIZE = 10;
+
 	function renderCustomsSummaryTable() {
 		const commodities = (GK.state.customsData && GK.state.customsData.commodities) || [];
 		const currency = (GK.state.customsData && GK.state.customsData.currency) || '';
-		if (!commodities.length) { $('#customsSummaryTable').hide(); return; }
-		const rows = commodities.map(function(row) {
+		if (!commodities.length) {
+			$('#customsSummaryTable, #customsItemsPager').hide();
+			$('#customsItemsPanel').hide();
+			return;
+		}
+		// Column labels from the (translated) header, repeated on each cell for the stacked layout
+		const labels = $('#customsSummaryTable thead th').map(function() { return $(this).text().trim(); }).get();
+		const cell = function(index, value) {
+			return '<td data-label="' + escapeHtml(labels[index] || '') + '">' + value + '</td>';
+		};
+		// 10 items a page; the page stays put while the declaration is edited, kept within range
+		const pages = Math.ceil(commodities.length / CUSTOMS_ITEMS_PAGE_SIZE);
+		const page = Math.min(Math.max(parseInt(GK.state.customsItemsPage, 10) || 1, 1), pages);
+		GK.state.customsItemsPage = page;
+		const first = (page - 1) * CUSTOMS_ITEMS_PAGE_SIZE;
+		const rows = commodities.slice(first, first + CUSTOMS_ITEMS_PAGE_SIZE).map(function(row) {
 			const desc = (row.description && row.description.pl) || '';
 			const comp = (row.composition && row.composition.pl) || '';
 			const purp = (row.purpose && row.purpose.pl) || '';
@@ -4823,16 +5053,56 @@ function resolveReceiverCalcState(countryId) {
 			const qty = row.quantity != null ? row.quantity : '';
 			const subtotal = row.subTotalValue != null ? row.subTotalValue : '';
 			return '<tr>' +
-				'<td>' + escapeHtml(desc) + '</td>' +
-				'<td>' + escapeHtml(comp) + '</td>' +
-				'<td>' + escapeHtml(purp) + '</td>' +
-				'<td>' + escapeHtml(hsCode) + '</td>' +
-				'<td>' + escapeHtml(String(qty)) + '</td>' +
-				'<td>' + escapeHtml(String(subtotal)) + (currency ? (' ' + escapeHtml(currency)) : '') + '</td>' +
+				cell(0, escapeHtml(desc)) +
+				cell(1, escapeHtml(comp)) +
+				cell(2, escapeHtml(purp)) +
+				cell(3, escapeHtml(hsCode)) +
+				cell(4, escapeHtml(String(qty))) +
+				cell(5, escapeHtml(subtotal !== '' && isFinite(subtotal) ? formatCustomsNumber(subtotal, 2) : String(subtotal)) + (currency ? (' ' + escapeHtml(currency)) : '')) +
 			'</tr>';
 		}).join('');
 		$('#customsSummaryTableBody').html(rows);
 		$('#customsSummaryTable').show();
+		$('#customsItemsCount').text('(' + commodities.length + ')');
+		renderCustomsItemsPager(page, pages, first, commodities.length);
+		$('#customsItemsPanel').show();
+	}
+
+	function renderCustomsItemsPager(page, pages, first, total) {
+		const $pager = $('#customsItemsPager');
+		if (pages <= 1) { $pager.hide().empty(); return; }
+		const iv = window.InitialValues || {};
+		const fill = function(text, values) {
+			return values.reduce(function(out, value, index) { return out.replace('%' + (index + 1) + '$s', value); }, text);
+		};
+		const last = Math.min(first + CUSTOMS_ITEMS_PAGE_SIZE, total);
+		const button = function(target, label, disabled) {
+			return '<button type="button" class="btn btn-default btn-sm gk-customs-page" data-page="' + target + '"' +
+				(disabled ? ' disabled' : '') + '>' + label + '</button>';
+		};
+		// Numbered pages: all of them up to 7, otherwise the first, the last and the ones next to the current
+		const numbers = [];
+		for (let p = 1; p <= pages; p++) {
+			if (pages <= 7 || p === 1 || p === pages || Math.abs(p - page) <= 1) {
+				numbers.push(p);
+			} else if (numbers[numbers.length - 1] !== 0) {
+				numbers.push(0);
+			}
+		}
+		$pager.html(
+			button(page - 1, '&larr; ' + escapeHtml(iv.langCustomsItemsPrev || 'Previous'), page <= 1) +
+			'<span class="gk-customs-pages">' + numbers.map(function(p) {
+				if (p === 0) return '<span class="gk-customs-page-gap" aria-hidden="true">&hellip;</span>';
+				return p === page
+					? '<span class="btn btn-sm gk-customs-page is-current" aria-current="page">' + p + '</span>'
+					: button(p, String(p), false);
+			}).join('') + '</span>' +
+			button(page + 1, escapeHtml(iv.langCustomsItemsNext || 'Next') + ' &rarr;', page >= pages) +
+			'<span class="gk-customs-page-info" aria-live="polite">' +
+				escapeHtml(fill(iv.langCustomsItemsPage || 'Page %1$s of %2$s', [page, pages])) + ' &middot; ' +
+				escapeHtml(fill(iv.langCustomsItemsRange || 'items %1$s-%2$s of %3$s', [first + 1, last, total])) +
+			'</span>'
+		).show();
 	}
 
 	function renderCustomsSummaryDisplays() {
@@ -4931,8 +5201,7 @@ function renderSummaryContainer() {
 			|| !!GK.state.shipmentEditing
 			|| (!GK.state.additionalInfo || !GK.state.additionalInfo.paymentType)
 			|| !!GK.state.priceError
-			|| getUnselectedAlternativeGroups().length > 0
-			|| !isCustomsCalculationReady();
+			|| getUnselectedAlternativeGroups().length > 0;
 		$('#sendOrderBtn').prop('disabled', disabled || GK.state.isProcessing);
 	}
 
@@ -5001,8 +5270,8 @@ function renderSummaryContainer() {
 					GK.state.orderSummary = resp;
 					GK.state.priceError = null;
 					if (customsMode) { adoptPricedDeclaredValueTier(resp); }
-					// The duty calculation base (products + fuel) comes from this response
-					debouncedCustomsCalculation();
+					// The calculation base (products + fuel) and the addons come from here
+					scheduleDutyCalculation();
 					const cur = resp.currency ? (' ' + resp.currency) : ' PLN';
                     const fuel = (resp.fuelSurchargeGrossPrice != null ? resp.fuelSurchargeGrossPrice : resp.fuelSurcharge);
                     const baseNet = (resp.totalNetPrice != null ? resp.totalNetPrice : null);

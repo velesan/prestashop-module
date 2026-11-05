@@ -1105,49 +1105,62 @@ body[class*="controller-adminglobkurier"] h4.modal-title span.closeModal {
     color: #fff;
 }
 #mainFormBox .gk-segmented-btn:focus-visible,
-#mainFormBox .gk-carrier-tile:focus-visible,
 #mainFormBox .gk-offer-toggle:focus-visible,
 #mainFormBox .gk-offers-more-btn:focus-visible {
     outline: 2px solid #25b9d7;
     outline-offset: 2px;
 }
+/* Carrier tiles as on GK's own search page (FilterPanel.vue): flat 98x50 logo tiles,
+   the picked one with a navy ring set off by a white gap */
 #mainFormBox .gk-carrier-tiles {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 10px;
+    padding: 5px;
 }
 #mainFormBox .gk-carrier-tile {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 72px;
-    height: 72px;
-    padding: 6px;
-    border: 1px solid #d5dde5;
+    width: 98px;
+    height: 50px;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid #dcdcdc;
     border-radius: 8px;
     background: #fff;
+    color: #767676;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.25;
+    text-align: center;
+    overflow-wrap: anywhere;
+    transition: border-color 0.15s ease-in-out;
+}
+#mainFormBox .gk-carrier-tile:hover {
+    border-color: #1c274c;
+}
+#mainFormBox .gk-carrier-tile:focus-visible {
+    outline: 2px solid #7bc244;
+    outline-offset: 5px;
 }
 #mainFormBox .gk-carrier-tile img {
-    max-width: 100%;
-    max-height: 100%;
+    width: 100%;
+    height: 100%;
     object-fit: contain;
 }
 #mainFormBox .gk-carrier-tile.is-active {
-    border: 3px solid #1e3042;
-    padding: 4px;
+    color: #1c274c;
+    font-weight: 600;
+    box-shadow: 0 0 0 2px #fff, 0 0 0 5px #1c274c;
 }
+/* Text tiles ("All carriers", carriers without a logo) */
 #mainFormBox .gk-carrier-tile-all {
-    font-size: 12px;
-    font-weight: 700;
-    line-height: 1.2;
-    color: #1e3042;
+    padding: 0 4px;
+    font-weight: inherit;
 }
-/* "All carriers" tile sized to its text instead of breaking the word */
-#mainFormBox .gk-carrier-tile[data-value="ALL"] {
-    width: auto;
-    min-width: 72px;
-    padding-left: 12px;
-    padding-right: 12px;
+#mainFormBox .gk-carrier-tile[data-value="ALL"] .gk-carrier-tile-all {
+    font-weight: 600;
 }
 #mainFormBox .gk-offers-header {
     display: flex;
@@ -1201,10 +1214,10 @@ body[class*="controller-adminglobkurier"] h4.modal-title span.closeModal {
     background: #fff;
     box-shadow: 0 1px 2px rgba(30, 48, 66, 0.06);
 }
-#mainFormBox .gk-offer--recommended { background: #f5f9ec; }
-#mainFormBox .gk-offer--new { background: #f2f9fd; }
-#mainFormBox .gk-offer--scheduled { background: #fffaeb; }
-#mainFormBox .gk-offer--crossborder { background: #f6f3fd; }
+#mainFormBox .gk-offer--recommended { background: #f4faf0; }
+#mainFormBox .gk-offer--new { background: #f6fbff; }
+#mainFormBox .gk-offer--scheduled { background: #fffcef; }
+#mainFormBox .gk-offer--crossborder { background: #f9f8ff; }
 #mainFormBox .gk-offer--neutral { background: #f8f9fa; }
 #mainFormBox .gk-offer.gk-template-match {
     border-color: #1db3d4;
@@ -1213,26 +1226,56 @@ body[class*="controller-adminglobkurier"] h4.modal-title span.closeModal {
 #mainFormBox .gk-offer-template-badge {
     border-radius: 8px 0 6px 0;
 }
+/* Promo ribbon as GK's own (PromoRibbon.vue): notched on the left, folded around the card
+   on the right (::after), with a soft drop shadow; colours per kind as in productPromo.ts */
 #mainFormBox .gk-offer-ribbon {
     position: absolute;
-    top: -11px;
+    top: -12px;
     right: -5px;
+    z-index: 2;
     max-width: calc(100% - 32px);
-    overflow: hidden;
-    padding: 4px 12px 4px 16px;
-    border-radius: 2px 2px 0 2px;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.05)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+    --gk-ribbon-bg: #1c274c;
+    --gk-ribbon-fg: #fff;
+    --gk-ribbon-fold: #020617;
+}
+#mainFormBox .gk-offer-ribbon::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    right: 0;
+    border-top: 5px solid var(--gk-ribbon-fold);
+    border-right: 5px solid transparent;
+}
+#mainFormBox .gk-offer-ribbon-body {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    padding: 6px 12px 6px 20px;
+    background: var(--gk-ribbon-bg);
+    color: var(--gk-ribbon-fg);
     font-size: 12px;
     font-weight: 700;
     line-height: 16px;
+    -webkit-clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 7px 50%);
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 7px 50%);
+}
+#mainFormBox .gk-offer-ribbon-body svg {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+}
+#mainFormBox .gk-offer-ribbon-text {
+    min-width: 0;
+    overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
-    background: #1e3042;
-    color: #fff;
 }
-#mainFormBox .gk-offer-ribbon--recommended { background: #96c21f; color: #1e3042; }
-#mainFormBox .gk-offer-ribbon--new { background: #0369a1; }
-#mainFormBox .gk-offer-ribbon--scheduled { background: #fde68a; color: #451a03; }
-#mainFormBox .gk-offer-ribbon--crossborder { background: #6d28d9; }
+#mainFormBox .gk-offer-ribbon--recommended { --gk-ribbon-bg: #7bc244; --gk-ribbon-fg: #1c274c; --gk-ribbon-fold: #6ea93c; }
+#mainFormBox .gk-offer-ribbon--new { --gk-ribbon-bg: #0369a1; --gk-ribbon-fold: #0c4a6e; }
+#mainFormBox .gk-offer-ribbon--scheduled { --gk-ribbon-bg: #fde68a; --gk-ribbon-fg: #451a03; --gk-ribbon-fold: #f59e0b; }
+#mainFormBox .gk-offer-ribbon--crossborder { --gk-ribbon-bg: #6d28d9; --gk-ribbon-fold: #4c1d95; }
 #mainFormBox .gk-offer-grid {
     display: flex;
     flex-wrap: wrap;
@@ -1246,22 +1289,39 @@ body[class*="controller-adminglobkurier"] h4.modal-title span.closeModal {
     gap: 12px;
     min-width: 0;
 }
+/* Flat logo box as GK's own offer rows (80x40, 120x60 from a 340px wide identity column,
+   160x80 from 448px - the same container steps as there) */
+#mainFormBox .gk-offer-identity {
+    container-type: inline-size;
+}
 #mainFormBox .gk-offer-logo {
     display: flex;
     flex: 0 0 auto;
     align-items: center;
     justify-content: center;
-    width: 72px;
-    height: 72px;
+    width: 80px;
+    height: 40px;
     overflow: hidden;
-    border: 1px solid #e3e8ee;
+    border: 1px solid #e2e5ea;
     border-radius: 8px;
-    background: #fff;
+    background: #fafbfc;
 }
 #mainFormBox .gk-offer-logo img {
-    max-width: 100%;
-    max-height: 100%;
+    width: 100%;
+    height: 100%;
     object-fit: contain;
+}
+@container (min-width: 340px) {
+    #mainFormBox .gk-offer-logo {
+        width: 120px;
+        height: 60px;
+    }
+}
+@container (min-width: 448px) {
+    #mainFormBox .gk-offer-logo {
+        width: 160px;
+        height: 80px;
+    }
 }
 #mainFormBox .gk-offer-info {
     min-width: 0;
@@ -1436,11 +1496,8 @@ body[class*="controller-adminglobkurier"] h4.modal-title span.closeModal {
         flex: 1 1 auto;
     }
     #mainFormBox .gk-carrier-tile {
-        width: 60px;
-        height: 60px;
-    }
-    #mainFormBox .gk-carrier-tile[data-value="ALL"] {
-        min-width: 60px;
+        width: 84px;
+        height: 44px;
     }
     #mainFormBox .gk-segmented-btn {
         flex-basis: 30%;
@@ -1473,4 +1530,193 @@ body[class*="controller-adminglobkurier"] h4.modal-title span.closeModal {
 }
 #mainFormBox .gk-customs-prepaid-total strong {
     white-space: nowrap;
+}
+
+/* Sender's dangerous goods declaration (bindDangerousGoodsDeclaration()), as in GK's own form */
+#mainFormBox .gk-dg-declaration {
+    margin-top: 10px;
+    border: 1px solid #e3e8ee;
+}
+#mainFormBox .gk-dg-declaration > .panel-heading {
+    margin: 0;
+    border-bottom: 1px solid #e3e8ee;
+}
+#mainFormBox .gk-dg-declaration.gk-dg-invalid {
+    border-color: #e84e3c;
+}
+#mainFormBox .gk-dg-required {
+    color: #e84e3c;
+}
+#mainFormBox .gk-dg-text {
+    display: block;
+    margin: 0;
+    line-height: 1.45;
+}
+#mainFormBox .gk-dg-text.collapsed {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+#mainFormBox .gk-dg-toggle {
+    padding: 0;
+    font-size: 12px;
+}
+#mainFormBox .gk-dg-switch {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 12px;
+    margin-top: 10px;
+}
+#mainFormBox .gk-dg-switch-label {
+    font-weight: 600;
+}
+#mainFormBox .gk-dg-switch .prestashop-switch {
+    flex: 0 0 auto;
+    margin: 0;
+}
+#mainFormBox .gk-dg-error {
+    margin: 6px 0 0;
+    color: #e84e3c;
+    font-size: 12px;
+}
+#mainFormBox .gk-dg-adr-note {
+    margin: 8px 0 0;
+    font-size: 12px;
+}
+
+/* Carrier holiday notice on an offer (renderOfferHolidayInfo()), red "!" as on GK's own offer rows */
+#mainFormBox .gk-offer-holiday {
+    margin-top: 4px;
+}
+#mainFormBox .gk-offer-holiday-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: #ef2a24;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+#mainFormBox .gk-offer-holiday-btn:focus-visible {
+    outline: 2px solid #1c274c;
+    outline-offset: 2px;
+}
+#mainFormBox .gk-offer-holiday-text {
+    margin-top: 6px;
+    padding: 8px 10px;
+    border-left: 3px solid #ef2a24;
+    background: #fff5f5;
+    color: #1c274c;
+    font-size: 12px;
+    line-height: 1.4;
+}
+#mainFormBox .gk-offer-holiday-text p {
+    margin: 0;
+}
+#mainFormBox .gk-offer-holiday-text p + p {
+    margin-top: 4px;
+}
+
+/* Customs items summary (renderCustomsSummaryTable()): a table where there is room, one card per
+   item ("label: value" rows from each cell's data-label) in a narrow column or on a phone */
+#mainFormBox .gk-customs-summary {
+    container-type: inline-size;
+}
+#mainFormBox .gk-customs-summary-table td {
+    overflow-wrap: anywhere;
+}
+/* HS code, quantity and value are never broken inside the table */
+#mainFormBox .gk-customs-summary-table td:nth-child(n+4) {
+    white-space: nowrap;
+    overflow-wrap: normal;
+}
+@container (max-width: 559px) {
+    #mainFormBox .gk-customs-summary-table thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
+    #mainFormBox .gk-customs-summary-table,
+    #mainFormBox .gk-customs-summary-table tbody,
+    #mainFormBox .gk-customs-summary-table tr,
+    #mainFormBox .gk-customs-summary-table td {
+        display: block;
+        width: 100%;
+    }
+    #mainFormBox .gk-customs-summary-table tr {
+        margin-bottom: 10px;
+        padding: 8px 12px;
+        border: 1px solid #e3e8ee;
+        border-radius: 8px;
+        background: #fff;
+    }
+    #mainFormBox .gk-customs-summary-table > tbody > tr > td {
+        display: grid;
+        grid-template-columns: minmax(90px, 40%) minmax(0, 1fr);
+        gap: 8px;
+        padding: 4px 0;
+        border: 0;
+    }
+    #mainFormBox .gk-customs-summary-table > tbody > tr > td + td {
+        border-top: 1px solid #f0f2f5;
+    }
+    #mainFormBox .gk-customs-summary-table > tbody > tr > td:nth-child(n+4) {
+        white-space: normal;
+    }
+    #mainFormBox .gk-customs-summary-table td::before {
+        content: attr(data-label);
+        color: #6d7683;
+        font-weight: 600;
+    }
+    #mainFormBox .gk-customs-summary-table > tbody > tr > td:first-child {
+        font-weight: 700;
+        color: #1c274c;
+    }
+}
+
+/* Customs declaration items, full width above the order summary (renderCustomsSummaryTable()) */
+#mainFormBox .gk-customs-pager {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    margin-top: 6px;
+}
+#mainFormBox .gk-customs-pages {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+#mainFormBox .gk-customs-page {
+    min-width: 34px;
+}
+#mainFormBox .gk-customs-page.is-current {
+    border-color: #1c274c;
+    background: #1c274c;
+    color: #fff;
+    cursor: default;
+}
+#mainFormBox .gk-customs-page-gap {
+    align-self: center;
+    padding: 0 2px;
+    color: #6d7683;
+}
+#mainFormBox .gk-customs-page-info {
+    margin-left: auto;
+    color: #6d7683;
+    font-size: 12px;
+}
+@media (max-width: 480px) {
+    #mainFormBox .gk-customs-page-info {
+        flex-basis: 100%;
+        margin-left: 0;
+    }
 }
