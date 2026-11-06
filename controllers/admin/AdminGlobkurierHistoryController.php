@@ -484,6 +484,15 @@ class AdminGlobkurierHistoryController extends ModuleAdminController
                     return implode(' ', $messages);
                 }
             }
+            // Errors not tied to a field, e.g. {"general": ["..."]}
+            if (isset($json['general'])) {
+                $general = array_filter((array) $json['general'], function ($message) {
+                    return is_string($message) && $message !== '';
+                });
+                if ($general) {
+                    return implode(' ', $general);
+                }
+            }
             if (!empty($json['message']) && is_string($json['message'])) {
                 return $json['message'];
             }

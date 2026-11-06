@@ -1,6 +1,24 @@
-## [3.6.0] - 2026-10-19
-+ Customs documents (GLOBKURIER-10216): attach PDF documents (max 5 MB) to an already placed customs shipment - right on the success screen after placing it, in the shipment history and on the PrestaShop order page. Only the document types the carrier requires, with readable names (DHL Express, FedEx, UPS, Raben); delete not-yet-sent documents; send them to the carrier, with the reason shown when that is not possible yet
-+ Shipments placed with a customs declaration are flagged (new nullable gk_orders.has_customs column); the "Documents" button is shown only for them
+## [3.6.0] - 2026-11-06
++ Customs documents: upload, delete and send PDF documents required by the carrier for placed customs shipments (GLOBKURIER-10216)
++ Shipments with a customs declaration flagged (gk_orders.has_customs)
++ DDP/DAP Premium duty calculation shown in the order summary before sending, calculated once per data set (GLOBKURIER-10378)
++ Duty calculation sends the receiver's state/province; landed cost errors shown with what to check
++ GlobKurier's 403 [] on a customs route treated as a retryable calculation error
++ Fixed: GlobKurier "general" order errors (e.g. prepaid balance too low) replaced by a generic message
++ Declared value taken from the customs declaration
++ Customs declaration currency taken from the order (then shop default, then PLN); item values converted
++ Customs items listed full width above the order summary, 10 per page
++ Customs form validation based on GlobKurier's constraints
++ Radio-type customs fields shown as radio buttons; amounts accept a decimal comma
++ Offer list as on GlobKurier's search page: sorting, filters (incl. Crossborder), carrier tiles, promo ribbons, holiday notices (GLOBKURIER-10394)
++ Shipment parameters shown as a summary with "Change details"; changing them requires picking an offer again
++ Fixed: "Show all carriers" switch had no effect for courier carriers
++ Template picker moved into "Choose delivery"; changing the template re-quotes the offers
++ GlobKurier API rate limit (429) message shown instead of a generic error
++ Required addon groups shown as required radio groups
++ Sender's dangerous goods declaration required before sending; ADR addons hidden (GLOBKURIER-10368)
++ Fixed: changing the sending method cleared the selected addons
++ Fixed: international phone prefix could be dropped
 
 ## [3.5.0] - 2026-09-18
 + Customs declaration form for international shipments: generic renderer driven entirely by GlobKurier's own /customs/config field metadata (sections, dual-language description/composition/purpose, commodities, EORI, invoice details)
