@@ -1,4 +1,4 @@
-## [3.6.0] - 2026-10-19
+## [3.6.0] - 2026-11-06
 + Customs documents: upload, delete and send PDF documents required by the carrier for placed customs shipments (GLOBKURIER-10216)
 + Shipments with a customs declaration flagged (gk_orders.has_customs)
 + DDP/DAP Premium duty calculation shown in the order summary before sending, calculated once per data set (GLOBKURIER-10378)
