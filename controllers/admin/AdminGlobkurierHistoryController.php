@@ -61,7 +61,10 @@ class AdminGlobkurierHistoryController extends ModuleAdminController
         $orders = $orderManager->getAll($perPage, $offset);
 
         $baseUrl = $this->link->getAdminLink('AdminGlobkurierHistory');
-        $this->module->addTradeDocumentsAssets($this->context->controller);
+        // $this->module is typed as Module; narrow it so static analysis sees the method
+        if ($this->module instanceof Globkuriermodule) {
+            $this->module->addTradeDocumentsAssets($this->context->controller);
+        }
         $this->context->smarty->assign([
             'gkTradeDocsI18nTpl' => _PS_MODULE_DIR_ . 'globkuriermodule/views/templates/admin/trade_documents_i18n.tpl',
             'orders' => $orders,

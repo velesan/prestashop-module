@@ -19,6 +19,8 @@
 + Sender's dangerous goods declaration required before sending; ADR addons hidden (GLOBKURIER-10368)
 + Fixed: changing the sending method cleared the selected addons
 + Fixed: international phone prefix could be dropped
++ Fixed: PHP 8-only syntax broke the module on PHP 7.1-7.4 (PrestaShop 1.7)
++ PrestaShop Addons Validator fixes; LF line endings and dev files left out of the package (GLOBKURIER-10425)
 
 ## [3.5.0] - 2026-09-18
 + Customs declaration form for international shipments: generic renderer driven entirely by GlobKurier's own /customs/config field metadata (sections, dual-language description/composition/purpose, commodities, EORI, invoice details)

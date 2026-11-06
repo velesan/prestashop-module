@@ -796,15 +796,8 @@ class Globkuriermodule extends Module
      * @param array|null $savedPickup Previously saved pickup point or null
      * @param bool $hiddenMode True when rendered in displayAfterCarrier (JS controls visibility)
      */
-    public function renderPickupWidget(
-        array $info,
-        int $carrierId,
-        int $cartId,
-        Config $config,
-        Address $address,
-        ?array $savedPickup,
-        bool $hiddenMode,
-    ) {
+    public function renderPickupWidget(array $info, int $carrierId, int $cartId, Config $config, Address $address, ?array $savedPickup, bool $hiddenMode)
+    {
         $this->smarty->assign([
             'gk_service_code' => $info['serviceCode'],
             'gk_carrier_type' => $info['type'],

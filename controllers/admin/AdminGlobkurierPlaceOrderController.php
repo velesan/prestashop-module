@@ -63,7 +63,10 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
         $this->context->controller->addJS(
             $this->path . '/views/js/newParcelApp.jquery.js?v=' . (@filemtime($newParcelJsFile) ?: 1)
         );
-        $this->module->addTradeDocumentsAssets($this->context->controller);
+        // $this->module is typed as Module; narrow it so static analysis sees the method
+        if ($this->module instanceof Globkuriermodule) {
+            $this->module->addTradeDocumentsAssets($this->context->controller);
+        }
 
         if (!empty($c->defaultCountryCode)) {
             $sender_country_id = Country::getByIso($c->defaultCountryCode);
@@ -300,15 +303,6 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
     }
 
     /**
-     * Tries to split the street number/apartment number out of the address.
-     * Also considers the address2 field, since some shops split the address
-     * across two fields.
-     *
-     * @param Address $address - the address instance
-     *
-     * @return AddressSplitter\AddressSplitter|null null if the split failed
-     */
-    /**
      * Currencies for the customs declaration, in order of preference: the order's,
      * the shop's default, PLN. Each with the rate converting the order's item values
      * into it (null when PrestaShop cannot convert, e.g. PLN not installed) - the
@@ -356,6 +350,15 @@ class AdminGlobkurierPlaceOrderController extends ModuleAdminController
         return array_values($result);
     }
 
+    /**
+     * Tries to split the street number/apartment number out of the address.
+     * Also considers the address2 field, since some shops split the address
+     * across two fields.
+     *
+     * @param Address $address - the address instance
+     *
+     * @return AddressSplitter\AddressSplitter|null null if the split failed
+     */
     private function getSplittedAddres(Address $address)
     {
         $splitter = new AddressSplitter\AddressSplitter();
