@@ -62,6 +62,10 @@ $(function () {
     let markerClusterGroup = null;
     let selectedMarker = null;
 
+    // PrestaShop 9.2 One Page Checkout (ps_onepagecheckout): the carrier list is re-rendered
+    // over AJAX and the order is placed with #opc-pay-button instead of the #js-delivery form
+    const isOpc = !!document.getElementById('opc-form');
+
     // Maps JS service codes to GK API carrierName for the /points endpoint
     const GK_CARRIER_NAME = {
         'PACZKOMAT':      'inPost-Paczkomaty',
@@ -117,6 +121,12 @@ $(function () {
     // so it appears above the submit button. PS 9 Hummingbird uses .delivery-option__extra;
     // PS 1.7 Classic uses .carrier-extra-content or falls back to inserting after the row.
     function moveWidgetsToCarrierRows() {
+        // OPC replaces the whole carrier list HTML on every refresh (before emitting any event)
+        // and renders displayAfterCarrier only once, so a widget moved into a carrier row would
+        // be destroyed - keep them in #hook-display-after-carrier, right under the list
+        if (isOpc) {
+            return;
+        }
         $('.gk-pickup-widget').each(function() {
             const $widget = $(this);
             const carrierId = parseInt($widget.attr('data-gk-carrier-id'), 10);
@@ -129,7 +139,7 @@ $(function () {
 
             // PS 9 Hummingbird: .delivery-option__extra / .js-carrier-extra inside item wrapper
             const $ps9Extra = $radio
-                .closest('.delivery-options__item')
+                .closest('.delivery-options__item, .delivery-option__item')
                 .find('.delivery-option__extra, .js-carrier-extra')
                 .first();
             if ($ps9Extra.length) {
@@ -166,6 +176,48 @@ $(function () {
             $wrapper.show();
             setTimeout(function() { $wrapper.show(); }, 450);
         }
+        updatePickupValidity();
+    }
+
+    // OPC places the order only when its form is natively valid (form.checkValidity()), hidden
+    // fields included - so only the active widget's select may be invalid, the others never
+    function updatePickupValidity() {
+        if (!isOpc) {
+            return;
+        }
+        const active = getActiveWidget()[0];
+        $('.gk-pickup-widget').each(function() {
+            const select = $(this).find('select[name="pickup_point"]')[0];
+            if (!select || typeof select.setCustomValidity !== 'function') {
+                return;
+            }
+            const value = select.value;
+            const missing = this === active && (!value || value === '0');
+            const message = $(this).find('.gk-pickup-error-banner').text().trim() || 'Select a pickup point';
+            select.setCustomValidity(missing ? message : '');
+        });
+    }
+
+    // Highlights the widget of a carrier chosen without a pickup point
+    function showPickupError($widget) {
+        const $select = $widget.find('select[name="pickup_point"]');
+        const $search = $widget.find('input[name="pickup_town"]');
+
+        $widget.find('.gk-pickup-error-banner').addClass('is-visible');
+
+        if ($select.closest('.pickup-result').is(':visible')) {
+            $select.addClass('gk-field-error');
+            setTimeout(function() { $select.removeClass('gk-field-error'); }, 600);
+        } else {
+            $widget.addClass('gk-field-error');
+            $search.addClass('gk-field-error');
+            setTimeout(function() {
+                $widget.removeClass('gk-field-error');
+                $search.removeClass('gk-field-error');
+            }, 600);
+        }
+
+        $widget[0].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
     // Fills address from config, restores saved pickup or triggers auto-search
@@ -267,6 +319,7 @@ $(function () {
             $result.show();
             $widget.find('.pickup-point-selected').html('<p>Wybrany punkt: <b>' + savedCode + '</b></p>');
             $widget.find('.gk-pickup-error-banner').removeClass('is-visible');
+            updatePickupValidity();
         }).fail(function() {
             if (onNoPickup) onNoPickup();
         });
@@ -289,6 +342,7 @@ $(function () {
         });
 
         deletePickupPoint();
+        updatePickupValidity();
         return true;
     });
 
@@ -390,6 +444,7 @@ $(function () {
     $(document).on('change', 'select[name="pickup_point"]', function() {
         const $widget = $(this).closest('.gk-pickup-widget');
         const selected = $(this).val();
+        updatePickupValidity();
 
         if (!selected || selected === '0') {
             // Remove marker highlight on deselect
@@ -464,26 +519,31 @@ $(function () {
         if (!selected || selected === '0') {
             e.stopImmediatePropagation();
             e.preventDefault();
-
-            const $select = $widget.find('select[name="pickup_point"]');
-            const $search = $widget.find('input[name="pickup_town"]');
-
-            $widget.find('.gk-pickup-error-banner').addClass('is-visible');
-
-            if ($select.closest('.pickup-result').is(':visible')) {
-                $select.addClass('gk-field-error');
-                setTimeout(function() { $select.removeClass('gk-field-error'); }, 600);
-            } else {
-                $widget.addClass('gk-field-error');
-                $search.addClass('gk-field-error');
-                setTimeout(function() {
-                    $widget.removeClass('gk-field-error');
-                    $search.removeClass('gk-field-error');
-                }, 600);
-            }
-
-            $widget[0].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            showPickupError($widget);
         }
+    }
+
+    // OPC: runs in the capture phase, before OPC's own click/submit handlers check the form's
+    // validity - refreshes it and shows our error (OPC only focuses fields that are visible)
+    function gkCheckOpcSubmit(e) {
+        const target = e.target;
+        const isPlaceOrder = e.type === 'submit'
+            ? target && target.id === 'opc-form'
+            : target && target.closest && target.closest('#opc-pay-button');
+        if (!isPlaceOrder) {
+            return;
+        }
+        updatePickupValidity();
+        const $widget = getActiveWidget();
+        const select = $widget.find('select[name="pickup_point"]')[0];
+        if (select && !select.checkValidity()) {
+            showPickupError($widget);
+        }
+    }
+
+    if (isOpc) {
+        document.addEventListener('click', gkCheckOpcSubmit, true);
+        document.addEventListener('submit', gkCheckOpcSubmit, true);
     }
 
     function bindDeliveryValidation() {
@@ -505,6 +565,86 @@ $(function () {
             // Small delay lets PS finish injecting the carrier extra content
             setTimeout(triggerAutoSearch, 50);
         });
+
+        // OPC: the carrier list was re-rendered (address change) or a carrier was picked. Both
+        // fire together after a refresh - the timer merges them into a single search.
+        let opcRefreshTimer = null;
+        const scheduleOpcRefresh = function() {
+            clearTimeout(opcRefreshTimer);
+            opcRefreshTimer = setTimeout(function() {
+                refreshOpcDeliveryAddress(function() {
+                    resetPickupState();
+                    triggerAutoSearch();
+                });
+            }, 50);
+        };
+        window.prestashop.on('opcCarriersUpdated', scheduleOpcRefresh);
+        window.prestashop.on('opcCarrierSelected', scheduleOpcRefresh);
+    }
+
+    // OPC changes the delivery address without a page reload, so the address the widgets were
+    // rendered with goes stale: take the inline address fields when filled in (guest, new
+    // address), otherwise the cart's delivery address
+    function refreshOpcDeliveryAddress(done) {
+        const el = $('.gk-pickup-widget').first()[0];
+        const cartId   = window.GlobKurier.get('cart.id')    || (el && el.getAttribute('data-gk-cart-id'));
+        const token    = window.GlobKurier.get('cart.token') || (el && el.getAttribute('data-gk-token'));
+        const endpoint = (window.GlobKurier.get('api.endpoint') || (el && el.getAttribute('data-gk-rest-endpoint')) || '').replace(/&amp;/g, '&');
+        if (!el || !cartId || !token || !endpoint) {
+            done();
+            return;
+        }
+
+        const inline = {};
+        const $fields = $('#opc-delivery-address-fields');
+        if ($fields.length && !$fields.hasClass('d-none')) {
+            ['city', 'postcode', 'id_country'].forEach(function(name) {
+                const value = String($fields.find('[name="' + name + '"]').val() || '').trim();
+                if (value) {
+                    inline[name] = value;
+                }
+            });
+        }
+
+        $.ajax({
+            url: endpoint,
+            method: 'POST',
+            dataType: 'json',
+            data: { id_cart: cartId, ajax: 1, action: 'getDeliveryAddress', token: token, id_country: inline.id_country || '' }
+        }).done(function(r) {
+            if (!r || !r.success) {
+                return;
+            }
+            applyDeliveryAddress(inline.city
+                ? { city: inline.city, postcode: inline.postcode || '', countryIso: r.countryIso || '' }
+                : { city: r.city || '', postcode: r.postcode || '', countryIso: r.countryIso || '' });
+        }).always(done);
+    }
+
+    function applyDeliveryAddress(address) {
+        const $widgets = $('.gk-pickup-widget');
+        const changed = $widgets.first().attr('data-gk-delivery-city') !== address.city
+            || $widgets.first().attr('data-gk-delivery-postcode') !== address.postcode;
+        $widgets.each(function() {
+            const $widget = $(this);
+            $widget.attr('data-gk-delivery-city', address.city);
+            $widget.attr('data-gk-delivery-postcode', address.postcode);
+            if (address.countryIso) {
+                $widget.attr('data-gk-delivery-country-iso', address.countryIso);
+            }
+            if (changed) {
+                // A new address replaces the customer's own search query
+                $widget.removeAttr('data-gk-user-edited');
+            }
+        });
+        if (window.GlobKurier.config) {
+            const current = window.GlobKurier.config.address || {};
+            window.GlobKurier.config.address = {
+                city: address.city,
+                postcode: address.postcode,
+                countryIso: address.countryIso || current.countryIso || ''
+            };
+        }
     }
 
     // --- Countries map / country ID resolution ---

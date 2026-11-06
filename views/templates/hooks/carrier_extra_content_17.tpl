@@ -52,7 +52,7 @@
                    data-service-code="{$gk_service_code|escape:'html':'UTF-8'}"
                    value="{$city|escape:'htmlall':'UTF-8'}{if $postcode}, {$postcode|escape:'htmlall':'UTF-8'}{/if}" />
             <div class="input-group-btn">
-                <button class="btn btn-primary search-button">{l s='Search' mod='globkuriermodule'}</button>
+                <button type="button" class="btn btn-primary search-button">{l s='Search' mod='globkuriermodule'}</button>
             </div>
         </div>
     </div>

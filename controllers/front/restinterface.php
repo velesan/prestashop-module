@@ -279,6 +279,37 @@ class GlobkuriermoduleRestinterfaceModuleFrontController extends ModuleFrontCont
     }
 
     /**
+     * Returns the cart's delivery address for the pickup point search. One Page Checkout
+     * changes it without a page reload. With id_country (an inline address not saved to
+     * the cart yet), countryIso is that country's.
+     */
+    public function displayAjaxGetDeliveryAddress()
+    {
+        $cart = new Cart((int) $this->id_cart);
+        $address = null;
+        if (Validate::isLoadedObject($cart) && (int) $cart->id_address_delivery) {
+            $address = new Address((int) $cart->id_address_delivery);
+            if (!Validate::isLoadedObject($address)) {
+                $address = null;
+            }
+        }
+        $idCountry = (int) Tools::getValue('id_country');
+        if (!$idCountry && $address) {
+            $idCountry = (int) $address->id_country;
+        }
+
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => true,
+            'city' => $address ? (string) $address->city : '',
+            'postcode' => $address ? (string) $address->postcode : '',
+            'countryIso' => $idCountry ? (string) Country::getIsoById($idCountry) : '',
+        ]);
+
+        return true;
+    }
+
+    /**
      * Checks whether the correct token was given for this cart. Protects against
      * unauthorized modification of someone else's cart
      *

@@ -19,6 +19,7 @@
 + Sender's dangerous goods declaration required before sending; ADR addons hidden (GLOBKURIER-10368)
 + Fixed: changing the sending method cleared the selected addons
 + Fixed: international phone prefix could be dropped
++ PrestaShop 9.2 One Page Checkout: pickup point widget kept across carrier list refreshes, order blocked without a pickup point, search follows the delivery address (GLOBKURIER-10425)
 + Fixed: PHP 8-only syntax broke the module on PHP 7.1-7.4 (PrestaShop 1.7)
 + PrestaShop Addons Validator fixes; LF line endings and dev files left out of the package (GLOBKURIER-10425)
 
