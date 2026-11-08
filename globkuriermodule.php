@@ -259,7 +259,7 @@ class Globkuriermodule extends Module
             'moduleVersion' => $this->version,
             'gk_latestVersion' => $latestVersion,
             'gk_updateAvailable' => $latestVersion && version_compare($latestVersion, $this->version, '>'),
-            'gk_githubReleaseUrl' => 'https://github.com/globkurier/prestashop-module/releases/latest',
+            'gk_githubReleaseUrl' => 'https://github.com/velesan/prestashop-module/releases/latest',
             'gk_currentPaymentId' => $currentPaymentId,
             'gk_prepaidBalance' => $gkPrepaidBalance,
             // HEX flags neutralize <, >, ', ", & so this is safe to output as-is inside
@@ -1097,7 +1097,7 @@ class Globkuriermodule extends Module
         $this->context->smarty->assign([
             'gk_currentVersion' => $this->version,
             'gk_latestVersion' => $latestVersion,
-            'gk_githubReleaseUrl' => 'https://github.com/globkurier/prestashop-module/releases/latest',
+            'gk_githubReleaseUrl' => 'https://github.com/velesan/prestashop-module/releases/latest',
         ]);
 
         return $this->display(__FILE__, 'views/templates/hooks/github_update_notification.tpl');
@@ -1113,8 +1113,11 @@ class Globkuriermodule extends Module
         }
 
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, 'https://api.github.com/repos/globkurier/prestashop-module/releases/latest');
+        curl_setopt($ch, CURLOPT_URL, 'https://api.github.com/repos/velesan/prestashop-module/releases/latest');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        // GitHub answers a moved repository with a 301; follow it
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
         curl_setopt($ch, CURLOPT_USERAGENT, 'globkuriermodule/' . $this->version);
         curl_setopt($ch, CURLOPT_TIMEOUT, 5);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);

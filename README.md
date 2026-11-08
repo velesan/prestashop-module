@@ -1,6 +1,6 @@
 # GlobKurier Shipping Module for PrestaShop
 
-[![Latest stable release](https://img.shields.io/github/v/release/globkurier/prestashop-module?labelColor=green&label=Latest%20release)](https://github.com/globkurier/prestashop-module/releases)
+[![Latest stable release](https://img.shields.io/github/v/release/velesan/prestashop-module?labelColor=green&label=Latest%20release)](https://github.com/velesan/prestashop-module/releases)
 ![Supported PrestaShop Version](https://img.shields.io/badge/Prestashop-%3E%3D1.7.9.0-gray?labelColor=DF0067&logo=prestashop)
 ![Supported PHP Version](https://img.shields.io/badge/PHP-%3E=7.4-B0B3D6?labelColor=white&logo=php)
 
@@ -26,7 +26,7 @@ With this plugin, merchants can easily connect their PrestaShop store to GlobKur
 
 ## Installation
 
-1. **Download the Module**: Obtain the latest release from the [Releases](https://github.com/globkurier/prestashop-module/releases) page or directly from your PrestaShop admin panel.
+1. **Download the Module**: Obtain the latest release from the [Releases](https://github.com/velesan/prestashop-module/releases) page or directly from your PrestaShop admin panel.
 2. **Install via Admin Panel**:
    - Navigate to **Modules > Module Manager** in your PrestaShop back office.
    - Upload the module ZIP file and click **Install**.

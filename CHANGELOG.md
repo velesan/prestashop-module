@@ -21,6 +21,7 @@
 + Fixed: international phone prefix could be dropped
 + PrestaShop 9.2 One Page Checkout: pickup point widget kept across carrier list refreshes, order blocked without a pickup point, search follows the delivery address (GLOBKURIER-10425)
 + Fixed: PHP 8-only syntax broke the module on PHP 7.1-7.4 (PrestaShop 1.7)
++ Fixed: "new version available" notice never shown (GitHub repository moved)
 + PrestaShop Addons Validator fixes; LF line endings and dev files left out of the package (GLOBKURIER-10425)
 
 ## [3.5.0] - 2026-09-18
