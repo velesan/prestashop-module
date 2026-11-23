@@ -1,3 +1,8 @@
+## [3.6.1] - 2026-11-23
++ Fixed: config page unstyled on PrestaShop 1.7 since 3.4.0 (back office stylesheet not loaded) (GLOBKURIER-10495)
++ Fixed: saving the config did nothing when a required field in another tab was empty; the form now opens that tab
++ Order summary shows base price, fuel surcharge, addons and discount as net (gross), then total net, total gross and VAT
+
 ## [3.6.0] - 2026-11-06
 + Customs documents: upload, delete and send PDF documents required by the carrier for placed customs shipments (GLOBKURIER-10216)
 + Shipments with a customs declaration flagged (gk_orders.has_customs)
