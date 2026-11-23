@@ -1056,11 +1056,15 @@ class Globkuriermodule extends Module
     {
         // Without a version query string, a CDN/reverse-proxy/browser cache in front
         // of the shop can keep serving a stale back.css indefinitely after an update -
-        // same cache-busting approach as configApp.jquery.js below.
+        // same cache-busting approach as configApp.jquery.js below. $check_path is
+        // false because PS 1.7 Media::getCSSPath() rejects a path with a query string,
+        // which silently dropped the stylesheet; the file is local and always present.
         $backCssFile = _PS_MODULE_DIR_ . 'globkuriermodule/views/css/back.css';
         $this->context->controller->addCSS(
             $this->_path . 'views/css/back.css?v=' . (@filemtime($backCssFile) ?: $this->version),
-            'all'
+            'all',
+            null,
+            false
         );
 
         // The PS order page lists this order's GK shipments (displayAdminOrderMainBottom)
