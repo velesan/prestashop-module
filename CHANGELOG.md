@@ -1,12 +1,12 @@
 ## [3.6.1] - 2026-11-23
-+ Fixed: config page unstyled on PrestaShop 1.7 since 3.4.0 (back office stylesheet not loaded) (GLOBKURIER-10495)
++ Fixed: config page unstyled on PrestaShop 1.7 since 3.4.0 (back office stylesheet not loaded)
 + Fixed: saving the config did nothing when a required field in another tab was empty; the form now opens that tab
 + Order summary shows base price, fuel surcharge, addons and discount as net (gross), then total net, total gross and VAT
 
 ## [3.6.0] - 2026-11-06
-+ Customs documents: upload, delete and send PDF documents required by the carrier for placed customs shipments (GLOBKURIER-10216)
++ Customs documents: upload, delete and send PDF documents required by the carrier for placed customs shipments
 + Shipments with a customs declaration flagged (gk_orders.has_customs)
-+ DDP/DAP Premium duty calculation shown in the order summary before sending, calculated once per data set (GLOBKURIER-10378)
++ DDP/DAP Premium duty calculation shown in the order summary before sending, calculated once per data set
 + Duty calculation sends the receiver's state/province; landed cost errors shown with what to check
 + GlobKurier's 403 [] on a customs route treated as a retryable calculation error
 + Fixed: GlobKurier "general" order errors (e.g. prepaid balance too low) replaced by a generic message
@@ -15,19 +15,19 @@
 + Customs items listed full width above the order summary, 10 per page
 + Customs form validation based on GlobKurier's constraints
 + Radio-type customs fields shown as radio buttons; amounts accept a decimal comma
-+ Offer list as on GlobKurier's search page: sorting, filters (incl. Crossborder), carrier tiles, promo ribbons, holiday notices (GLOBKURIER-10394)
++ Offer list as on GlobKurier's search page: sorting, filters (incl. Crossborder), carrier tiles, promo ribbons, holiday notices
 + Shipment parameters shown as a summary with "Change details"; changing them requires picking an offer again
 + Fixed: "Show all carriers" switch had no effect for courier carriers
 + Template picker moved into "Choose delivery"; changing the template re-quotes the offers
 + GlobKurier API rate limit (429) message shown instead of a generic error
 + Required addon groups shown as required radio groups
-+ Sender's dangerous goods declaration required before sending; ADR addons hidden (GLOBKURIER-10368)
++ Sender's dangerous goods declaration required before sending; ADR addons hidden
 + Fixed: changing the sending method cleared the selected addons
 + Fixed: international phone prefix could be dropped
-+ PrestaShop 9.2 One Page Checkout: pickup point widget kept across carrier list refreshes, order blocked without a pickup point, search follows the delivery address (GLOBKURIER-10425)
++ PrestaShop 9.2 One Page Checkout: pickup point widget kept across carrier list refreshes, order blocked without a pickup point, search follows the delivery address
 + Fixed: PHP 8-only syntax broke the module on PHP 7.1-7.4 (PrestaShop 1.7)
 + Fixed: "new version available" notice never shown (GitHub repository moved)
-+ PrestaShop Addons Validator fixes; LF line endings and dev files left out of the package (GLOBKURIER-10425)
++ PrestaShop Addons Validator fixes; LF line endings and dev files left out of the package
 
 ## [3.5.0] - 2026-09-18
 + Customs declaration form for international shipments: generic renderer driven entirely by GlobKurier's own /customs/config field metadata (sections, dual-language description/composition/purpose, commodities, EORI, invoice details)
