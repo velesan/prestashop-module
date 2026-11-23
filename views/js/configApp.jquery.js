@@ -156,6 +156,26 @@
 		}
 	}
 
+	function initInvalidFieldTab() {
+		// The config form spans several tabs, but only the active one is displayed. A required
+		// field left empty in another tab blocks the native submit, and the browser cannot
+		// point at a hidden field ("not focusable"), so Save silently did nothing. The invalid
+		// events fire before the browser reports the first problem, so showing that field's
+		// tab here lets the browser focus it and show its message.
+		const form = document.getElementById('gk-config-form');
+		if (!form) { return; }
+		let handled = false;
+		form.addEventListener('invalid', function (e) {
+			if (handled) { return; }
+			handled = true;
+			setTimeout(function () { handled = false; }, 0);
+			const pane = e.target.closest('.gk-tab-pane');
+			if (pane && !pane.classList.contains('gk-active')) {
+				activateTab(pane.id);
+			}
+		}, true);
+	}
+
 	function initLoginLoadingState() {
 		// This is a native form submit (full page reload via Post/Redirect/Get), not
 		// AJAX - there's a multi-second gap with no visual feedback otherwise. Disabling
@@ -239,6 +259,7 @@
 
 	$(function () {
 		initSidebar();
+		initInvalidFieldTab();
 		initLoginLoadingState();
 		initLogout();
 		initApiEnvSwitch();
