@@ -5272,53 +5272,7 @@ function renderSummaryContainer() {
 					if (customsMode) { adoptPricedDeclaredValueTier(resp); }
 					// The calculation base (products + fuel) and the addons come from here
 					scheduleDutyCalculation();
-					const cur = resp.currency ? (' ' + resp.currency) : ' PLN';
-                    const fuel = (resp.fuelSurchargeGrossPrice != null ? resp.fuelSurchargeGrossPrice : resp.fuelSurcharge);
-                    const baseNet = (resp.totalNetPrice != null ? resp.totalNetPrice : null);
-                    const addonsNet = (resp.addonsNetPrice != null ? resp.addonsNetPrice : 0);
-                    const netWithFuel = (resp.productsGrossPrice != null ? resp.productsGrossPrice : null);
-                    const gross = (resp.totalGrossPrice != null ? resp.totalGrossPrice : null);
-                    const discount = (resp.discountNetPrice != null ? resp.discountNetPrice : 0);
-
-					$('#summaryBaseNet').text(baseNet != null ? (baseNet + cur) : '-');
-                    $('#summaryRowBaseNet').toggle(baseNet != null);
-
-                    $('#summaryAddonsNet').text(addonsNet ? (addonsNet + cur) : ('0' + cur));
-                    $('#summaryRowAddons').toggle(!!addonsNet);
-                    $('#summaryDiscount').text(discount ? ('-' + discount + cur) : ('0' + cur));
-                    $('#summaryRowDiscount').toggle(!!discount);
-
-					$('#summaryNetWithFuel').text(netWithFuel != null ? (netWithFuel + cur) : '-');
-                    $('#summaryRowNetWithFuel').toggle(netWithFuel != null);
-
-					$('#summaryGross').text(gross != null ? (gross + cur) : '-');
-                    $('#summaryRowGross').toggle(gross != null);
-
-                    $('#summaryFuel').text(fuel != null ? (fuel + cur) : '-');
-                    $('#summaryRowFuel').toggle(fuel != null);
-                    // VAT: prefer explicit vatPercent; fall back to taxType like "VAT23"
-                    let parsedVat = null;
-                    if (resp && !resp.vatPercent && resp.taxType && /^VAT(\d+)/.test(resp.taxType)) {
-                        parsedVat = parseInt(RegExp.$1, 10);
-                    }
-                    const effectiveVatPercent = (resp && resp.vatPercent != null) ? resp.vatPercent : parsedVat;
-                    const vatVal = (resp.totalGrossPrice != null && resp.totalNetPrice != null)
-                        ? (resp.totalGrossPrice - resp.totalNetPrice)
-                        : null;
-                    if (effectiveVatPercent != null || (vatVal != null && !isNaN(vatVal))) {
-                        if (effectiveVatPercent != null) {
-                            $('#summaryVatLabel').text('(' + effectiveVatPercent + '%)');
-                        } else {
-                            $('#summaryVatLabel').text('');
-                        }
-                        const vatText = (vatVal != null && !isNaN(vatVal)) ? vatVal.toFixed(2) + cur : ('0' + cur);
-                        $('#summaryVat').text(vatText);
-                        $('#summaryRowVat').show();
-                    } else {
-                        $('#summaryVatLabel').text('');
-                        $('#summaryVat').text('-');
-                        $('#summaryRowVat').hide();
-                    }
+					renderPriceSummary(resp, true);
 				} else {
 					let msg = 'Błąd kalkulacji ceny';
 					if (resp && resp.fields && typeof resp.fields === 'object') {
@@ -5341,38 +5295,8 @@ function renderSummaryContainer() {
 								.then(function(r2){
 									if (!r2 || r2.totalNetPrice == null) { return; }
 									GK.state.orderSummary = r2;
-									const cur2 = r2.currency ? (' ' + r2.currency) : ' PLN';
-									const fuel2 = (r2.fuelSurchargeGrossPrice != null ? r2.fuelSurchargeGrossPrice : r2.fuelSurcharge);
-									const baseNet2 = (r2.totalNetPrice != null ? r2.totalNetPrice : null);
-									const addonsNet2 = (r2.addonsNetPrice != null ? r2.addonsNetPrice : 0);
-									const netWithFuel2 = (r2.productsGrossPrice != null ? r2.productsGrossPrice : null);
-									const gross2 = (r2.totalGrossPrice != null ? r2.totalGrossPrice : null);
-									const discount2 = 0; // wyzerowany rabat
-									$('#summaryBaseNet').text(baseNet2 != null ? (baseNet2 + cur2) : '-');
-									$('#summaryRowBaseNet').toggle(baseNet2 != null);
-									$('#summaryAddonsNet').text(addonsNet2 ? (addonsNet2 + cur2) : ('0' + cur2));
-									$('#summaryRowAddons').toggle(!!addonsNet2);
-									$('#summaryDiscount').text('0' + cur2);
-									$('#summaryRowDiscount').toggle(false);
-									$('#summaryNetWithFuel').text(netWithFuel2 != null ? (netWithFuel2 + cur2) : '-');
-									$('#summaryRowNetWithFuel').toggle(netWithFuel2 != null);
-									$('#summaryGross').text(gross2 != null ? (gross2 + cur2) : '-');
-									$('#summaryRowGross').toggle(gross2 != null);
-									$('#summaryFuel').text(fuel2 != null ? (fuel2 + cur2) : '-');
-									$('#summaryRowFuel').toggle(fuel2 != null);
-									let parsedVat2 = null;
-									if (r2 && !r2.vatPercent && r2.taxType && /^VAT(\d+)/.test(r2.taxType)) { parsedVat2 = parseInt(RegExp.$1, 10); }
-									const effVat2 = (r2 && r2.vatPercent != null) ? r2.vatPercent : parsedVat2;
-									const vatVal2 = (r2.totalGrossPrice != null && r2.totalNetPrice != null) ? (r2.totalGrossPrice - r2.totalNetPrice) : null;
-									if (effVat2 != null || (vatVal2 != null && !isNaN(vatVal2))) {
-										$('#summaryVatLabel').text(effVat2 != null ? ('(' + effVat2 + '%)') : '');
-										$('#summaryVat').text(vatVal2 != null ? vatVal2.toFixed(2) + cur2 : ('0' + cur2));
-										$('#summaryRowVat').show();
-									} else {
-										$('#summaryVatLabel').text('');
-										$('#summaryVat').text('-');
-										$('#summaryRowVat').hide();
-									}
+									// The discount code was rejected, so no discount is shown
+									renderPriceSummary(r2, false);
 									updateSendButtonDisabled();
 								});
 						} catch(e) {}
@@ -5381,6 +5305,61 @@ function renderSummaryContainer() {
 				updateSendButtonDisabled();
 			});
 	}
+
+// Order summary from GET order/price: each charge net with its gross amount in
+// brackets (base price, fuel surcharge, addons, discount), then the totals.
+// productsNetPrice excludes the fuel surcharge, so base + fuel + addons - discount
+// adds up to totalNetPrice.
+function renderPriceSummary(resp, withDiscount) {
+    const cur = ' ' + (resp.currency || 'PLN');
+    const num = function(v) { const n = parseFloat(v); return isNaN(n) ? null : n; };
+    const money = function(v) { return v.toFixed(2) + cur; };
+    // Fills a "net (gross)" row and hides it when the net amount is missing or zero
+    const setPair = function(rowId, netId, grossId, net, gross, sign) {
+        const show = net != null && net !== 0;
+        $('#' + rowId).toggle(show);
+        if (!show) { return; }
+        $('#' + netId).text((sign || '') + money(net));
+        $('#' + grossId).text(gross != null ? (sign || '') + money(gross) : '-');
+    };
+
+    const baseNet = num(resp.productsNetPrice);
+    $('#summaryRowBaseNet').toggle(baseNet != null);
+    if (baseNet != null) {
+        $('#summaryBaseNet').text(money(baseNet));
+        const baseGross = num(resp.productsGrossPrice);
+        $('#summaryBaseGross').text(baseGross != null ? money(baseGross) : '-');
+    }
+    setPair('summaryRowFuel', 'summaryFuel', 'summaryFuelGross',
+        num(resp.fuelSurchargeNetPrice), num(resp.fuelSurchargeGrossPrice));
+    setPair('summaryRowAddons', 'summaryAddonsNet', 'summaryAddonsGross',
+        num(resp.addonsNetPrice), num(resp.addonsGrossPrice));
+    setPair('summaryRowDiscount', 'summaryDiscount', 'summaryDiscountGross',
+        withDiscount ? num(resp.discountNetPrice) : null, num(resp.discountGrossPrice), '-');
+
+    const totalNet = num(resp.totalNetPrice);
+    const totalGross = num(resp.totalGrossPrice);
+    $('#summaryTotalNet').text(totalNet != null ? money(totalNet) : '-');
+    $('#summaryRowTotalNet').toggle(totalNet != null);
+    $('#summaryGross').text(totalGross != null ? money(totalGross) : '-');
+    $('#summaryRowGross').toggle(totalGross != null);
+
+    // VAT: prefer explicit vatPercent; fall back to taxType like "VAT23"
+    let vatPercent = resp.vatPercent != null ? resp.vatPercent : null;
+    if (vatPercent == null && resp.taxType && /^VAT(\d+)/.test(resp.taxType)) {
+        vatPercent = parseInt(RegExp.$1, 10);
+    }
+    const vatVal = (totalGross != null && totalNet != null) ? totalGross - totalNet : null;
+    if (vatPercent != null || vatVal != null) {
+        $('#summaryVatLabel').text(vatPercent != null ? '(' + vatPercent + '%)' : '');
+        $('#summaryVat').text(vatVal != null ? money(vatVal) : '0' + cur);
+        $('#summaryRowVat').show();
+    } else {
+        $('#summaryVatLabel').text('');
+        $('#summaryVat').text('-');
+        $('#summaryRowVat').hide();
+    }
+}
 
 function renderServicesAndBind() {
     // Keep TPL markup; only bind events here

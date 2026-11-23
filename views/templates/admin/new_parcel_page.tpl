@@ -520,15 +520,16 @@
                                 {* DDP/DAP Premium duty calculation: waiting / in progress / error (renderCustomsCalcStatus()) *}
                                 <div id="customsCalcStatus" style="display:none;"></div>
                                 <div id="orderSummaryBox" class="well" style="margin-top:10px;">
-                                    <div id="summaryRowBaseNet"><strong>{l s='Base price net' mod='globkuriermodule'}</strong>: <span id="summaryBaseNet">-</span></div>
-                                    <div id="summaryRowAddons"><strong>{l s='Additional services selected' mod='globkuriermodule'}</strong>: <span id="summaryAddonsNet">-</span></div>
-                                    <div id="summaryRowDiscount"><strong>{l s='Discount net' mod='globkuriermodule'}</strong>: <span id="summaryDiscount">-</span></div>
-                                    <div id="summaryRowNetWithFuel"><strong>{l s='Total net + fuel' mod='globkuriermodule'}</strong>: <span id="summaryNetWithFuel">-</span></div>
+                                    {* Each charge net, with its gross amount in brackets *}
+                                    <div id="summaryRowBaseNet"><strong>{l s='Base price net' mod='globkuriermodule'}</strong>: <span id="summaryBaseNet">-</span> <span class="text-muted">(<span id="summaryBaseGross">-</span>)</span></div>
+                                    <div id="summaryRowFuel"><strong>{l s='Fuel surcharge net' mod='globkuriermodule'}</strong>: <span id="summaryFuel">-</span> <span class="text-muted">(<span id="summaryFuelGross">-</span>)</span></div>
+                                    <div id="summaryRowAddons"><strong>{l s='Additional services net' mod='globkuriermodule'}</strong>: <span id="summaryAddonsNet">-</span> <span class="text-muted">(<span id="summaryAddonsGross">-</span>)</span></div>
+                                    <div id="summaryRowDiscount"><strong>{l s='Discount net' mod='globkuriermodule'}</strong>: <span id="summaryDiscount">-</span> <span class="text-muted">(<span id="summaryDiscountGross">-</span>)</span></div>
+                                    <div id="summaryRowTotalNet"><strong>{l s='Total net' mod='globkuriermodule'}</strong>: <span id="summaryTotalNet">-</span></div>
                                     {* Laid out as GK's own order summary: the customs fees and duties above the total,
                                        then the total charged to the customs prepaid account and the taxes *}
                                     <div id="customsIncludedFees" class="gk-customs-included" style="display:none;"></div>
                                     <div id="summaryRowGross"><strong>{l s='Total gross' mod='globkuriermodule'}</strong>: <span id="summaryGross">-</span></div>
-                                    <div id="summaryRowFuel" class="text-muted" style="font-size:12px;">{l s='incl. fuel surcharge' mod='globkuriermodule'}: <span id="summaryFuel">-</span></div>
                                     <div id="summaryRowVat" class="text-muted" style="font-size:12px;">{l s='incl. VAT' mod='globkuriermodule'} <span id="summaryVatLabel"></span>: <span id="summaryVat">-</span></div>
                                     <div id="customsPrepaidBox" class="gk-customs-prepaid" style="display:none;">
                                         <div class="gk-customs-prepaid-total">{l s='Total customs and tax charges paid from the prepaid account' mod='globkuriermodule'}: <strong id="customsPrepaidAmount"></strong></div>

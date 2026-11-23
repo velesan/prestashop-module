@@ -330,12 +330,12 @@ $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_aa74397584da0fd719c7f349
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_9639e32cab248434a17ab32237cb3b71'] = 'Zastosuj';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_dc30bc0c7914db5918da4263fce93ad2'] = 'Wyczyść';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_6638f31cfd8e47b58690279bfd98c714'] = 'Cena bazowa netto';
-$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_7ff1248a841c303d8fe6f9f88930beca'] = 'Wybrane usługi dodatkowe';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_e8e7a37465f9a774e7be3729d76ac08b'] = 'Usługi dodatkowe netto';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_85814096b8ce0e617dba7374f2cf4e5a'] = 'Rabat netto';
-$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_42c575de495eac1d26cbfab8ad304730'] = 'Razem netto + paliwo';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_c0b8090af6d579bb5972ffa85a9f49e1'] = 'Razem netto';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_42229ca5dd6c9d6fea6acda62573d4da'] = 'Łącznie brutto';
-$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_a1b789c16e2e3991463c18de073a877a'] = 'w tym opłata paliwowa';
-$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_69db1ddc2a15253abb0a11beb1eae734'] = 'z VAT';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_b0487fa64b574954739b61cd167a0945'] = 'Opłata paliwowa netto';
+$_MODULE['<{globkuriermodule}prestashop>new_parcel_page_69db1ddc2a15253abb0a11beb1eae734'] = 'w tym VAT';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_94966d90747b97d1f0f206c98a8b1ac3'] = 'Nadaj';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_67838a580a67c01392c8bc906654228a'] = 'Wybór przewoźnika';
 $_MODULE['<{globkuriermodule}prestashop>new_parcel_page_96063f8689ce5ab6a344c912469643e8'] = 'Nie znaleziono żadnych usług';
